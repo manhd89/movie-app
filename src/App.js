@@ -1,8 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import Home from './pages/Home';
-import Movie from './pages/Movie';
-import Watch from './pages/Watch';
+import MovieDetail from './pages/MovieDetail';
 import './App.css';
 
 function App() {
@@ -12,8 +11,8 @@ function App() {
         <Header />
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/movie/:slug" element={<Movie />} />
-          <Route path="/watch/:slug/:episodeSlug" element={<Watch />} />
+          <Route path="/movie/:slug" element={<MovieDetail />} />
+          <Route path="/movie/:slug/:episodeSlug" element={<MovieDetail />} />
         </Routes>
       </div>
     </BrowserRouter>
