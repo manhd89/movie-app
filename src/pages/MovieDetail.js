@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
+import Hls from 'hls.js';
 import 'react-toastify/dist/ReactToastify.css';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
@@ -17,7 +18,7 @@ function MovieDetail() {
   });
   const [currentEpisode, setCurrentEpisode] = useState(null);
   const [loading, setLoading] = useState(true);
-  const iframeRef = useRef(null);
+  const videoRef = useRef(null);
 
   useEffect(() => {
     const fetchMovie = async () => {
@@ -58,8 +59,23 @@ function MovieDetail() {
   }, [selectedServer, slug]);
 
   useEffect(() => {
-    if (iframeRef.current && currentEpisode?.link_embed) {
-      iframeRef.current.src = currentEpisode.link_embed;
+    if (currentEpisode?.link_m3u8 && videoRef.current) {
+      if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(currentEpisode.link_m3u8);
+        hls.attachMedia(videoRef.current);
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            toast.error('Lỗi tải video. Vui lòng thử tập khác.');
+          }
+        });
+        return () => hls.destroy(); // Cleanup on unmount
+      } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+        // Native HLS support (e.g., Safari)
+        videoRef.current.src = currentEpisode.link_m3u8;
+      } else {
+        toast.error('Trình duyệt không hỗ trợ phát HLS.');
+      }
     }
   }, [currentEpisode]);
 
@@ -112,14 +128,15 @@ function MovieDetail() {
       <ToastContainer />
       <h1 className="movie-title">{movie.name}{currentEpisode ? ` - ${currentEpisode.name || 'Tập phim'}` : ''}</h1>
       <div className="movie-detail">
-        {currentEpisode && isValidUrl(currentEpisode.link_embed) ? (
+        {currentEpisode && isValidUrl(currentEpisode.link_m3u8) ? (
           <>
             <div className="video-player">
-              <iframe
-                ref={iframeRef}
-                src={currentEpisode.link_embed}
-                title={`Video Player for ${currentEpisode.name || 'Episode'}`}
-                allowFullScreen
+              <video
+                ref={videoRef}
+                controls
+                width="100%"
+                height="100%"
+                aria-label={`Video player for ${currentEpisode.name || 'Tập phim'}`}
               />
             </div>
             <button
@@ -133,6 +150,8 @@ function MovieDetail() {
               Quay lại thông tin phim
             </button>
           </>
+        ) : currentEpisode ? (
+          <p>Video không khả dụng cho tập này.</p>
         ) : (
           <>
             <LazyLoadImage
