@@ -41,7 +41,7 @@ function Header() {
 
   // Xử lý tìm kiếm (Enter hoặc nút Tìm)
   const handleSearch = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Luôn ngăn chặn hành vi mặc định của form
     if (searchQuery.trim()) {
       // Lưu lịch sử tìm kiếm
       const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
@@ -51,14 +51,15 @@ function Header() {
       }
       navigate(`/?keyword=${encodeURIComponent(searchQuery)}&page=1`);
       setSearchQuery('');
-      setShowSuggestions(false); // Đóng gợi ý
-      // Ẩn bàn phím ảo
-      if (inputRef.current) {
-        inputRef.current.blur();
-      }
     } else {
       navigate('/'); // Về trang chủ nếu không có từ khóa
-      setShowSuggestions(false);
+    }
+    // Đảm bảo ẩn và xóa gợi ý sau khi xử lý tìm kiếm
+    setShowSuggestions(false);
+    setSuggestions([]);
+    // Ẩn bàn phím ảo
+    if (inputRef.current) {
+      inputRef.current.blur();
     }
   };
 
@@ -66,6 +67,7 @@ function Header() {
   const handleSuggestionClick = (item) => {
     setSearchQuery('');
     setShowSuggestions(false);
+    setSuggestions([]); // Clear suggestions after selection
     if (item.slug) {
       navigate(`/movie/${item.slug}`); // Chuyển đến Movie.js
     } else {
@@ -116,9 +118,10 @@ function Header() {
 
   // Xử lý phím Enter
   const handleKeyDown = (e) => {
+    // Check for common "submit" keys on mobile keyboards
     if (e.key === 'Enter' || e.key === 'Done' || e.key === 'Go' || e.key === 'Search') {
       e.preventDefault();
-      handleSearch(e); // Gọi handleSearch để đóng gợi ý
+      handleSearch(e); // Gọi handleSearch để đóng gợi ý và xử lý tìm kiếm
     }
   };
 
@@ -127,6 +130,7 @@ function Header() {
     const handleClickOutside = (event) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
         setShowSuggestions(false);
+        setSuggestions([]); // Clear suggestions when clicking outside
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -154,7 +158,12 @@ function Header() {
             className="search-input"
             autoComplete="off"
           />
-          <button type="submit" className="search-button">
+          <button
+            type="submit" // Vẫn giữ type="submit" để có thể nhấn Enter trong input
+            className="search-button"
+            // Thêm onClick để đảm bảo hàm xử lý được gọi ngay lập tức
+            onClick={handleSearch}
+          >
             Tìm
           </button>
         </form>
