@@ -9,6 +9,13 @@ import 'react-toastify/dist/ReactToastify.css';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
 
+// Ad-blocking CSS from the script (only ad-related styles)
+const adBlockCSS = `
+  .bg-opacity-40.bg-white.w-full.text-center.space-x-2.bottom-0.absolute {
+    display: none !important;
+  }
+`;
+
 function MovieDetail() {
   const { slug, episodeSlug } = useParams();
   const [movie, setMovie] = useState(null);
@@ -20,6 +27,94 @@ function MovieDetail() {
   const [loading, setLoading] = useState(true);
   const videoRef = useRef(null);
 
+  // Inject ad-blocking CSS
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = adBlockCSS;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
+
+  // Ad-blocking logic from the script
+  const config = {
+    adsRegexList: [
+      new RegExp(
+        '(?<!#EXT-X-DISCONTINUITY[\\s\\S]*)#EXT-X-DISCONTINUITY\\n(?:.*?\\n){18,24}#EXT-X-DISCONTINUITY\\n(?![\\s\\S]*#EXT-X-DISCONTINUITY)',
+        'g'
+      ),
+      /#EXT-X-DISCONTINUITY\n(?:#EXT-X-KEY:METHOD=NONE\n(?:.*\n){18,24})?#EXT-X-DISCONTINUITY\n|convertv7\//g,
+      /#EXT-X-DISCONTINUITY\n(?:#EXTINF:(?:3.92|0.76|2.00|2.50|2.00|2.42|2.00|0.78|1.96)0000,\n.*\n){9}#EXT-X-DISCONTINUITY\n(?:#EXTINF:(?:2.00|1.76|3.20|2.00|1.36|2.00|2.00|0.72)0000,\n.*\n){8}(?=#EXT-X-DISCONTINUITY)/g,
+    ],
+    domainBypassWhitelist: ['kkphimplayer', 'phim1280', 'opstream'],
+  };
+
+  const caches = { blob: {} };
+
+  function getTotalDuration(playlist) {
+    const matches = playlist.match(/#EXTINF:([\d.]+)/g) ?? [];
+    return matches.reduce((sum, match) => sum + parseFloat(match.split(':')[1]), 0);
+  }
+
+  function isContainAds(playlist) {
+    return config.adsRegexList.some((regex) => {
+      regex.lastIndex = 0;
+      return regex.test(playlist);
+    });
+  }
+
+  function getExceptionDuration(url) {
+    url = new URL(url);
+    if (['ophim', 'opstream'].some((keyword) => url.hostname.includes(keyword))) {
+      return 600;
+    } else if (['nguonc', 'streamc'].some((keyword) => url.hostname.includes(keyword))) {
+      return Infinity;
+    } else {
+      return 900;
+    }
+  }
+
+  async function removeAds(playlistUrl) {
+    playlistUrl = new URL(playlistUrl);
+    if (caches.blob[playlistUrl.href]) {
+      return caches.blob[playlistUrl.href];
+    }
+    const isNoNeedToBypass = config.domainBypassWhitelist.some((keyword) =>
+      playlistUrl.hostname.includes(keyword)
+    );
+    let req = await fetch(playlistUrl); // Use native fetch
+    let playlist = await req.text();
+    playlist = playlist.replace(/^[^#].*$/gm, (line) => {
+      try {
+        const parsed = new URL(line, playlistUrl);
+        return parsed.toString();
+      } catch {
+        return line;
+      }
+    });
+    if (playlist.includes('#EXT-X-STREAM-INF')) {
+      caches.blob[playlistUrl.href] = await removeAds(
+        playlist.trim().split('\n').slice(-1)[0]
+      );
+      return caches.blob[playlistUrl.href];
+    }
+    if (isContainAds(playlist)) {
+      playlist = config.adsRegexList.reduce((playlist2, regex) => {
+        return playlist2.replaceAll(regex, '');
+      }, playlist);
+    } else if (getTotalDuration(playlist) <= getExceptionDuration(playlistUrl)) {
+      // No action needed for short playlists
+    } else {
+      toast.error('Không tìm thấy quảng cáo. Vui lòng báo cáo nếu video chứa quảng cáo.');
+    }
+    caches.blob[playlistUrl.href] = URL.createObjectURL(
+      new Blob([playlist], {
+        type: req.headers.get('Content-Type') ?? 'text/plain',
+      })
+    );
+    return caches.blob[playlistUrl.href];
+  }
+
+  // Fetch movie data
   useEffect(() => {
     const fetchMovie = async () => {
       try {
@@ -54,28 +149,33 @@ function MovieDetail() {
     fetchMovie();
   }, [slug, episodeSlug, selectedServer]);
 
+  // Persist selected server
   useEffect(() => {
     localStorage.setItem(`selectedServer-${slug}`, selectedServer);
   }, [selectedServer, slug]);
 
+  // Handle video playback with ad removal
   useEffect(() => {
     if (currentEpisode?.link_m3u8 && videoRef.current) {
-      if (Hls.isSupported()) {
-        const hls = new Hls();
-        hls.loadSource(currentEpisode.link_m3u8);
-        hls.attachMedia(videoRef.current);
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) {
-            toast.error('Lỗi tải video. Vui lòng thử tập khác.');
+      const loadVideo = async () => {
+        try {
+          const cleanPlaylistUrl = await removeAds(currentEpisode.link_m3u8);
+          if (Hls.isSupported()) {
+            const hls = new Hls();
+            hls.loadSource(cleanPlaylistUrl);
+            hls.attachMedia(videoRef.current);
+            return () => hls.destroy();
+          } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+            videoRef.current.src = cleanPlaylistUrl;
+          } else {
+            toast.error('Trình duyệt không hỗ trợ phát HLS.');
           }
-        });
-        return () => hls.destroy(); // Cleanup on unmount
-      } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
-        // Native HLS support (e.g., Safari)
-        videoRef.current.src = currentEpisode.link_m3u8;
-      } else {
-        toast.error('Trình duyệt không hỗ trợ phát HLS.');
-      }
+        } catch (error) {
+          console.error('Error loading video:', error);
+          toast.error('Lỗi xử lý video. Vui lòng thử lại.');
+        }
+      };
+      loadVideo();
     }
   }, [currentEpisode]);
 
@@ -123,10 +223,16 @@ function MovieDetail() {
             ? `${movie.name} - ${currentEpisode.name || 'Tập phim'}`
             : movie.seoOnPage?.titleHead || movie.name}
         </title>
-        <meta name="description" content={movie.seoOnPage?.descriptionHead || truncateDescription(movie.content)} />
+        <meta
+          name="description"
+          content={movie.seoOnPage?.descriptionHead || truncateDescription(movie.content)}
+        />
       </Helmet>
       <ToastContainer />
-      <h1 className="movie-title">{movie.name}{currentEpisode ? ` - ${currentEpisode.name || 'Tập phim'}` : ''}</h1>
+      <h1 className="movie-title">
+        {movie.name}
+        {currentEpisode ? ` - ${currentEpisode.name || 'Tập phim'}` : ''}
+      </h1>
       <div className="movie-detail">
         {currentEpisode && isValidUrl(currentEpisode.link_m3u8) ? (
           <>
@@ -165,8 +271,14 @@ function MovieDetail() {
             <div className="movie-info">
               <p><strong>Tên gốc:</strong> {movie.origin_name}</p>
               <p><strong>Năm:</strong> {movie.year}</p>
-              <p><strong>Thể loại:</strong> {movie.category?.map((cat) => cat.name).join(', ') || 'N/A'}</p>
-              <p><strong>Quốc gia:</strong> {movie.country?.map((c) => c.name).join(', ') || 'N/A'}</p>
+              <p>
+                <strong>Thể loại:</strong>{' '}
+                {movie.category?.map((cat) => cat.name).join(', ') || 'N/A'}
+              </p>
+              <p>
+                <strong>Quốc gia:</strong>{' '}
+                {movie.country?.map((c) => c.name).join(', ') || 'N/A'}
+              </p>
               <p><strong>Chất lượng:</strong> {movie.quality || 'N/A'}</p>
               <p><strong>Ngôn ngữ:</strong> {movie.lang || 'N/A'}</p>
               <p><strong>Thời lượng:</strong> {movie.time || 'N/A'}</p>
