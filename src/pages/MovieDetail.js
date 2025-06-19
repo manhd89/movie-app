@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom'; // Import useLocation
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
@@ -112,14 +112,13 @@ async function removeAds(playlistUrl) {
 function MovieDetail() {
   const { slug, episodeSlug } = useParams();
   const navigate = useNavigate();
-  const location = useLocation(); // Sử dụng useLocation để kiểm tra trạng thái điều hướng
+  const location = useLocation();
   const [movie, setMovie] = useState(null);
   const [episodes, setEpisodes] = useState([]);
   const [selectedServer, setSelectedServer] = useState(() => {
     return parseInt(localStorage.getItem(`selectedServer-${slug}`)) || 0;
   });
   const [currentEpisode, setCurrentEpisode] = useState(null);
-  // Mới: `showMovieInfoPanel` điều khiển hiển thị thông tin phim (true) hay player (false)
   const [showMovieInfoPanel, setShowMovieInfoPanel] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
   const [videoLoading, setVideoLoading] = useState(false);
@@ -166,40 +165,33 @@ function MovieDetail() {
 
       const serverData = episodes[validServerIndex]?.server_data;
 
-      // Logic: Nếu không có episodeSlug trong URL, mặc định hiển thị thông tin phim.
-      // Nếu có episodeSlug, cố gắng tìm và phát, nếu không tìm thấy thì vẫn hiển thị thông tin phim.
       if (!episodeSlug) {
-        // Chỉ hiện thông tin phim nếu không có episodeSlug trong URL
         setShowMovieInfoPanel(true);
-        setCurrentEpisode(null); // Đảm bảo không có tập nào được chọn để phát
+        setCurrentEpisode(null);
       } else {
-        // Nếu có episodeSlug, cố gắng tìm tập và hiển thị player
         if (serverData && serverData.length > 0) {
           const episodeToLoad = serverData.find((ep) => ep.slug === episodeSlug);
           if (episodeToLoad) {
             setCurrentEpisode(episodeToLoad);
-            setShowMovieInfoPanel(false); // Có tập để phát, hiển thị player
+            setShowMovieInfoPanel(false);
           } else {
-            // Có episodeSlug nhưng không tìm thấy tập trên server này
-            setCurrentEpisode(null); // Vẫn đặt là null
-            setShowMovieInfoPanel(true); // Quay lại hiển thị thông tin phim
+            setCurrentEpisode(null);
+            setShowMovieInfoPanel(true);
             toast.warn('Tập phim không tồn tại trên server này. Đã quay lại trang chi tiết.');
             navigate(`/movie/${slug}`, { replace: true });
           }
         } else {
-          // Có episodeSlug nhưng server không có dữ liệu
           setCurrentEpisode(null);
-          setShowMovieInfoPanel(true); // Quay lại hiển thị thông tin phim
+          setShowMovieInfoPanel(true);
           toast.warn('Server hoặc tập phim không tồn tại. Đã quay lại trang chi tiết.');
           navigate(`/movie/${slug}`, { replace: true });
         }
       }
     } else if (movie && episodes.length === 0) {
-      // Dữ liệu phim đã tải nhưng không có tập nào
       setCurrentEpisode(null);
       setShowMovieInfoPanel(true);
       toast.info('Bộ phim này hiện chưa có tập nào.');
-      if (episodeSlug) { // Nếu có episodeSlug nhưng không có tập nào
+      if (episodeSlug) {
         navigate(`/movie/${slug}`, { replace: true });
       }
     }
@@ -211,17 +203,14 @@ function MovieDetail() {
   }, [selectedServer, slug]);
 
   // Effect 4: Handle video playback with HLS.js. CHỈ chạy khi `currentEpisode` thay đổi
-  // và `showMovieInfoPanel` là false (nghĩa là đang ở chế độ xem player).
   const loadVideo = useCallback(async () => {
-    // Chỉ tải video nếu đang ở chế độ hiển thị player VÀ có currentEpisode hợp lệ
     if (showMovieInfoPanel || !currentEpisode?.link_m3u8 || !videoRef.current) {
         setVideoLoading(false);
-        if (videoRef.current) { // Đảm bảo video player bị reset nếu không phát
+        if (videoRef.current) {
             videoRef.current.src = '';
             videoRef.current.removeAttribute('src');
             videoRef.current.load();
         }
-        // Nếu không phát được video nhưng vẫn đang ở chế độ player, hiển thị thông báo
         if (!showMovieInfoPanel && currentEpisode && !isValidUrl(currentEpisode.link_m3u8)) {
             toast.error('Video không khả dụng cho tập này.');
         }
@@ -249,6 +238,8 @@ function MovieDetail() {
           setVideoLoading(false);
           video.play().catch(error => {
             console.warn("Autoplay was prevented:", error);
+            // Optionally: Show a user prompt to click play if autoplay failed
+            // toast.info("Vui lòng nhấn nút phát để tiếp tục xem video.");
           });
         });
 
@@ -285,7 +276,7 @@ function MovieDetail() {
       console.error('Error loading video:', error);
       setVideoLoading(false);
     }
-  }, [currentEpisode, showMovieInfoPanel]); // Thêm showMovieInfoPanel vào dependency
+  }, [currentEpisode, showMovieInfoPanel]);
 
   useEffect(() => {
     loadVideo();
@@ -303,39 +294,63 @@ function MovieDetail() {
     };
   }, [currentEpisode, loadVideo]);
 
+  // --- NEW EFFECT: Handle page visibility for video playback ---
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const video = videoRef.current;
+      // If the document is visible, a video is loaded, and it's not currently playing
+      // then try to play it.
+      if (document.visibilityState === 'visible' && video && !video.paused) {
+        video.play().catch(error => {
+          console.warn("Autoplay was prevented on visibility change:", error);
+          // Only show toast if user expects autoplay and it fails
+          if (!video.muted) { // If video is not muted, autoplay will likely fail
+             toast.info("Vui lòng nhấn nút phát để tiếp tục xem video.");
+          }
+        });
+      }
+    };
+
+    // Add event listener
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Clean up event listener when component unmounts
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []); // Empty dependency array means this effect runs once on mount and cleans up on unmount
+
 
   // handleServerChange: Chuyển server, cố gắng giữ tập hiện tại hoặc chọn tập đầu tiên của server mới.
   // Luôn hiển thị player.
   const handleServerChange = useCallback((index) => {
-    if (episodes.length === 0) return; // Đảm bảo có episodes trước khi xử lý
+    if (episodes.length === 0) return;
 
     setSelectedServer(index);
-    setShowMovieInfoPanel(false); // Chắc chắn hiển thị player
+    setShowMovieInfoPanel(false);
 
     const newServerData = episodes[index]?.server_data;
     let targetEpisode = null;
 
     if (newServerData && newServerData.length > 0) {
-      // Cố gắng tìm tập hiện tại trong server mới
       targetEpisode = newServerData.find(ep => ep.slug === currentEpisode?.slug);
       if (!targetEpisode) {
-        targetEpisode = newServerData[0]; // Mặc định về tập đầu tiên nếu không tìm thấy
+        targetEpisode = newServerData[0];
         toast.info('Tập hiện tại không có trên server này. Đã chuyển sang tập đầu tiên.');
       }
       setCurrentEpisode(targetEpisode);
       navigate(`/movie/${slug}/${targetEpisode.slug}`, { replace: true });
     } else {
-      // Server mới không có tập nào, vẫn cố gắng giữ player
-      setCurrentEpisode(null); // Không có tập hợp lệ để phát
+      setCurrentEpisode(null);
       toast.warn('Server này không có tập phim nào.');
-      navigate(`/movie/${slug}`, { replace: true }); // Vẫn cập nhật URL
+      navigate(`/movie/${slug}`, { replace: true });
     }
   }, [slug, navigate, episodes, currentEpisode]);
 
   // handleEpisodeSelect: Chọn một tập cụ thể. Luôn hiển thị player.
   const handleEpisodeSelect = useCallback((episode) => {
     setCurrentEpisode(episode);
-    setShowMovieInfoPanel(false); // Chắc chắn hiển thị player
+    setShowMovieInfoPanel(false);
     navigate(`/movie/${slug}/${episode.slug}`);
   }, [slug, navigate]);
 
@@ -362,7 +377,6 @@ function MovieDetail() {
     }
   };
 
-  // Render logic: Kiểm soát hiển thị spinner toàn trang và nội dung.
   if (initialLoading) {
     return (
       <div className="container">
@@ -394,7 +408,6 @@ function MovieDetail() {
         {currentEpisode && ` - ${currentEpisode.name || 'Tập phim'}`}
       </h1>
       <div className="movie-detail">
-        {/* Điều kiện hiển thị thông tin phim (showMovieInfoPanel === true) */}
         {showMovieInfoPanel ? (
           <>
             <LazyLoadImage
@@ -423,7 +436,7 @@ function MovieDetail() {
               <p><strong>Nội dung:</strong> {movie.content || 'Không có mô tả.'}</p>
             </div>
           </>
-        ) : ( // Luôn hiển thị khu vực video player nếu showMovieInfoPanel là false
+        ) : (
           <>
             <div className="video-player">
               {videoLoading && (
@@ -459,12 +472,11 @@ function MovieDetail() {
                 </div>
               )}
             </div>
-            {/* Nút quay lại thông tin phim: chỉ hiển thị khi đang ở chế độ player */}
             <button
               onClick={() => {
-                setShowMovieInfoPanel(true); // Chuyển sang hiển thị thông tin phim
-                setCurrentEpisode(null); // Xóa tập hiện tại
-                navigate(`/movie/${slug}`, { replace: true }); // Cập nhật URL
+                setShowMovieInfoPanel(true);
+                setCurrentEpisode(null);
+                navigate(`/movie/${slug}`, { replace: true });
               }}
               className="back-button"
               aria-label="Quay lại thông tin phim"
