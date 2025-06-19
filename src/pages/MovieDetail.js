@@ -17,96 +17,17 @@ const adBlockCSS = `
   }
 `;
 
-// Config và caches (giữ nguyên)
-const config = {
-  adsRegexList: [
-    new RegExp(
-      '(?<!#EXT-X-DISCONTINUITY[\\s\\S]*)#EXT-X-DISCONTINUITY\\n(?:.*?\\n){18,24}#EXT-X-DISCONTINUITY\\n(?![\\s\\S]*#EXT-X-DISCONTINUITY)',
-      'g'
-    ),
-    /#EXT-X-DISCONTINUITY\n(?:#EXT-X-KEY:METHOD=NONE\n(?:.*\n){18,24})?#EXT-X-DISCONTINUITY\n|convertv7\//g,
-    /#EXT-X-DISCONTINUITY\n(?:#EXTINF:(?:3.92|0.76|2.00|2.50|2.00|2.42|2.00|0.78|1.96)0000,\n.*\n){9}#EXT-X-DISCONTINUITY\n(?:#EXTINF:(?:2.00|1.76|3.20|2.00|1.36|2.00|2.00|0.72)0000,\n.*\n){8}(?=#EXT-X-DISCONTINUITY)/g,
-  ],
-  domainBypassWhitelist: ['kkphimplayer', 'phim1280', 'opstream'],
-};
+// KHÔNG CẦN CÁC HẰNG SỐ VÀ HÀM NÀY NỮA, CHÚNG ĐÃ ĐƯỢC CHUYỂN LÊN SERVICE WORKER
+// const config = { /* ... */ };
+// const caches = { blob: {} };
+// function getTotalDuration(playlist) { /* ... */ }
+// function isContainAds(playlist) { /* ... */ }
+// function getExceptionDuration(url) { /* ... */ }
 
-const caches = { blob: {} };
-
-function getTotalDuration(playlist) {
-  const matches = playlist.match(/#EXTINF:([\d.]+)/g) ?? [];
-  return matches.reduce((sum, match) => sum + parseFloat(match.split(':')[1]), 0);
-}
-
-function isContainAds(playlist) {
-  if (!config || !Array.isArray(config.adsRegexList)) {
-    console.error("Lỗi: config hoặc adsRegexList không được định nghĩa đúng cách.");
-    return false;
-  }
-  return config.adsRegexList.some((regex) => {
-    regex.lastIndex = 0;
-    return regex.test(playlist);
-  });
-}
-
-function getExceptionDuration(url) {
-  url = new URL(url);
-  if (['ophim', 'opstream'].some((keyword) => url.hostname.includes(keyword))) {
-    return 600;
-  } else if (['nguonc', 'streamc'].some((keyword) => url.hostname.includes(keyword))) {
-    return Infinity;
-  } else {
-    return 900;
-  }
-}
-
+// Hàm removeAds sẽ đơn giản hơn nhiều khi có Service Worker
 async function removeAds(playlistUrl) {
-  playlistUrl = new URL(playlistUrl);
-  if (caches.blob[playlistUrl.href]) {
-    return caches.blob[playlistUrl.href];
-  }
-  const isNoNeedToBypass = config.domainBypassWhitelist.some((keyword) =>
-    playlistUrl.hostname.includes(keyword)
-  );
-  try {
-    let req = await fetch(playlistUrl);
-    if (!req.ok) {
-      throw new Error(`HTTP error! status: ${req.status}`);
-    }
-    let playlist = await req.text();
-    playlist = playlist.replace(/^[^#].*$/gm, (line) => {
-      try {
-        const parsed = new URL(line, playlistUrl);
-        return parsed.toString();
-      } catch {
-        return line;
-      }
-    });
-    if (playlist.includes('#EXT-X-STREAM-INF')) {
-      caches.blob[playlistUrl.href] = await removeAds(
-        playlist.trim().split('\n').slice(-1)[0]
-      );
-      return caches.blob[playlistUrl.href];
-    }
-    if (isContainAds(playlist)) {
-      playlist = config.adsRegexList.reduce((playlist2, regex) => {
-        return playlist2.replaceAll(regex, '');
-      }, playlist);
-    } else if (getTotalDuration(playlist) <= getExceptionDuration(playlistUrl)) {
-      // No action needed for short playlists
-    } else {
-      toast.error('Không tìm thấy quảng cáo. Vui lòng báo cáo nếu video chứa quảng cáo.');
-    }
-    caches.blob[playlistUrl.href] = URL.createObjectURL(
-      new Blob([playlist], {
-        type: req.headers.get('Content-Type') ?? 'text/plain',
-      })
-    );
-    return caches.blob[playlistUrl.href];
-  } catch (error) {
-    console.error("Lỗi khi fetch hoặc xử lý playlist:", error);
-    toast.error(`Không thể tải playlist video: ${error.message}`);
-    throw error;
-  }
+  // Service Worker sẽ tự động chặn và xử lý request này
+  return playlistUrl;
 }
 
 function MovieDetail() {
@@ -226,12 +147,13 @@ function MovieDetail() {
     }
 
     try {
-      const cleanPlaylistUrl = await removeAds(currentEpisode.link_m3u8);
+      // Gọi hàm removeAds để lấy URL gốc
+      const originalM3u8Url = await removeAds(currentEpisode.link_m3u8);
 
       if (Hls.isSupported()) {
         const hls = new Hls();
         hlsInstanceRef.current = hls;
-        hls.loadSource(cleanPlaylistUrl);
+        hls.loadSource(originalM3u8Url); // HLS.js sẽ fetch từ URL gốc, Service Worker sẽ chặn và xử lý
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -265,7 +187,8 @@ function MovieDetail() {
         });
 
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = cleanPlaylistUrl;
+        // Đối với trình duyệt hỗ trợ HLS native, nó cũng sẽ fetch từ URL gốc, Service Worker sẽ xử lý
+        video.src = originalM3u8Url;
         video.play().catch(error => console.warn("Autoplay was prevented (native):", error));
         setVideoLoading(false);
       } else {
@@ -275,6 +198,7 @@ function MovieDetail() {
     } catch (error) {
       console.error('Error loading video:', error);
       setVideoLoading(false);
+      toast.error('Không thể tải video: ' + error.message);
     }
   }, [currentEpisode, showMovieInfoPanel]);
 
@@ -285,8 +209,8 @@ function MovieDetail() {
         hlsInstanceRef.current.destroy();
         hlsInstanceRef.current = null;
       }
-      if (videoRef.current && videoRef.current.src && videoRef.current.src.startsWith('blob:')) {
-        URL.revokeObjectURL(videoRef.current.src);
+      // Không cần URL.revokeObjectURL cho Blob URL nữa vì chúng ta không dùng chúng
+      if (videoRef.current) {
         videoRef.current.src = '';
         videoRef.current.removeAttribute('src');
         videoRef.current.load();
