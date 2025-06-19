@@ -70,6 +70,29 @@
   border: none;
 }
 
+/* NEW: Styles for video loading spinner */
+.video-overlay-spinner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent black background */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10; /* Ensure it's above the video */
+}
+
+.video-overlay-spinner .spinner {
+  margin: 0; /* Override default margin */
+}
+
+.hidden-video {
+  visibility: hidden; /* Hide the video element while loading */
+}
+/* END NEW */
+
 .back-button {
   margin: 10px 0;
   padding: 10px 20px;
@@ -122,8 +145,9 @@
   padding: 10px 20px;
   border: 1px solid #ccc;
   background: #f9f9f9;
+  color: #333; /* Ensure text is visible on light background */
   cursor: pointer;
-  border-radius: 5px; /* Fixed typo: Replaced invalid '台阶: 5px' */
+  border-radius: 5px;
 }
 
 .server-button.active {

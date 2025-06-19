@@ -86,19 +86,6 @@ function Home() {
         backgroundColor: '#0056b3',
         color: '#fff'
       }
-    }),
-    menu: (provided) => ({
-      ...provided,
-      backgroundColor: '#333',
-      border: '1px solid #555'
-    }),
-    option: (provided, state) => ({
-      ...provided,
-      backgroundColor: state.isSelected ? '#007bff' : state.isFocused ? '#444' : '#333',
-      color: '#fff',
-      '&:hover': {
-        backgroundColor: '#444'
-      }
     })
   };
 
@@ -264,7 +251,8 @@ function Home() {
     return `https://phimimg.com/${url}`;
   };
 
-  if (loading) return <div className="container">Loading...</div>;
+  // Modified loading return statement
+  if (loading) return <div className="container"><div className="spinner"></div></div>;
 
   return (
     <div className="container">
