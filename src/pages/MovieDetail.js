@@ -17,17 +17,25 @@ const adBlockCSS = `
   }
 `;
 
-// KHÔNG CẦN CÁC HẰNG SỐ VÀ HÀM NÀY NỮA, CHÚNG ĐÃ ĐƯỢC CHUYỂN LÊN SERVICE WORKER
+// KHÔNG CẦN CÁC HẰNG SỐ VÀ HÀM NÀY NỮA, CHÚNG ĐÃ ĐƯỢC CHUYỂN LÊN SERVERLESS FUNCTION
 // const config = { /* ... */ };
 // const caches = { blob: {} };
 // function getTotalDuration(playlist) { /* ... */ }
 // function isContainAds(playlist) { /* ... */ }
 // function getExceptionDuration(url) { /* ... */ }
 
-// Hàm removeAds sẽ đơn giản hơn nhiều khi có Service Worker
+// Sửa đổi hàm removeAds để gọi Vercel Function
 async function removeAds(playlistUrl) {
-  // Service Worker sẽ tự động chặn và xử lý request này
-  return playlistUrl;
+  try {
+    // Tạo URL đến Vercel Function của bạn
+    // `window.location.origin` đảm bảo rằng nó hoạt động cả trên localhost và khi deploy trên Vercel
+    const cleanedM3u8ApiUrl = `${window.location.origin}/api/clean-m3u8?url=${encodeURIComponent(playlistUrl)}`;
+    return cleanedM3u8ApiUrl; // Trả về URL của API route đã xử lý
+  } catch (error) {
+    console.error("Lỗi khi tạo URL cho API xử lý playlist:", error);
+    toast.error(`Không thể xử lý URL video: ${error.message}`);
+    throw error;
+  }
 }
 
 function MovieDetail() {
@@ -147,13 +155,13 @@ function MovieDetail() {
     }
 
     try {
-      // Gọi hàm removeAds để lấy URL gốc
-      const originalM3u8Url = await removeAds(currentEpisode.link_m3u8);
+      // Gọi hàm removeAds để lấy URL từ Vercel Function
+      const cleanedM3u8Url = await removeAds(currentEpisode.link_m3u8);
 
       if (Hls.isSupported()) {
         const hls = new Hls();
         hlsInstanceRef.current = hls;
-        hls.loadSource(originalM3u8Url); // HLS.js sẽ fetch từ URL gốc, Service Worker sẽ chặn và xử lý
+        hls.loadSource(cleanedM3u8Url); // HLS.js sẽ fetch từ API route
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -187,8 +195,8 @@ function MovieDetail() {
         });
 
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        // Đối với trình duyệt hỗ trợ HLS native, nó cũng sẽ fetch từ URL gốc, Service Worker sẽ xử lý
-        video.src = originalM3u8Url;
+        // Đối với trình duyệt hỗ trợ HLS native, nó cũng sẽ fetch từ API route
+        video.src = cleanedM3u8Url;
         video.play().catch(error => console.warn("Autoplay was prevented (native):", error));
         setVideoLoading(false);
       } else {
