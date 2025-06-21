@@ -1,133 +1,342 @@
+/* General Container and Loading */
 .container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+    max-width: 1200px; /* Max width for content */
+    margin: 20px auto; /* Center the container with margin */
+    padding: 0 15px; /* Add some padding on the sides */
+    color: #f0f0f0; /* Light text color for readability */
+    font-family: 'Arial', sans-serif; /* A clear, common font */
 }
 
-/* Add these spinner styles */
+/* Spinner for loading states */
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #007bff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 50px auto;
+    border: 4px solid rgba(255, 255, 255, 0.3); /* Light border */
+    border-top: 4px solid #007bff; /* Blue top border for animation */
+    border-radius: 50%; /* Make it circular */
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite; /* Spin animation */
+    margin: 50px auto; /* Center the spinner */
 }
 
+/* Keyframe for spin animation */
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
-/* End of spinner styles */
 
+/* Main Title styling */
+.main-list-title {
+    color: #f0f0f0;
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 2.5rem; /* Larger font size */
+    font-weight: bold;
+}
+
+/* Filter Container (for list pages) */
+.filter-container {
+    display: flex;
+    flex-wrap: wrap; /* Allow items to wrap to the next line */
+    gap: 10px; /* Space between filter elements */
+    margin-bottom: 30px;
+    justify-content: center; /* Center filters horizontally */
+}
+
+/* Styling for react-select components */
+.filter-select {
+    flex: 1; /* Allow select boxes to grow and shrink */
+    min-width: 180px; /* Minimum width for select boxes */
+    max-width: 250px; /* Maximum width for select boxes */
+}
+
+/* Reset button styling */
+.reset-button {
+    background-color: #dc3545; /* Red color for reset */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease; /* Smooth hover effect */
+}
+
+.reset-button:hover {
+    background-color: #c82333; /* Darker red on hover */
+}
+
+/* Main Movie Grid (for list pages - 12 movies per page) */
 .movie-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* Responsive grid columns */
+    gap: 20px; /* Space between movie cards */
+    justify-content: center; /* Center items in the grid */
+    padding: 20px 0;
 }
 
+/* Individual Movie Card styling */
 .movie-card {
-  text-decoration: none;
-  color: #fff;
-  background: #333;
-  border-radius: 8px;
-  overflow: hidden;
-  transition: transform 0.2s;
+    background-color: #2a2a2a; /* Dark background for cards */
+    border-radius: 8px; /* Rounded corners */
+    overflow: hidden; /* Hide overflowing content */
+    text-decoration: none; /* Remove underline from links */
+    color: inherit; /* Inherit text color */
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; /* Smooth hover effects */
+    display: flex;
+    flex-direction: column; /* Stack content vertically */
+    height: 100%; /* Ensure cards take full height in grid row */
+    position: relative; /* For absolute positioning of quality/status tags */
 }
 
 .movie-card:hover {
-  transform: scale(1.05);
+    transform: translateY(-5px); /* Lift effect on hover */
+    box-shadow: 0 8px 16px rgba(0, 123, 255, 0.4); /* Blue shadow on hover */
 }
 
 .movie-poster {
-  width: 100%;
-  height: 300px;
-  object-fit: cover;
+    width: 100%;
+    height: 270px; /* Fixed height for consistent poster display */
+    object-fit: cover; /* Crop image to fit */
+    display: block; /* Remove extra space below image */
 }
 
 .movie-card h3 {
-  font-size: 1rem;
-  margin: 10px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+    font-size: 1.1rem;
+    margin: 10px 10px 5px;
+    white-space: nowrap; /* Prevent title from wrapping */
+    overflow: hidden; /* Hide overflowing text */
+    text-overflow: ellipsis; /* Add ellipsis for hidden text */
+    color: #f0f0f0;
 }
 
 .movie-card p {
-  font-size: 0.9rem;
-  margin: 5px 10px;
-  color: #ccc;
+    font-size: 0.9rem;
+    color: #bbb; /* Lighter grey for year */
+    margin: 0 10px 10px;
 }
 
-.category-selector {
-  margin: 20px 0;
+/* Movie Quality and Episode Status tags */
+.movie-quality, .movie-status {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black background */
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    z-index: 10; /* Ensure it's above the poster */
+}
+.movie-status {
+    top: 38px; /* Position below quality tag if both exist */
+    background-color: rgba(0, 123, 255, 0.8); /* Blue background for status */
 }
 
-.category-selector button {
-  margin: 5px;
-  padding: 10px 20px;
-  border: 1px solid #ccc;
-  background: #333;
-  color: #fff;
-  cursor: pointer;
-  border-radius: 5px;
-}
 
-.category-selector button.active {
-  background: #007bff;
-  color: white;
-  border-color: #007bff;
-}
-
-.filter-container {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.filter-select {
-  flex: 1;
-}
-
-/* Đảm bảo không ghi đè react-select */
-.filter-select .react-select__control,
-.filter-select .react-select__menu,
-.filter-select .react-select__option {
-  font-size: 0.9rem;
-}
-
-.reset-button {
-  padding: 10px 20px;
-  background: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
+/* Pagination */
 .pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px; /* Space between pagination elements */
+    margin-top: 30px;
+    margin-bottom: 50px;
 }
 
-.pagination button {
-  padding: 10px 20px;
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
+.pagination-button {
+    background-color: #007bff; /* Blue background */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
 }
 
-.pagination button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
+.pagination-button:disabled {
+    background-color: #555; /* Grey out when disabled */
+    cursor: not-allowed;
 }
 
-.pagination span {
-  font-size: 1rem;
+.pagination-button:hover:not(:disabled) {
+    background-color: #0056b3; /* Darker blue on hover */
+}
+
+.pagination-info {
+    font-size: 1.1rem;
+    color: #f0f0f0;
+}
+
+/* --- Home Page Horizontal Sections --- */
+.home-sections-container {
+    padding-top: 20px;
+}
+
+.homepage-section {
+    margin-bottom: 40px; /* Space between sections */
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between; /* Align title and "Xem tất cả" link */
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.homepage-section h2 {
+    color: #f0f0f0;
+    font-size: 2rem;
+    margin: 0;
+}
+
+.see-all-link {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px; /* Space between text and icon */
+    transition: color 0.3s ease;
+}
+
+.see-all-link:hover {
+    color: #0056b3;
+}
+
+/* Horizontal scrolling container for movies */
+.movie-horizontal-scroll {
+    display: grid; /* **Updated: Use CSS Grid for better control over initial display** */
+    grid-auto-flow: column; /* Arrange items in columns, allowing overflow */
+    grid-auto-columns: minmax(160px, 1fr); /* **Updated: Auto-size columns, min 160px** */
+    gap: 15px; /* Space between horizontal movie cards */
+    overflow-x: auto; /* Enable horizontal scrolling */
+    padding-bottom: 15px; /* Add space for the scrollbar */
+    -webkit-overflow-scrolling: touch; /* Enhance scrolling performance on iOS */
+    scrollbar-width: thin; /* Firefox scrollbar width */
+    scrollbar-color: #007bff #2a2a2a; /* Firefox scrollbar color */
+}
+
+/* **New:** Define how many columns are visible at a given screen size */
+@media (min-width: 992px) {
+    .movie-horizontal-scroll {
+        grid-template-columns: repeat(3, minmax(160px, 1fr)); /* **Show 3 columns on large screens** */
+    }
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+    .movie-horizontal-scroll {
+        grid-template-columns: repeat(3, minmax(150px, 1fr)); /* Show 3 columns on medium screens */
+    }
+}
+
+@media (max-width: 767px) {
+    .movie-horizontal-scroll {
+        grid-template-columns: repeat(2, minmax(140px, 1fr)); /* Show 2 columns on small screens */
+    }
+}
+
+
+/* Custom scrollbar for Webkit browsers (Chrome, Safari) */
+.movie-horizontal-scroll::-webkit-scrollbar {
+    height: 8px; /* Height of horizontal scrollbar */
+}
+
+.movie-horizontal-scroll::-webkit-scrollbar-track {
+    background: #2a2a2a; /* Track color */
+    border-radius: 10px;
+}
+
+.movie-horizontal-scroll::-webkit-scrollbar-thumb {
+    background-color: #007bff; /* Thumb color */
+    border-radius: 10px;
+    border: 2px solid #2a2a2a; /* Padding around the thumb */
+}
+
+/* Individual Movie Card in horizontal scroll */
+.movie-card-horizontal {
+    /* Removed flex: 0 0 auto; - Grid handles sizing now */
+    width: 100%; /* Take full width of its grid column */
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    display: flex;
+    flex-direction: column;
+}
+
+.movie-card-horizontal:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 123, 255, 0.4);
+}
+
+.movie-poster-horizontal {
+    width: 100%;
+    height: 240px; /* Specific height for horizontal posters */
+    object-fit: cover;
+    display: block;
+}
+
+.movie-card-horizontal h3 {
+    font-size: 1rem;
+    margin: 10px 8px 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #f0f0f0;
+}
+
+.movie-card-horizontal p {
+    font-size: 0.85rem;
+    color: #bbb;
+    margin: 0 8px 10px;
+}
+
+.section-loading-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px; /* Ensure spinner has space */
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+    .main-list-title {
+        font-size: 2rem;
+    }
+    .filter-container {
+        flex-direction: column; /* Stack filters vertically */
+        align-items: center;
+    }
+    .filter-select {
+        width: 90%; /* Wider on smaller screens */
+        max-width: 300px;
+    }
+    .movie-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); /* Smaller cards in main grid */
+    }
+    /* Horizontal cards are now controlled by grid-template-columns in .movie-horizontal-scroll */
+    .movie-poster-horizontal {
+        height: 210px;
+    }
+    .homepage-section h2 {
+        font-size: 1.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-list-title {
+        font-size: 1.8rem;
+    }
+    .movie-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Even smaller cards */
+    }
+    /* Horizontal cards are now controlled by grid-template-columns in .movie-horizontal-scroll */
+    .movie-poster-horizontal {
+        height: 180px;
+    }
+    .homepage-section h2 {
+        font-size: 1.5rem;
+    }
 }
