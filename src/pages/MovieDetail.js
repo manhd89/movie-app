@@ -2,11 +2,11 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import axios from 'axios';
-import { ToastContainer, toast } from 'react-toastify';
+// import { ToastContainer, toast } from 'react-toastify'; // REMOVED
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import Hls from 'hls.js';
 import { FaArrowLeft, FaRegPlayCircle } from 'react-icons/fa';
-import 'react-toastify/dist/ReactToastify.css';
+// import 'react-toastify/dist/ReactToastify.css'; // REMOVED
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
 
@@ -66,12 +66,12 @@ function MovieDetail() {
         setEpisodes(response.data.episodes || []);
         setInitialLoading(false);
       } catch (error) {
-        console.error('Lỗi khi lấy dữ liệu phim:', error);
-        if (error.response?.status === 404) {
-          toast.error('Phim hoặc tập phim không tồn tại.');
-        } else {
-          toast.error('Lỗi kết nối server. Vui lòng thử lại sau.');
-        }
+        console.error('Lỗi khi lấy dữ liệu phim:', error); // Giữ lại console.error
+        // if (error.response?.status === 404) {
+        //   toast.error('Phim hoặc tập phim không tồn tại.'); // REMOVED
+        // } else {
+        //   toast.error('Lỗi kết nối server. Vui lòng thử lại sau.'); // REMOVED
+        // }
         setInitialLoading(false);
       }
     };
@@ -98,20 +98,20 @@ function MovieDetail() {
           } else {
             setCurrentEpisode(null);
             setShowMovieInfoPanel(true);
-            toast.warn('Tập phim không tồn tại trên server này. Đã quay lại trang chi tiết.');
+            // toast.warn('Tập phim không tồn tại trên server này. Đã quay lại trang chi tiết.'); // REMOVED
             navigate(`/movie/${slug}`, { replace: true });
           }
         } else {
           setCurrentEpisode(null);
           setShowMovieInfoPanel(true);
-          toast.warn('Server hoặc tập phim không tồn tại. Đã quay lại trang chi tiết.');
+          // toast.warn('Server hoặc tập phim không tồn tại. Đã quay lại trang chi tiết.'); // REMOVED
           navigate(`/movie/${slug}`, { replace: true });
         }
       }
     } else if (movie && episodes.length === 0) {
       setCurrentEpisode(null);
       setShowMovieInfoPanel(true);
-      toast.info('Bộ phim này hiện chưa có tập nào.');
+      // toast.info('Bộ phim này hiện chưa có tập nào.'); // REMOVED
       if (episodeSlug) {
         navigate(`/movie/${slug}`, { replace: true });
       }
@@ -149,7 +149,7 @@ function MovieDetail() {
             video.load();
         }
         if (!showMovieInfoPanel && currentEpisode && !isValidUrl(currentEpisode.link_m3u8)) {
-            toast.error('Video không khả dụng cho tập này.');
+            console.error('Video không khả dụng cho tập này.'); // Changed to console.error
         }
         return;
     }
@@ -172,9 +172,6 @@ function MovieDetail() {
             maxBufferSize: 100 * 1000 * 1000, // Tối đa 100MB
             startFragPrefetch: true, // Tải trước fragment tiếp theo
             enableWorker: true, // Sử dụng web worker để parsing
-            // Các tùy chọn khác có thể hữu ích cho phục hồi lỗi
-            // lowBufferWatchdog: 3, // default 3
-            // highBufferWatchdog: 3, // default 3
         });
         hlsInstanceRef.current = hls;
         hls.loadSource(originalM3u8Url);
@@ -190,34 +187,30 @@ function MovieDetail() {
           if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
             video.currentTime = savedTime;
             console.log(`Restored playback position for ${currentEpisode.name}: ${savedTime}s`);
-            toast.info(`Tiếp tục xem từ ${formatTime(savedTime)}`);
           } else {
             video.currentTime = 0; // Bắt đầu từ đầu nếu không có vị trí hợp lệ
           }
 
           video.play().catch(error => {
             console.warn("Autoplay was prevented:", error);
-            if (!video.muted) {
-               toast.info("Vui lòng nhấn nút phát để tiếp tục xem video.");
-            }
           });
         });
 
         hls.on(Hls.Events.ERROR, (event, data) => {
-          console.error('HLS.js error:', data);
+          console.error('HLS.js error:', data); // Giữ lại console.error
           setVideoLoading(false);
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                toast.error('Lỗi mạng khi tải video. Vui lòng kiểm tra kết nối.');
+                console.error('Lỗi mạng khi tải video. Vui lòng kiểm tra kết nối.'); // Changed to console.error
                 hls.startLoad();
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
-                toast.error('Lỗi phát video. Có thể do định dạng không hỗ trợ.');
+                console.error('Lỗi phát video. Có thể do định dạng không hỗ trợ.'); // Changed to console.error
                 hls.recoverMediaError();
                 break;
               default:
-                toast.error('Lỗi video nghiêm trọng. Vui lòng thử tập khác.');
+                console.error('Lỗi video nghiêm trọng. Vui lòng thử tập khác.'); // Changed to console.error
                 hls.destroy();
                 break;
             }
@@ -235,7 +228,6 @@ function MovieDetail() {
             if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
                 video.currentTime = savedTime;
                 console.log(`Restored playback position (native) for ${currentEpisode.name}: ${savedTime}s`);
-                toast.info(`Tiếp tục xem từ ${formatTime(savedTime)}`);
             } else {
                 video.currentTime = 0;
             }
@@ -243,15 +235,15 @@ function MovieDetail() {
             video.play().catch(error => console.warn("Autoplay was prevented (native):", error));
         };
       } else {
-        toast.error('Trình duyệt không hỗ trợ phát HLS. Vui lòng cập nhật.');
+        console.error('Trình duyệt không hỗ trợ phát HLS. Vui lòng cập nhật.'); // Changed to console.error
         setVideoLoading(false);
       }
     } catch (error) {
-      console.error('Error loading video:', error);
+      console.error('Error loading video:', error); // Giữ lại console.error
       setVideoLoading(false);
-      toast.error('Không thể tải video: ' + error.message);
+      // toast.error('Không thể tải video: ' + error.message); // REMOVED
     }
-  }, [currentEpisode, showMovieInfoPanel, getPlaybackPositionKey]); // Thêm getPlaybackPositionKey vào dependency
+  }, [currentEpisode, showMovieInfoPanel, getPlaybackPositionKey]);
 
   useEffect(() => {
     loadVideo();
@@ -281,9 +273,8 @@ function MovieDetail() {
     };
 
     // Listener để cập nhật vị trí thường xuyên khi đang phát
-    // Giúp lưu vị trí gần nhất trong trường hợp đóng trình duyệt đột ngột
     const handleTimeUpdate = () => {
-        currentPlaybackPositionRef.current = video.currentTime;
+        currentPlaybackPositionRef.current = video.currentTime; // Lưu vào ref để dùng khi đóng đột ngột
     };
 
     video.addEventListener('pause', handleVideoPause);
@@ -310,9 +301,6 @@ function MovieDetail() {
 
             video.play().catch(error => {
                 console.warn("Autoplay was prevented on visibility change:", error);
-                if (!video.muted) {
-                   toast.info("Vui lòng nhấn nút phát để tiếp tục xem video.");
-                }
             });
             console.log("Video attempted to play due to tab coming into foreground.");
         }
@@ -323,6 +311,7 @@ function MovieDetail() {
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Rất quan trọng: loại bỏ các listeners để tránh memory leak
       video.removeEventListener('pause', handleVideoPause);
       video.removeEventListener('timeupdate', handleTimeUpdate);
     };
@@ -349,16 +338,16 @@ function MovieDetail() {
       if (!targetEpisode) {
         // Nếu không tìm thấy, chuyển sang tập đầu tiên của server mới
         targetEpisode = newServerData[0];
-        toast.info('Tập hiện tại không có trên server này. Đã chuyển sang tập đầu tiên.');
+        // toast.info('Tập hiện tại không có trên server này. Đã chuyển sang tập đầu tiên.'); // REMOVED
       }
       setCurrentEpisode(targetEpisode);
       navigate(`/movie/${slug}/${targetEpisode.slug}`, { replace: true });
     } else {
       setCurrentEpisode(null);
-      toast.warn('Server này không có tập phim nào.');
+      // toast.warn('Server này không có tập phim nào.'); // REMOVED
       navigate(`/movie/${slug}`, { replace: true });
     }
-  }, [slug, navigate, episodes, currentEpisode, savePlaybackPosition]); // Thêm savePlaybackPosition vào dependency
+  }, [slug, navigate, episodes, currentEpisode, savePlaybackPosition]);
 
 
   // handleEpisodeSelect: Chọn một tập cụ thể. Luôn hiển thị player.
@@ -369,7 +358,7 @@ function MovieDetail() {
     setCurrentEpisode(episode);
     setShowMovieInfoPanel(false);
     navigate(`/movie/${slug}/${episode.slug}`);
-  }, [slug, navigate, savePlaybackPosition]); // Thêm savePlaybackPosition vào dependency
+  }, [slug, navigate, savePlaybackPosition]);
 
 
   // Các hàm tiện ích khác (giữ nguyên)
@@ -395,7 +384,7 @@ function MovieDetail() {
     }
   };
 
-  // Hàm định dạng thời gian từ giây sang HH:MM:SS
+  // Hàm định dạng thời gian từ giây sang HH:MM:SS (Giữ lại để có thể dùng cho console.log hoặc debug)
   const formatTime = (seconds) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -431,7 +420,7 @@ function MovieDetail() {
           content={movie.seoOnPage?.descriptionHead || truncateDescription(movie.content)}
         />
       </Helmet>
-      <ToastContainer />
+      {/* <ToastContainer /> // REMOVED */}
       <h1 className="movie-title">
         {movie.name}
         {currentEpisode && ` - ${currentEpisode.name || 'Tập phim'}`}
