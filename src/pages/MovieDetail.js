@@ -17,13 +17,6 @@ const adBlockCSS = `
   }
 `;
 
-// KHÔNG CẦN CÁC HẰNG SỐ VÀ HÀM NÀY NỮA, CHÚNG ĐÃ ĐƯỢC CHUYỂN LÊN SERVICE WORKER
-// const config = { /* ... */ };
-// const caches = { blob: {} };
-// function getTotalDuration(playlist) { /* ... */ }
-// function isContainAds(playlist) { /* ... */ }
-// function getExceptionDuration(url) { /* ... */ }
-
 // Hàm removeAds sẽ đơn giản hơn nhiều khi có Service Worker
 async function removeAds(playlistUrl) {
   // Service Worker sẽ tự động chặn và xử lý request này
@@ -55,11 +48,14 @@ function MovieDetail() {
   }, []);
 
   // Effect 1: Fetch movie data. CHỈ chạy khi `slug` thay đổi.
+  // *** ĐÃ THAY ĐỔI ĐỂ GỌI API ROUTE CỦA BẠN (api/movie.js) ***
   useEffect(() => {
     const fetchMovieData = async () => {
       try {
         setInitialLoading(true);
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/phim/${slug}`, {
+        // THAY ĐỔI QUAN TRỌNG: Gọi API Route bạn đã tạo trên Vercel
+        // API Route này sẽ tự động kiểm tra Redis cache trước khi gọi API gốc
+        const response = await axios.get(`/api/movie?slug=${slug}`, { // <--- DÒNG ĐƯỢC CHỈNH SỬA
           timeout: 5000,
         });
         setMovie(response.data.movie);
