@@ -1,15 +1,43 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import './Header.css';
+import { FaBars, FaSearch, FaTimes } from 'react-icons/fa'; // Import FaSearch and FaTimes
 
-function Header() {
+function Header({ onOpenFilters }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showSearchBar, setShowSearchBar] = useState(false); // NEW: State to control visibility of the search bar
   const navigate = useNavigate();
   const searchContainerRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Hàm để làm sạch và đóng tất cả liên quan đến tìm kiếm
+  const clearSearchAndHideSearchBar = useCallback(() => {
+    setSearchQuery('');
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setShowSearchBar(false); // NEW: Hide the search bar itself
+    if (inputRef.current) {
+      inputRef.current.blur(); // Đảm bảo ẩn bàn phím ảo
+    }
+  }, []); // Không có dependencies vì nó chỉ reset trạng thái
+
+  // Toggle search bar visibility
+  const toggleSearchBar = () => {
+    if (showSearchBar) {
+      clearSearchAndHideSearchBar(); // Hide and clear if currently visible
+    } else {
+      setShowSearchBar(true); // Show the search bar
+      // Optional: Focus the input field after showing
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
+  };
 
   // Gọi API để lấy gợi ý phim
   const fetchSuggestions = async (value) => {
@@ -23,7 +51,7 @@ function Header() {
         `https://phimapi.com/v1/api/tim-kiem?keyword=${encodeURIComponent(value)}`
       );
       const items = response.data.data?.items || [];
-      setSuggestions(items.slice(0, 5)); // Giới hạn 5 gợi ý
+      setSuggestions(items.slice(0, 5));
       setShowSuggestions(true);
     } catch (error) {
       console.error('Error fetching suggestions:', error);
@@ -41,37 +69,27 @@ function Header() {
 
   // Xử lý tìm kiếm (Enter hoặc nút Tìm)
   const handleSearch = (e) => {
-    e.preventDefault(); // Luôn ngăn chặn hành vi mặc định của form
+    e.preventDefault();
+
     if (searchQuery.trim()) {
-      // Lưu lịch sử tìm kiếm
       const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
       if (!history.includes(searchQuery)) {
         history.unshift(searchQuery);
         localStorage.setItem('searchHistory', JSON.stringify(history.slice(0, 5)));
       }
       navigate(`/?keyword=${encodeURIComponent(searchQuery)}&page=1`);
-      setSearchQuery('');
     } else {
-      navigate('/'); // Về trang chủ nếu không có từ khóa
+      navigate('/');
     }
-    // Đảm bảo ẩn và xóa gợi ý sau khi xử lý tìm kiếm
-    setShowSuggestions(false);
-    setSuggestions([]);
-    // Ẩn bàn phím ảo
-    if (inputRef.current) {
-      inputRef.current.blur();
-    }
+    // Sau khi tìm kiếm hoặc navigate, đóng và làm sạch search bar
+    clearSearchAndHideSearchBar();
   };
 
   // Xử lý khi chọn gợi ý
   const handleSuggestionClick = (item) => {
-    setSearchQuery('');
-    setShowSuggestions(false);
-    setSuggestions([]); // Clear suggestions after selection
     if (item.slug) {
-      navigate(`/movie/${item.slug}`); // Chuyển đến Movie.js
+      navigate(`/movie/${item.slug}`);
     } else {
-      // Lưu lại lịch sử nếu chọn từ khóa lịch sử
       const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
       if (!history.includes(item.name)) {
         history.unshift(item.name);
@@ -79,6 +97,8 @@ function Header() {
       }
       navigate(`/?keyword=${encodeURIComponent(item.name)}&page=1`);
     }
+    // Sau khi chọn gợi ý, đóng và làm sạch search bar
+    clearSearchAndHideSearchBar();
   };
 
   // Xóa một từ khóa trong lịch sử
@@ -99,9 +119,9 @@ function Header() {
     }
   };
 
-  // Hiển thị lịch sử tìm kiếm khi focus
+  // Hiển thị lịch sử tìm kiếm khi focus vào input và không có query
   const handleInputFocus = () => {
-    if (!searchQuery) {
+    if (searchQuery === '') {
       const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
       if (history.length) {
         setSuggestions(
@@ -118,91 +138,99 @@ function Header() {
 
   // Xử lý phím Enter
   const handleKeyDown = (e) => {
-    // Check for common "submit" keys on mobile keyboards
     if (e.key === 'Enter' || e.key === 'Done' || e.key === 'Go' || e.key === 'Search') {
       e.preventDefault();
-      handleSearch(e); // Gọi handleSearch để đóng gợi ý và xử lý tìm kiếm
+      handleSearch(e);
     }
   };
 
-  // Ẩn gợi ý khi nhấp ra ngoài
+  // Ẩn search bar và gợi ý khi nhấp ra ngoài search container
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
-        setShowSuggestions(false);
-        setSuggestions([]); // Clear suggestions when clicking outside
+      // If the search bar is shown and the click is outside the search container AND not on the search toggle button
+      if (
+        showSearchBar &&
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target) &&
+        !event.target.closest('.search-toggle-button') // Exclude the toggle button itself
+      ) {
+        clearSearchAndHideSearchBar();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [showSearchBar, clearSearchAndHideSearchBar]);
 
   return (
     <header className="header">
       <Link to="/" className="logo">
         PhimAPI
       </Link>
-      <div className="search-container" ref={searchContainerRef}>
-        <form onSubmit={handleSearch} className="search-form">
-          <input
-            type="search"
-            inputMode="search"
-            ref={inputRef}
-            value={searchQuery}
-            onChange={handleInputChange}
-            onFocus={handleInputFocus}
-            onKeyDown={handleKeyDown}
-            placeholder="Tìm kiếm phim..."
-            className="search-input"
-            autoComplete="off"
-          />
-          <button
-            type="submit" // Vẫn giữ type="submit" để có thể nhấn Enter trong input
-            className="search-button"
-            // Thêm onClick để đảm bảo hàm xử lý được gọi ngay lập tức
-            onClick={handleSearch}
-          >
-            Tìm
-          </button>
-        </form>
-        {showSuggestions && suggestions.length > 0 && (
-          <ul className="suggestions-list">
-            {suggestions.map((item) => (
-              <li
-                key={item._id}
-                className="suggestion-item"
-                onClick={() => handleSuggestionClick(item)}
-              >
-                {item.slug && (
-                  <img
-                    src={`https://phimimg.com/${item.thumb_url}`}
-                    alt={item.name}
-                    className="suggestion-thumb"
-                    onError={(e) => (e.target.src = '/placeholder.jpg')}
-                  />
-                )}
-                <div className="suggestion-info">
-                  <span className="suggestion-title">{item.name}</span>
-                  <span className="suggestion-year">{item.year}</span>
-                </div>
-                {!item.slug && (
-                  <button
-                    className="remove-history-button"
-                    onClick={(e) => handleRemoveHistoryItem(item.name, e)}
-                  >
-                    X
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      <nav>
-        <Link to="/">Trang chủ</Link>
-      </nav>
+
+      {/* NEW: Search toggle button */}
+      <button className="search-toggle-button" onClick={toggleSearchBar}>
+        {showSearchBar ? <FaTimes /> : <FaSearch />} {/* Show X icon when search bar is open */}
+      </button>
+
+      {/* Search container, only render if showSearchBar is true */}
+      {showSearchBar && (
+        <div className="search-container active" ref={searchContainerRef}> {/* Add 'active' class */}
+          <form onSubmit={handleSearch} className="search-form">
+            <input
+              type="search"
+              inputMode="search"
+              ref={inputRef}
+              value={searchQuery}
+              onChange={handleInputChange}
+              onFocus={handleInputFocus}
+              onKeyDown={handleKeyDown}
+              placeholder="Tìm kiếm phim..."
+              className="search-input"
+              autoComplete="off"
+            />
+            {/* Removed the 'Tìm' button, as the toggle button now handles opening/closing and Enter key handles submission */}
+          </form>
+          {showSuggestions && suggestions.length > 0 && (
+            <ul className="suggestions-list">
+              {suggestions.map((item) => (
+                <li
+                  key={item._id}
+                  className="suggestion-item"
+                  onClick={() => handleSuggestionClick(item)}
+                >
+                  {item.slug && (
+                    <img
+                      src={`https://phimimg.com/${item.thumb_url}`}
+                      alt={item.name}
+                      className="suggestion-thumb"
+                      onError={(e) => (e.target.src = '/placeholder.jpg')}
+                    />
+                  )}
+                  <div className="suggestion-info">
+                    <span className="suggestion-title">{item.name}</span>
+                    <span className="suggestion-year">{item.year}</span>
+                  </div>
+                  {!item.slug && (
+                    <button
+                      className="remove-history-button"
+                      onClick={(e) => handleRemoveHistoryItem(item.name, e)}
+                    >
+                      X
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* Hamburger menu button */}
+      <button className="hamburger-menu" onClick={onOpenFilters}>
+        <FaBars />
+      </button>
     </header>
   );
 }
