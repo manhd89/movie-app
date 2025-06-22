@@ -3,12 +3,10 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import Select from 'react-select';
-import { ToastContainer, toast } from 'react-toastify';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import { FaAngleRight, FaTimes } from 'react-icons/fa';
 
 // Import CSS for styling
-import 'react-toastify/dist/ReactToastify.css';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './Home.css'; // Make sure you have this CSS file for styling
 
@@ -98,7 +96,7 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
     const [movies, setMovies] = useState([]);
     const [loadingMain, setLoadingMain] = useState(true);
     const [totalPages, setTotalPages] = useState(1);
-    
+
     // States for filters (derived from URL parameters or internal for dropdowns)
     const [filterCategory, setFilterCategory] = useState(''); // Selected value in category dropdown
     const [filterCountry, setFilterCountry] = useState('');   // Selected value in country dropdown
@@ -142,7 +140,6 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
         setFilterYear(urlYear || '');
         setCurrentPage(parseInt(searchParams.get('page')) || 1);
     }, [searchParams, urlCategorySlug, urlCountrySlug, urlYear, urlKeyword]);
-
 
     // Predefined lists for easy access and navigation (used for "Xem tất cả" links)
     const CATEGORIES_MAPPING = [
@@ -214,7 +211,7 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
                 localStorage.setItem('countries', JSON.stringify(countryRes.data));
             } catch (error) {
                 console.error('Error fetching filters:', error);
-                toast.error('Không thể tải danh sách bộ lọc.');
+                // Removed toast.error('Không thể tải danh sách bộ lọc.');
             }
         };
 
@@ -237,7 +234,7 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
 
         const fetchHomePageSections = async () => {
             setLoadingSections(true);
-            
+
             const sectionPromises = [
                 movieApi.fetchRecentUpdates().then(res => ({ key: 'recentMovies', data: res.data.items || [] })),
                 movieApi.fetchMoviesBySlug('category', 'phim-bo').then(res => ({ key: 'seriesMovies', data: res.data.data?.items || [] })),
@@ -266,7 +263,7 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
                 setHomeSectionsData(prev => ({ ...prev, ...newSectionsData }));
             } catch (error) {
                 console.error('Unexpected error fetching home page sections:', error);
-                toast.error('Lỗi khi tải các phần phim.');
+                // Removed toast.error('Lỗi khi tải các phần phim.');
             } finally {
                 setLoadingSections(false);
             }
@@ -347,12 +344,10 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
                 setTotalPages(paginationData.totalPages || 1);
                 setSeoData(seoOnPageData.titleHead ? seoOnPageData : newSeoData);
 
-                if (!items.length && !loadingMain) {
-                    toast.warn('Không tìm thấy phim nào phù hợp với lựa chọn của bạn.');
-                }
+                // Removed toast.warn('Không tìm thấy phim nào phù hợp với lựa chọn của bạn.');
             } catch (error) {
                 console.error('Error fetching main movies:', error);
-                toast.error('Lỗi khi tải danh sách phim.');
+                // Removed toast.error('Lỗi khi tải danh sách phim.');
                 setMovies([]);
                 setTotalPages(1);
             } finally {
@@ -427,7 +422,7 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
                 <title>{seoData.titleHead}</title>
                 <meta name="description" content={seoData.descriptionHead} />
             </Helmet>
-            <ToastContainer />
+            {/* Removed ToastContainer */}
 
             {/* Modal for filters */}
             {showFilterModal && (
@@ -532,7 +527,7 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
                         linkToAll="/?category=phim-moi-cap-nhat&page=1"
                         isLoading={loadingSections}
                     />
-                    
+
                     <HomePageSection
                         title="Phim Bộ"
                         movies={homeSectionsData.seriesMovies}
@@ -545,7 +540,7 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
                         linkToAll="/?category=phim-le&page=1"
                         isLoading={loadingSections}
                     />
-                     <HomePageSection
+                    <HomePageSection
                         title="TV Shows"
                         movies={homeSectionsData.tvShows}
                         linkToAll="/?category=tv-shows&page=1"
@@ -563,7 +558,7 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
                         linkToAll="/?category=hoat-hinh&page=1"
                         isLoading={loadingSections}
                     />
-                     <HomePageSection
+                    <HomePageSection
                         title="Phim Lồng Tiếng"
                         movies={homeSectionsData.longTiengMovies}
                         linkToAll="/?category=phim-long-tieng&page=1"
