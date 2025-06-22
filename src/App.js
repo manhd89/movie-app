@@ -1,12 +1,15 @@
+
+// src/App.js
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { useState } from 'react'; // Import useState
+import { useState } from 'react';
 import Header from './components/Header';
 import Home from './pages/Home';
-import MovieDetail from './pages/MovieDetail'; // Đảm bảo tên file MovieDetail.js
+import MovieDetail from './pages/MovieDetail';
+import Footer from './components/Footer'; // Import Footer
 import './App.css';
 
 function App() {
-  const [showFilterModal, setShowFilterModal] = useState(false); // State để quản lý hiển thị modal lọc
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
   const handleOpenFilterModal = () => {
     setShowFilterModal(true);
@@ -19,7 +22,6 @@ function App() {
   return (
     <BrowserRouter>
       <div className="app">
-        {/* Truyền hàm mở modal xuống Header */}
         <Header onOpenFilters={handleOpenFilterModal} />
         <Routes>
           <Route
@@ -34,6 +36,7 @@ function App() {
           <Route path="/movie/:slug" element={<MovieDetail />} />
           <Route path="/movie/:slug/:episodeSlug" element={<MovieDetail />} />
         </Routes>
+        <Footer /> {/* Add the Footer component here */}
       </div>
     </BrowserRouter>
   );
