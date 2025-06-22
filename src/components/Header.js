@@ -4,6 +4,12 @@ import axios from 'axios';
 import './Header.css';
 import { FaBars, FaSearch, FaTimes } from 'react-icons/fa'; // Import FaSearch and FaTimes
 
+// --- Constants ---
+// Use environment variables for API URLs
+const BASE_API_URL = process.env.REACT_APP_API_URL;
+const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`;
+const CDN_IMAGE_URL = process.env.REACT_APP_API_CDN_IMAGE;
+
 function Header({ onOpenFilters }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -47,8 +53,9 @@ function Header({ onOpenFilters }) {
       return;
     }
     try {
+      // Use V1_API_URL for search
       const response = await axios.get(
-        `https://phimapi.com/v1/api/tim-kiem?keyword=${encodeURIComponent(value)}`
+        `${V1_API_URL}/tim-kiem?keyword=${encodeURIComponent(value)}`
       );
       const items = response.data.data?.items || [];
       setSuggestions(items.slice(0, 5));
@@ -202,7 +209,7 @@ function Header({ onOpenFilters }) {
                 >
                   {item.slug && (
                     <img
-                      src={`https://phimimg.com/${item.thumb_url}`}
+                      src={`${CDN_IMAGE_URL}/${item.thumb_url}`} // Use CDN_IMAGE_URL here
                       alt={item.name}
                       className="suggestion-thumb"
                       onError={(e) => (e.target.src = '/placeholder.jpg')}
