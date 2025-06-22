@@ -11,8 +11,9 @@ import 'react-lazy-load-image-component/src/effects/blur.css';
 import './Home.css'; // Make sure you have this CSS file for styling
 
 // --- Constants ---
-const BASE_API_URL = 'https://phimapi.com';
-const V1_API_URL = 'https://phimapi.com/v1/api';
+// Use environment variables
+const BASE_API_URL = process.env.REACT_APP_API_URL;
+const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`; // Derived from BASE_API_URL
 const DEFAULT_PAGE_LIMIT = 12; // Movies per page for main lists and sections
 
 // Helper function to get correct image URL
@@ -20,7 +21,8 @@ const getImageUrl = (url) => {
     if (url && url.startsWith('https://')) {
         return url;
     }
-    return url ? `https://phimimg.com/${url}` : '/placeholder.jpg'; // Fallback image path
+    // Use environment variable for CDN image base URL
+    return url ? `${process.env.REACT_APP_API_CDN_IMAGE}/${url}` : '/placeholder.jpg'; // Fallback image path
 };
 
 // --- API Service Functions ---
@@ -211,7 +213,6 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
                 localStorage.setItem('countries', JSON.stringify(countryRes.data));
             } catch (error) {
                 console.error('Error fetching filters:', error);
-                // Removed toast.error('Không thể tải danh sách bộ lọc.');
             }
         };
 
@@ -263,7 +264,6 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
                 setHomeSectionsData(prev => ({ ...prev, ...newSectionsData }));
             } catch (error) {
                 console.error('Unexpected error fetching home page sections:', error);
-                // Removed toast.error('Lỗi khi tải các phần phim.');
             } finally {
                 setLoadingSections(false);
             }
@@ -344,10 +344,8 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
                 setTotalPages(paginationData.totalPages || 1);
                 setSeoData(seoOnPageData.titleHead ? seoOnPageData : newSeoData);
 
-                // Removed toast.warn('Không tìm thấy phim nào phù hợp với lựa chọn của bạn.');
             } catch (error) {
                 console.error('Error fetching main movies:', error);
-                // Removed toast.error('Lỗi khi tải danh sách phim.');
                 setMovies([]);
                 setTotalPages(1);
             } finally {
@@ -422,7 +420,6 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
                 <title>{seoData.titleHead}</title>
                 <meta name="description" content={seoData.descriptionHead} />
             </Helmet>
-            {/* Removed ToastContainer */}
 
             {/* Modal for filters */}
             {showFilterModal && (
