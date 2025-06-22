@@ -1,11 +1,11 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import Select from 'react-select';
 import { ToastContainer, toast } from 'react-toastify';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
-import { FaAngleRight } from 'react-icons/fa';
+import { FaAngleRight, FaTimes } from 'react-icons/fa';
 
 // Import CSS for styling
 import 'react-toastify/dist/ReactToastify.css';
@@ -35,7 +35,7 @@ const movieApi = {
         if (type === 'category') url = `${V1_API_URL}/danh-sach/${slug}`;
         else if (type === 'genre') url = `${V1_API_URL}/the-loai/${slug}`;
         else if (type === 'country') url = `${V1_API_URL}/quoc-gia/${slug}`;
-        else if (type === 'year') url = `${V1_API_URL}/nam/${slug}`; // Added for Year API
+        else if (type === 'year') url = `${V1_API_URL}/nam/${slug}`;
         else if (type === 'search') url = `${V1_API_URL}/tim-kiem`;
         else return Promise.reject(new Error("Invalid fetch type for movieApi.fetchMoviesBySlug"));
 
@@ -90,7 +90,7 @@ function HomePageSection({ title, movies, linkToAll, isLoading }) {
 }
 
 // --- Main Home Component ---
-function Home() {
+function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFilterModal và onCloseFilterModal
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
 
@@ -127,24 +127,19 @@ function Home() {
     // URL parameters used to determine the current view
     const urlCategorySlug = searchParams.get('category');
     const urlCountrySlug = searchParams.get('country');
-    const urlYear = searchParams.get('year'); // New: Get year from URL
+    const urlYear = searchParams.get('year');
     const urlKeyword = searchParams.get('keyword');
 
     // showMainMovieGrid: true if it's a search, category, country, or year page.
     // False if it's the pure homepage (showing horizontal sections).
     const showMainMovieGrid = !!urlKeyword || !!urlCategorySlug || !!urlCountrySlug || !!urlYear;
 
-    // showHomePageFilters: true if it's the pure homepage (no filters applied in URL)
-    const showHomePageFilters = !urlKeyword && !urlCategorySlug && !urlCountrySlug && !urlYear;
-
-
     // Effect to sync URL parameters to component state for dropdowns
     useEffect(() => {
         setKeyword(urlKeyword || '');
-        // Update dropdown selected values based on URL slugs
         setFilterCategory(urlCategorySlug || '');
         setFilterCountry(urlCountrySlug || '');
-        setFilterYear(urlYear || ''); // Sync year filter state
+        setFilterYear(urlYear || '');
         setCurrentPage(parseInt(searchParams.get('page')) || 1);
     }, [searchParams, urlCategorySlug, urlCountrySlug, urlYear, urlKeyword]);
 
@@ -199,7 +194,7 @@ function Home() {
         multiValue: (provided) => ({ ...provided, backgroundColor: '#007bff' }),
         multiValueLabel: (provided) => ({ ...provided, color: '#fff' }),
         multiValueRemove: (provided) => ({
-            ...provided,
+            provided,
             color: '#fff',
             '&:hover': { backgroundColor: '#0056b3', color: '#fff' }
         })
@@ -294,7 +289,7 @@ function Home() {
             try {
                 if (urlKeyword) {
                     url = `${V1_API_URL}/tim-kiem`;
-                    params.keyword = urlKeyword; // Use urlKeyword directly
+                    params.keyword = urlKeyword;
                     newSeoData.titleHead = `Tìm kiếm: ${urlKeyword} - PhimAPI`;
                     newSeoData.descriptionHead = `Kết quả tìm kiếm phim cho từ khóa "${urlKeyword}"`;
                 } else if (urlCategorySlug) {
@@ -322,7 +317,7 @@ function Home() {
                     const countryName = countries.find(c => c.slug === urlCountrySlug)?.name || urlCountrySlug;
                     newSeoData.titleHead = `Phim ${countryName} - PhimAPI`;
                     newSeoData.descriptionHead = `Danh sách phim quốc gia ${countryName} mới nhất.`;
-                } else if (urlYear) { // New: Handle year filter directly from URL
+                } else if (urlYear) {
                     url = `${V1_API_URL}/nam/${urlYear}`;
                     newSeoData.titleHead = `Phim năm ${urlYear} - PhimAPI`;
                     newSeoData.descriptionHead = `Danh sách phim phát hành năm ${urlYear} mới nhất.`;
@@ -365,7 +360,7 @@ function Home() {
             }
         };
 
-        if (showMainMovieGrid) { // Only fetch if we are in a 'main grid' view
+        if (showMainMovieGrid) {
             fetchMainMovies();
         } else {
             setLoadingMain(false);
@@ -377,7 +372,7 @@ function Home() {
     // Handle filter changes (for category, country, year selects)
     const handleFilterChange = useCallback((type, selectedValue) => {
         const value = selectedValue ? selectedValue.value : '';
-        const newSearchParams = new URLSearchParams(); // Start with a clean search params for navigation
+        const newSearchParams = new URLSearchParams();
 
         if (value) {
             newSearchParams.set('page', '1');
@@ -389,16 +384,15 @@ function Home() {
                 newSearchParams.set('year', value);
             }
         }
-        // Navigate with the new search parameters.
-        // If value is empty, it means "Tất cả...", so the specific param will not be set, effectively removing it.
         navigate(`/?${newSearchParams.toString()}`);
-    }, [navigate]);
+        onCloseFilterModal(); // Đóng modal sau khi chọn lọc
+    }, [navigate, onCloseFilterModal]);
 
 
     // Handle pagination page change
     const handlePageChange = useCallback((newPage) => {
         if (newPage >= 1 && newPage <= totalPages) {
-            const newSearchParams = new URLSearchParams(searchParams); // Keep existing filters
+            const newSearchParams = new URLSearchParams(searchParams);
             newSearchParams.set('page', newPage.toString());
             navigate(`/?${newSearchParams.toString()}`);
         }
@@ -416,7 +410,7 @@ function Home() {
             return urlCategorySlug;
         }
         if (urlCountrySlug) return countries.find(c => c.slug === urlCountrySlug)?.name || urlCountrySlug;
-        if (urlYear) return `Phim năm ${urlYear}`; // New: Title for Year page
+        if (urlYear) return `Phim năm ${urlYear}`;
         return 'Danh sách phim';
     };
 
@@ -435,43 +429,50 @@ function Home() {
             </Helmet>
             <ToastContainer />
 
+            {/* Modal for filters */}
+            {showFilterModal && (
+                <div className="filter-modal-overlay" onClick={onCloseFilterModal}>
+                    <div className="filter-modal-content" onClick={e => e.stopPropagation()}>
+                        <button className="close-modal-button" onClick={onCloseFilterModal}>
+                            <FaTimes />
+                        </button>
+                        <h2 className="modal-title">Bộ Lọc Phim</h2>
+                        <div className="filter-container-modal">
+                            <Select
+                                options={[{ value: '', label: 'Tất cả thể loại' }, ...genres.map(g => ({ value: g.slug, label: g.name }))]}
+                                value={filterCategory ? { value: filterCategory, label: genres.find(g => g.slug === filterCategory)?.name || filterCategory } : { value: '', label: 'Tất cả thể loại' }}
+                                onChange={(selected) => handleFilterChange('category', selected)}
+                                placeholder="Chọn thể loại..."
+                                className="filter-select"
+                                styles={customSelectStyles}
+                            />
+                            <Select
+                                options={[{ value: '', label: 'Tất cả quốc gia' }, ...countries.map(c => ({ value: c.slug, label: c.name }))]}
+                                value={filterCountry ? { value: filterCountry, label: countries.find(c => c.slug === filterCountry)?.name || filterCountry } : { value: '', label: 'Tất cả quốc gia' }}
+                                onChange={(selected) => handleFilterChange('country', selected)}
+                                placeholder="Chọn quốc gia..."
+                                className="filter-select"
+                                styles={customSelectStyles}
+                            />
+                            <Select
+                                options={[{ value: '', label: 'Tất cả năm' }, ...years]}
+                                value={filterYear ? { value: filterYear, label: filterYear } : { value: '', label: 'Tất cả năm' }}
+                                onChange={(selected) => handleFilterChange('year', selected)}
+                                placeholder="Chọn năm..."
+                                className="filter-select"
+                                styles={customSelectStyles}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Main Title of the current movie list or section */}
             {showMainMovieGrid && (
                 <h1 className="main-list-title">
                     {getMainListTitle()}
                 </h1>
             )}
-            
-            {/* Filtering section - visible ONLY on the pure homepage */}
-            {showHomePageFilters && (
-                 <div className="filter-container">
-                    <Select
-                        options={[{ value: '', label: 'Tất cả thể loại' }, ...genres.map(g => ({ value: g.slug, label: g.name }))]}
-                        value={filterCategory ? { value: filterCategory, label: genres.find(g => g.slug === filterCategory)?.name || filterCategory } : { value: '', label: 'Tất cả thể loại' }}
-                        onChange={(selected) => handleFilterChange('category', selected)}
-                        placeholder="Chọn thể loại..."
-                        className="filter-select"
-                        styles={customSelectStyles}
-                    />
-                    <Select
-                        options={[{ value: '', label: 'Tất cả quốc gia' }, ...countries.map(c => ({ value: c.slug, label: c.name }))]}
-                        value={filterCountry ? { value: filterCountry, label: countries.find(c => c.slug === filterCountry)?.name || filterCountry } : { value: '', label: 'Tất cả quốc gia' }}
-                        onChange={(selected) => handleFilterChange('country', selected)}
-                        placeholder="Chọn quốc gia..."
-                        className="filter-select"
-                        styles={customSelectStyles}
-                    />
-                    <Select
-                        options={[{ value: '', label: 'Tất cả năm' }, ...years]}
-                        value={filterYear ? { value: filterYear, label: filterYear } : { value: '', label: 'Tất cả năm' }}
-                        onChange={(selected) => handleFilterChange('year', selected)}
-                        placeholder="Chọn năm..."
-                        className="filter-select"
-                        styles={customSelectStyles}
-                    />
-                </div>
-            )}
-
 
             {/* Main Movie Grid (for search results or category/country/year list pages) */}
             {showMainMovieGrid && (
