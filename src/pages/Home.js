@@ -48,7 +48,7 @@ const movieApi = {
   }
 };
 
-function HomePageSection({ title, movies, linkToAll, isLoading, isHistory, onDelete }) {
+function HomePageSection({ title, movies, linkToAll, isLoading, isHistory, onDelete, navigate }) {
   if (isLoading) {
     return (
       <div className="homepage-section">
@@ -144,20 +144,18 @@ function Home({ showFilterModal, onCloseFilterModal }) {
   const urlKeyword = searchParams.get('keyword');
   const showMainMovieGrid = !!urlKeyword || !!urlCategorySlug || !!urlCountrySlug || !!urlYear;
 
-  // Load history from localStorage
   const loadHistory = useCallback(() => {
     const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-    return history.sort((a, b) => b.timestamp - a.timestamp); // Sort by most recent
+    return history.sort((a, b) => b.timestamp - a.timestamp);
   }, []);
 
-  // Delete a movie from history
   const handleDeleteHistory = useCallback((slug, episodeSlug) => {
     const history = loadHistory();
     const updatedHistory = history.filter(item => item.slug !== slug || item.episode_slug !== episodeSlug);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(updatedHistory));
     setHomeSectionsData(prev => ({
       ...prev,
-      history: updatedHistory.slice(0, 6), // Limit to 6 items for homepage
+      history: updatedHistory.slice(0, 6),
     }));
   }, [loadHistory]);
 
@@ -508,7 +506,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                     <h3>{movie.name}</h3>
                     <p>{urlCategorySlug === 'history' ? movie.episode_name : movie.year}</p>
                     {movie.quality && <span className="movie-quality">{movie.quality}</span>}
-                    {movie.episode_current && !urlCategorySlug === 'history' && <span className="movie-status">{movie.episode_current}</span>}
+                    {movie.episode_current && urlCategorySlug !== 'history' && <span className="movie-status">{movie.episode_current}</span>}
                   </Link>
                   {urlCategorySlug === 'history' && (
                     <div className="history-actions">
@@ -567,78 +565,91 @@ function Home({ showFilterModal, onCloseFilterModal }) {
             isLoading={loadingSections}
             isHistory={true}
             onDelete={handleDeleteHistory}
+            navigate={navigate}
           />
           <HomePageSection
             title="Phim Mới Cập Nhật"
             movies={homeSectionsData.recentMovies}
             linkToAll="/?category=phim-moi-cap-nhat&page=1"
             isLoading={loadingSections}
+            navigate={navigate}
           />
           <HomePageSection
             title="Phim Bộ"
             movies={homeSectionsData.seriesMovies}
             linkToAll="/?category=phim-bo&page=1"
             isLoading={loadingSections}
+            navigate={navigate}
           />
           <HomePageSection
             title="Phim Lẻ"
             movies={homeSectionsData.singleMovies}
             linkToAll="/?category=phim-le&page=1"
             isLoading={loadingSections}
+            navigate={navigate}
           />
           <HomePageSection
             title="TV Shows"
             movies={homeSectionsData.tvShows}
             linkToAll="/?category=tv-shows&page=1"
             isLoading={loadingSections}
+            navigate={navigate}
           />
           <HomePageSection
             title="Phim Thuyết Minh"
             movies={homeSectionsData.dubbedMovies}
             linkToAll="/?category=phim-thuyet-minh&page=1"
             isLoading={loadingSections}
+            navigate={navigate}
           />
           <HomePageSection
             title="Hoạt Hình"
             movies={homeSectionsData.cartoonMovies}
             linkToAll="/?category=hoat-hinh&page=1"
             isLoading={loadingSections}
+            navigate={navigate}
           />
           <HomePageSection
             title="Phim Lồng Tiếng"
             movies={homeSectionsData.longTiengMovies}
             linkToAll="/?category=phim-long-tieng&page=1"
             isLoading={loadingSections}
+            navigate={navigate}
           />
           <HomePageSection
             title="Phim Việt Nam"
             movies={homeSectionsData.vietnamMovies}
             linkToAll="/?country=viet-nam&page=1"
             isLoading={loadingSections}
+            navigate={navigate}
           />
           <HomePageSection
             title="Phim Trung Quốc"
             movies={homeSectionsData.chinaMovies}
             linkToAll="/?country=trung-quoc&page=1"
             isLoading={loadingSections}
+            navigate={navigate}
           />
           <HomePageSection
             title="Phim Âu Mỹ"
             movies={homeSectionsData.usEuMovies}
             linkToAll="/?country=au-my&page=1"
             isLoading={loadingSections}
+            navigate={navigate}
           />
           <HomePageSection
             title="Phim Nhật Bản"
             movies={homeSectionsData.japanMovies}
             linkToAll="/?country=nhat-ban&page=1"
             isLoading={loadingSections}
+            navigate={navigate}
           />
           <HomePageSection
             title="Phim Hàn Quốc"
             movies={homeSectionsData.koreaMovies}
             linkToAll="/?country=han-quoc&page=1"
             isLoading={loadingSections}
+            navigate={navigate}
           />
         </div>
       )}
