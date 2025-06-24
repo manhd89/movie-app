@@ -70,7 +70,7 @@
   border: none;
 }
 
-/* NEW: Styles for video loading spinner */
+/* Styles for video loading spinner */
 .video-overlay-spinner {
   position: absolute;
   top: 0;
@@ -91,7 +91,6 @@
 .hidden-video {
   visibility: hidden; /* Hide the video element while loading */
 }
-/* END NEW */
 
 .back-button {
   margin: 10px 0;
@@ -162,7 +161,7 @@
   gap: 10px;
 }
 
-/* NEW: Styles for "Continue Watching" button on MovieDetail page */
+/* Styles for "Continue Watching" button on MovieDetail page */
 .continue-watching-detail-button {
   display: flex;
   align-items: center;
@@ -188,8 +187,6 @@
 .continue-watching-detail-button .icon {
   font-size: 1.3rem;
 }
-/* END NEW */
-
 
 @media (max-width: 768px) {
   .movie-detail {
