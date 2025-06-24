@@ -16,6 +16,8 @@ const BASE_API_URL = process.env.REACT_APP_API_URL;
 const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`; // Derived from BASE_API_URL
 const DEFAULT_PAGE_LIMIT = 12; // Movies per page for main lists and sections
 const VIEWED_HISTORY_KEY = 'viewedHistory'; // KEY cho lịch sử xem phim
+const LAST_PLAYED_KEY_PREFIX = 'lastPlayedPosition-'; // Tiền tố cho key lưu vị trí xem dở
+
 
 // Helper function to get correct image URL
 const getImageUrl = (url) => {
@@ -49,10 +51,10 @@ const movieApi = {
     fetchRecentUpdates: (page = 1) => axios.get(`${BASE_API_URL}/danh-sach/phim-moi-cap-nhat?page=${page}`),
     fetchMoviesBySlug: (type, slug, page = 1, limit = DEFAULT_PAGE_LIMIT, filters = {}) => {
         let url;
-        if (type === 'category') url = `${BASE_API_URL}/danh-sach/${slug}`; // SỬA ĐỔI TẠI ĐÂY
-        else if (type === 'genre') url = `${BASE_API_URL}/the-loai/${slug}`; // SỬA ĐỔI TẠI ĐÂY
-        else if (type === 'country') url = `${BASE_API_URL}/quoc-gia/${slug}`; // SỬA ĐỔI TẠI ĐÂY
-        else if (type === 'year') url = `${BASE_API_URL}/nam/${slug}`; // SỬA ĐỔI TẠI ĐÂY
+        if (type === 'category') url = `${BASE_API_URL}/danh-sach/${slug}`;
+        else if (type === 'genre') url = `${BASE_API_URL}/the-loai/${slug}`;
+        else if (type === 'country') url = `${BASE_API_URL}/quoc-gia/${slug}`;
+        else if (type === 'year') url = `${BASE_API_URL}/nam/${slug}`;
         else if (type === 'search') url = `${V1_API_URL}/tim-kiem`;
         else return Promise.reject(new Error("Invalid fetch type for movieApi.fetchMoviesBySlug"));
 
@@ -89,7 +91,7 @@ function HomePageSection({ title, movies, linkToAll, isLoading, isHistorySection
             </div>
             <div className="movie-horizontal-scroll">
                 {movies.map((movie) => (
-                    <Link key={movie.slug} to={`/movie/${movie.slug}`} className="movie-card-horizontal">
+                    <Link key={movie.slug} to={`/movie/${movie.slug}${movie.currentEpisodeSlug ? `/${movie.currentEpisodeSlug}` : ''}`} className="movie-card-horizontal">
                         <LazyLoadImage
                             src={getImageUrl(movie.poster_url)}
                             alt={movie.name}
@@ -171,7 +173,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
     const urlCountrySlug = searchParams.get('country');
     const urlYear = searchParams.get('year');
     const urlKeyword = searchParams.get('keyword');
-    const urlType = searchParams.get('type'); // NEW: To handle 'history' type
+    const urlType = searchParams.get('type'); // To handle 'history' type
 
 
     // showMainMovieGrid: true if it's a search, category, country, or year page or history page.
@@ -235,7 +237,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
             '&:active': { backgroundColor: '#0056b3' }
         }),
         menu: (provided) => ({ ...provided, backgroundColor: '#333' }),
-        multiValue: (provided) => ({ ...provided, backgroundColor: '#007bff' }),
+        multiValue: (provided) => ({ provide, backgroundColor: '#007bff' }),
         multiValueLabel: (provided) => ({ ...provided, color: '#fff' }),
         multiValueRemove: (provided) => ({
             provided,
@@ -271,17 +273,18 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         }
     }, []);
 
-    // NEW EFFECT: Fetch viewed history from localStorage when component mounts
+    // NEW EFFECT: Fetch viewed history from localStorage when component mounts or history changes
     useEffect(() => {
         setLoadingHistory(true);
         try {
             const history = JSON.parse(localStorage.getItem(VIEWED_HISTORY_KEY) || '[]');
             // Filter out history items that don't have a lastPosition > 0
-            // and append the actual lastPlayedPosition from localStorage
+            // and append the actual lastPlayedPosition from localStorage for each movie/episode
             const updatedHistory = history.map(item => {
-                const lastPosition = parseFloat(localStorage.getItem(`lastPlayedPosition-${item.slug}-${item.currentEpisodeSlug || 'default'}`)) || 0;
+                const lastPositionKey = `${LAST_PLAYED_KEY_PREFIX}${item.slug}-${item.currentEpisodeSlug || 'default'}`;
+                const lastPosition = parseFloat(localStorage.getItem(lastPositionKey)) || 0;
                 return { ...item, lastPosition };
-            }).filter(item => item.lastPosition > 0); // Only keep items with a valid playback position
+            }).filter(item => item.lastPosition > 5); // Only keep items with a valid playback position (>5 seconds)
 
             setViewedHistory(updatedHistory);
         } catch (e) {
@@ -290,8 +293,8 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         } finally {
             setLoadingHistory(false);
         }
-    }, []); // Only runs once on component mount
-
+    }, []); // Runs once on mount, and can be triggered if `localStorage` changes, but that's not reactive by default.
+           // This effect needs to re-run when a movie is *added* or *removed* from history.
 
     // Hàm để xóa một phim khỏi lịch sử
     const handleClearHistoryItem = useCallback((slugToRemove) => {
@@ -301,7 +304,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
             // Also remove all associated lastPlayedPosition keys for this movie slug
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
-                if (key.startsWith(`lastPlayedPosition-${slugToRemove}`)) {
+                if (key.startsWith(`${LAST_PLAYED_KEY_PREFIX}${slugToRemove}`)) {
                     localStorage.removeItem(key);
                 }
             }
@@ -372,8 +375,16 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                     // Handle history view (pagination, etc. for viewedHistory)
                     const startIndex = (currentPage - 1) * DEFAULT_PAGE_LIMIT;
                     const endIndex = startIndex + DEFAULT_PAGE_LIMIT;
-                    setMovies(viewedHistory.slice(startIndex, endIndex));
-                    setTotalPages(Math.ceil(viewedHistory.length / DEFAULT_PAGE_LIMIT));
+                    // Ensure that viewedHistory is updated before slicing for pagination
+                    const historyFromStorage = JSON.parse(localStorage.getItem(VIEWED_HISTORY_KEY) || '[]');
+                    const updatedHistoryForDisplay = historyFromStorage.map(item => {
+                        const lastPositionKey = `${LAST_PLAYED_KEY_PREFIX}${item.slug}-${item.currentEpisodeSlug || 'default'}`;
+                        const lastPosition = parseFloat(localStorage.getItem(lastPositionKey)) || 0;
+                        return { ...item, lastPosition };
+                    }).filter(item => item.lastPosition > 5);
+
+                    setMovies(updatedHistoryForDisplay.slice(startIndex, endIndex));
+                    setTotalPages(Math.ceil(updatedHistoryForDisplay.length / DEFAULT_PAGE_LIMIT));
                     newSeoData.titleHead = 'Lịch Sử Đã Xem - PhimAPI';
                     newSeoData.descriptionHead = 'Danh sách các bộ phim bạn đã xem gần đây.';
                     setSeoData(newSeoData);
@@ -393,24 +404,24 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                     } else {
                         const isPredefinedListType = CATEGORIES_MAPPING.some(cat => cat.slug === urlCategorySlug);
                         if (isPredefinedListType) {
-                            url = `${BASE_API_URL}/danh-sach/${urlCategorySlug}`; // Corrected
+                            url = `${BASE_API_URL}/danh-sach/${urlCategorySlug}`;
                             const typeName = CATEGORIES_MAPPING.find(cat => cat.slug === urlCategorySlug)?.name || urlCategorySlug;
                             newSeoData.titleHead = `${typeName} - PhimAPI`;
                             newSeoData.descriptionHead = `Danh sách ${typeName} mới nhất.`;
                         } else {
-                            url = `${BASE_API_URL}/the-loai/${urlCategorySlug}`; // Corrected
+                            url = `${BASE_API_URL}/the-loai/${urlCategorySlug}`;
                             const catName = genres.find(g => g.slug === urlCategorySlug)?.name || urlCategorySlug;
                             newSeoData.titleHead = `${catName} - PhimAPI`;
                             newSeoData.descriptionHead = `Danh sách phim thể loại ${catName} mới nhất.`;
                         }
                     }
                 } else if (urlCountrySlug) {
-                    url = `${BASE_API_URL}/quoc-gia/${urlCountrySlug}`; // Corrected
+                    url = `${BASE_API_URL}/quoc-gia/${urlCountrySlug}`;
                     const countryName = countries.find(c => c.slug === urlCountrySlug)?.name || urlCountrySlug;
                     newSeoData.titleHead = `Phim ${countryName} - PhimAPI`;
                     newSeoData.descriptionHead = `Danh sách phim quốc gia ${countryName} mới nhất.`;
                 } else if (urlYear) {
-                    url = `${BASE_API_URL}/nam/${urlYear}`; // Corrected
+                    url = `${BASE_API_URL}/nam/${urlYear}`;
                     newSeoData.titleHead = `Phim năm ${urlYear} - PhimAPI`;
                     newSeoData.descriptionHead = `Danh sách phim phát hành năm ${urlYear} mới nhất.`;
                 } else {
@@ -455,7 +466,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
             setMovies([]);
             setTotalPages(1);
         }
-    }, [currentPage, urlKeyword, urlCategorySlug, urlCountrySlug, urlYear, urlType, genres, countries, showMainMovieGrid, viewedHistory]); // Add viewedHistory as dependency
+    }, [currentPage, urlKeyword, urlCategorySlug, urlCountrySlug, urlYear, urlType, genres, countries, showMainMovieGrid, viewedHistory]);
 
 
     // Handle filter changes (for category, country, year selects)
@@ -492,7 +503,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
 
     // Determine the title for the main movie list section
     const getMainListTitle = () => {
-        if (urlType === 'history') return 'Lịch Sử Đã Xem'; // NEW: Title for history page
+        if (urlType === 'history') return 'Lịch Sử Đã Xem';
         if (urlKeyword) return `Kết quả tìm kiếm cho: "${urlKeyword}"`;
         if (urlCategorySlug) {
             if (urlCategorySlug === 'phim-moi-cap-nhat') return 'Phim Mới Cập Nhật';
@@ -574,7 +585,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                     ) : (
                         <div className="movie-grid">
                             {movies.map((movie) => (
-                                <Link key={movie._id || movie.slug} to={`/movie/${movie.slug}`} className="movie-card">
+                                <Link key={movie._id || movie.slug} to={`/movie/${movie.slug}${movie.currentEpisodeSlug ? `/${movie.currentEpisodeSlug}` : ''}`} className="movie-card">
                                     <LazyLoadImage
                                         src={getImageUrl(movie.poster_url)}
                                         alt={movie.name}
@@ -586,7 +597,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                                     <p>{movie.year}</p>
                                     {movie.quality && <span className="movie-quality">{movie.quality}</span>}
                                     {movie.episode_current && <span className="movie-status">{movie.episode_current}</span>}
-                                    {/* For history items in main grid (if any) */}
+                                    {/* For history items in main grid */}
                                     {urlType === 'history' && movie.lastPosition > 5 && (
                                         <div className="continue-watching-overlay">
                                             <span className="continue-watching-text">Tiếp tục xem ({formatTime(movie.lastPosition)})</span>
