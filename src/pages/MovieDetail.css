@@ -162,82 +162,6 @@
   gap: 10px;
 }
 
-/* NEW: Watched History Section on Movie Detail page */
-.watched-history-section {
-  background-color: #2a2a2a;
-  padding: 20px;
-  border-radius: 8px;
-  margin-top: 30px;
-}
-
-.watched-history-section h3 {
-  font-size: 1.6rem;
-  color: #f0f0f0;
-  margin-bottom: 15px;
-}
-
-.watched-item {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 15px;
-  padding: 10px;
-  background-color: #333;
-  border-radius: 5px;
-}
-
-.watched-item-info {
-  flex-grow: 1;
-}
-
-.watched-item-info h4 {
-  font-size: 1.1rem;
-  color: #f0f0f0;
-  margin-bottom: 5px;
-}
-
-.watched-item-info p {
-  font-size: 0.9rem;
-  color: #bbb;
-  margin: 0;
-}
-
-.watched-item-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.watched-item-actions button {
-  padding: 8px 12px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.watched-item-actions .continue-button {
-  background-color: #28a745; /* Green */
-  color: white;
-}
-
-.watched-item-actions .continue-button:hover {
-  background-color: #218838;
-}
-
-.watched-item-actions .remove-button {
-  background-color: #dc3545; /* Red */
-  color: white;
-}
-
-.watched-item-actions .remove-button:hover {
-  background-color: #c82333;
-}
-/* END NEW */
-
-
 @media (max-width: 768px) {
   .movie-detail {
     flex-direction: column;
@@ -252,4 +176,21 @@
   .video-player {
     width: 100%;
   }
+}
+
+.continue-watching-button {
+  margin: 10px 0;
+  padding: 10px 20px;
+  background-color: #28a745; /* Green color to distinguish from other buttons */
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.continue-watching-button:hover {
+  background-color: #218838; /* Darker green on hover */
 }
