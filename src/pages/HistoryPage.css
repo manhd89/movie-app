@@ -1,0 +1,209 @@
+/* src/pages/HistoryPage.css */
+
+.history-page-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 500px;
+}
+
+.history-page-title {
+    font-size: 2.2rem;
+    color: #f0f0f0;
+    text-align: center;
+    margin-bottom: 30px;
+    padding-top: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.no-history-message {
+    text-align: center;
+    font-size: 1.2rem;
+    color: #ccc;
+    padding: 50px 20px;
+}
+
+.clear-all-history-button {
+    display: block; /* Make it a block element */
+    margin: 0 auto 30px auto; /* Center it and add bottom margin */
+    padding: 10px 20px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center; /* Center content inside button */
+    gap: 8px;
+    transition: background-color 0.3s ease;
+    max-width: 250px; /* Limit button width */
+}
+
+.clear-all-history-button:hover {
+    background-color: #c82333;
+}
+
+.history-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); /* Larger cards for full history page */
+    gap: 25px;
+    padding: 20px 0;
+}
+
+.history-card-item {
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.history-card-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 18px rgba(0, 123, 255, 0.5);
+}
+
+.history-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block; /* Make the link cover the whole card area */
+}
+
+.history-card-poster {
+    width: 100%;
+    height: 330px; /* Adjust height as needed */
+    object-fit: cover;
+    display: block;
+}
+
+.history-card-info {
+    padding: 15px;
+}
+
+.history-card-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #f0f0f0;
+}
+
+.history-card-episode {
+    font-size: 0.95rem;
+    color: #bbb;
+    margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-card-year {
+    font-size: 0.85rem;
+    color: #aaa;
+    margin-bottom: 10px;
+}
+
+.history-card-time {
+    background-color: rgba(0, 123, 255, 0.9);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    display: inline-flex; /* Use inline-flex to align icon and text */
+    align-items: center;
+    gap: 5px;
+}
+
+.history-card-remove-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s ease;
+    z-index: 10;
+}
+
+.history-card-remove-button:hover {
+    background-color: #dc3545;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .history-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 20px;
+    }
+    .history-card-poster {
+        height: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .history-page-title {
+        font-size: 1.8rem;
+    }
+    .history-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 20px;
+    }
+    .history-card-poster {
+        height: 270px;
+    }
+    .history-card-title {
+        font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .history-page-title {
+        font-size: 1.5rem;
+    }
+    .clear-all-history-button {
+        max-width: 90%;
+        font-size: 0.9rem;
+        padding: 8px 15px;
+    }
+    .history-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 15px;
+    }
+    .history-card-poster {
+        height: 210px;
+    }
+    .history-card-title {
+        font-size: 1rem;
+    }
+    .history-card-episode, .history-card-year {
+        font-size: 0.8rem;
+    }
+    .history-card-time {
+        font-size: 0.7rem;
+        padding: 3px 6px;
+    }
+    .history-card-remove-button {
+        width: 25px;
+        height: 25px;
+        font-size: 0.8rem;
+        top: 5px;
+        right: 5px;
+    }
+}
