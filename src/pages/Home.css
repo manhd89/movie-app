@@ -205,9 +205,9 @@
 
 /* Horizontal scrolling container for movies */
 .movie-horizontal-scroll {
-    display: grid; /* **Updated: Use CSS Grid for better control over initial display** */
+    display: grid; /* Updated: Use CSS Grid for better control over initial display */
     grid-auto-flow: column; /* Arrange items in columns, allowing overflow */
-    grid-auto-columns: minmax(160px, 1fr); /* **Updated: Auto-size columns, min 160px** */
+    grid-auto-columns: minmax(160px, 1fr); /* Updated: Auto-size columns, min 160px */
     gap: 15px; /* Space between horizontal movie cards */
     overflow-x: auto; /* Enable horizontal scrolling */
     padding-bottom: 15px; /* Add space for the scrollbar */
@@ -216,10 +216,10 @@
     scrollbar-color: #007bff #2a2a2a; /* Firefox scrollbar color */
 }
 
-/* **New:** Define how many columns are visible at a given screen size */
+/* Define how many columns are visible at a given screen size */
 @media (min-width: 992px) {
     .movie-horizontal-scroll {
-        grid-template-columns: repeat(3, minmax(160px, 1fr)); /* **Show 3 columns on large screens** */
+        grid-template-columns: repeat(3, minmax(160px, 1fr)); /* Show 3 columns on large screens */
     }
 }
 
@@ -300,7 +300,7 @@
     min-height: 200px; /* Ensure spinner has space */
 }
 
-/* NEW: Styles for "Continue Watching" overlay in history section */
+/* Styles for "Continue Watching" overlay in history section */
 .continue-watching-overlay {
     position: absolute;
     bottom: 0;
@@ -324,7 +324,7 @@
     background-color: rgba(0, 123, 255, 0.9); /* Màu xanh khi hover */
 }
 
-/* NEW: Styles for "Clear History" button */
+/* Styles for "Clear History" button */
 .clear-history-item-button {
     position: absolute;
     top: 5px;
