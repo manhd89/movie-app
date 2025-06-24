@@ -205,9 +205,9 @@
 
 /* Horizontal scrolling container for movies */
 .movie-horizontal-scroll {
-    display: grid; /* Updated: Use CSS Grid for better control over initial display */
+    display: grid; /* **Updated: Use CSS Grid for better control over initial display** */
     grid-auto-flow: column; /* Arrange items in columns, allowing overflow */
-    grid-auto-columns: minmax(160px, 1fr); /* Updated: Auto-size columns, min 160px */
+    grid-auto-columns: minmax(160px, 1fr); /* **Updated: Auto-size columns, min 160px** */
     gap: 15px; /* Space between horizontal movie cards */
     overflow-x: auto; /* Enable horizontal scrolling */
     padding-bottom: 15px; /* Add space for the scrollbar */
@@ -216,10 +216,10 @@
     scrollbar-color: #007bff #2a2a2a; /* Firefox scrollbar color */
 }
 
-/* Define how many columns are visible at a given screen size */
+/* **New:** Define how many columns are visible at a given screen size */
 @media (min-width: 992px) {
     .movie-horizontal-scroll {
-        grid-template-columns: repeat(3, minmax(160px, 1fr)); /* Show 3 columns on large screens */
+        grid-template-columns: repeat(3, minmax(160px, 1fr)); /* **Show 3 columns on large screens** */
     }
 }
 
@@ -254,6 +254,7 @@
 
 /* Individual Movie Card in horizontal scroll */
 .movie-card-horizontal {
+    /* Removed flex: 0 0 auto; - Grid handles sizing now */
     width: 100%; /* Take full width of its grid column */
     background-color: #2a2a2a;
     border-radius: 8px;
@@ -263,7 +264,6 @@
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     display: flex;
     flex-direction: column;
-    position: relative; /* Essential for absolute positioning of overlay/button */
 }
 
 .movie-card-horizontal:hover {
@@ -300,56 +300,6 @@
     min-height: 200px; /* Ensure spinner has space */
 }
 
-/* Styles for "Continue Watching" overlay in history section */
-.continue-watching-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: #fff;
-    padding: 8px 5px;
-    font-size: 0.8rem;
-    text-align: center;
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
-    transition: background-color 0.3s ease;
-    cursor: pointer;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-
-.continue-watching-overlay:hover {
-    background-color: rgba(0, 123, 255, 0.9); /* Màu xanh khi hover */
-}
-
-/* Styles for "Clear History" button */
-.clear-history-item-button {
-    position: absolute;
-    top: 5px;
-    left: 5px; /* Đặt ở góc trên bên trái */
-    background-color: rgba(220, 53, 69, 0.8); /* Màu đỏ */
-    color: white;
-    border: none;
-    border-radius: 50%; /* Nút tròn */
-    width: 25px;
-    height: 25px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    font-size: 0.8rem;
-    transition: background-color 0.3s ease;
-    z-index: 15; /* Đảm bảo nằm trên ảnh */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.clear-history-item-button:hover {
-    background-color: #c82333;
-}
-
-
 /* Responsive adjustments for smaller screens */
 @media (max-width: 768px) {
     .main-list-title {
@@ -366,6 +316,7 @@
     .movie-grid {
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); /* Smaller cards in main grid */
     }
+    /* Horizontal cards are now controlled by grid-template-columns in .movie-horizontal-scroll */
     .movie-poster-horizontal {
         height: 210px;
     }
@@ -381,6 +332,7 @@
     .movie-grid {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Even smaller cards */
     }
+    /* Horizontal cards are now controlled by grid-template-columns in .movie-horizontal-scroll */
     .movie-poster-horizontal {
         height: 180px;
     }

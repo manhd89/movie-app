@@ -70,7 +70,7 @@
   border: none;
 }
 
-/* Styles for video loading spinner */
+/* NEW: Styles for video loading spinner */
 .video-overlay-spinner {
   position: absolute;
   top: 0;
@@ -91,6 +91,7 @@
 .hidden-video {
   visibility: hidden; /* Hide the video element while loading */
 }
+/* END NEW */
 
 .back-button {
   margin: 10px 0;
@@ -159,33 +160,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-}
-
-/* Styles for "Continue Watching" button on MovieDetail page */
-.continue-watching-detail-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 15px 0; /* Khoảng cách trên và dưới */
-  padding: 12px 25px;
-  background-color: #28a745; /* Màu xanh lá cây */
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: 1.1rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-
-.continue-watching-detail-button:hover {
-  background-color: #218838;
-  transform: translateY(-2px);
-}
-
-.continue-watching-detail-button .icon {
-  font-size: 1.3rem;
 }
 
 @media (max-width: 768px) {
