@@ -4,7 +4,7 @@ import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import Select from 'react-select';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
-import { FaAngleRight, FaTimes } from 'react-icons/fa';
+import { FaAngleRight, FaTimes, FaPlayCircle, FaTrashAlt } from 'react-icons/fa'; // Import new icons
 
 // Import CSS for styling
 import 'react-lazy-load-image-component/src/effects/blur.css';
@@ -15,6 +15,8 @@ import './Home.css'; // Make sure you have this CSS file for styling
 const BASE_API_URL = process.env.REACT_APP_API_URL;
 const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`; // Derived from BASE_API_URL
 const DEFAULT_PAGE_LIMIT = 12; // Movies per page for main lists and sections
+const WATCHED_HISTORY_KEY = 'watchedHistory'; // Key for the overall watched history list
+
 
 // Helper function to get correct image URL
 const getImageUrl = (url) => {
@@ -44,7 +46,7 @@ const movieApi = {
 };
 
 // --- Helper Component: HomePageSection ---
-function HomePageSection({ title, movies, linkToAll, isLoading }) {
+function HomePageSection({ title, movies, linkToAll, isLoading, isHistorySection = false, onRemoveHistoryItem }) {
     if (isLoading) {
         return (
             <div className="homepage-section">
@@ -72,7 +74,7 @@ function HomePageSection({ title, movies, linkToAll, isLoading }) {
             </div>
             <div className="movie-horizontal-scroll">
                 {movies.map((movie) => (
-                    <Link key={movie._id} to={`/movie/${movie.slug}`} className="movie-card-horizontal">
+                    <Link key={movie.slug + (movie.episodeSlug || '')} to={`/movie/${movie.slug}${movie.episodeSlug ? `/${movie.episodeSlug}` : ''}`} className="movie-card-horizontal">
                         <LazyLoadImage
                             src={getImageUrl(movie.poster_url)}
                             alt={movie.name}
@@ -81,13 +83,39 @@ function HomePageSection({ title, movies, linkToAll, isLoading }) {
                             onError={(e) => (e.target.src = '/placeholder.jpg')}
                         />
                         <h3>{movie.name}</h3>
-                        <p>{movie.year}</p>
+                        {isHistorySection ? (
+                            <p>{movie.episodeName} - Đã xem {formatTime(movie.position)}</p>
+                        ) : (
+                            <p>{movie.year}</p>
+                        )}
+                        {isHistorySection && (
+                            <div className="watched-history-card-actions">
+                                <Link to={`/movie/${movie.slug}/${movie.episodeSlug}`} className="continue-btn" style={{ textDecoration: 'none' }}>
+                                    <FaPlayCircle /> Tiếp tục
+                                </Link>
+                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemoveHistoryItem(movie.slug); }} className="remove-btn">
+                                    <FaTrashAlt /> Xóa
+                                </button>
+                            </div>
+                        )}
                     </Link>
                 ))}
             </div>
         </div>
     );
 }
+
+// Hàm định dạng thời gian từ giây sang HH:MM:SS
+const formatTime = (seconds) => {
+    if (isNaN(seconds) || seconds < 0) return "00:00";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return [h, m, s]
+      .map(v => v < 10 ? '0' + v : v)
+      .filter((v, i) => v !== '00' || i > 0 || h > 0) // Hide hours if 00
+      .join(':');
+};
 
 // --- Main Home Component ---
 function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFilterModal và onCloseFilterModal
@@ -123,6 +151,9 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
         vietnamMovies: [], chinaMovies: [], usEuMovies: [], japanMovies: [], koreaMovies: [],
     });
     const [loadingSections, setLoadingSections] = useState(true);
+
+    // NEW: State for watched history
+    const [watchedHistory, setWatchedHistory] = useState([]);
 
     // URL parameters used to determine the current view
     const urlCategorySlug = searchParams.get('category');
@@ -225,6 +256,28 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
             fetchFilters();
         }
     }, []);
+
+    // NEW: Effect to load watched history when component mounts
+    useEffect(() => {
+        try {
+            const storedHistory = JSON.parse(localStorage.getItem(WATCHED_HISTORY_KEY) || '[]');
+            // Sort by timestamp descending (most recent first)
+            setWatchedHistory(storedHistory.sort((a, b) => b.timestamp - a.timestamp));
+        } catch (e) {
+            console.error("Error loading watched history from localStorage:", e);
+            setWatchedHistory([]);
+        }
+    }, []); // Empty dependency array means this runs once on mount
+
+    // NEW: Function to remove a movie from watched history
+    const handleRemoveHistoryItem = useCallback((slugToRemove) => {
+        setWatchedHistory(prevHistory => {
+            const newHistory = prevHistory.filter(item => item.slug !== slugToRemove);
+            localStorage.setItem(WATCHED_HISTORY_KEY, JSON.stringify(newHistory));
+            return newHistory;
+        });
+    }, []);
+
 
     // --- Effect for Home Page Sections (Runs only if it's the pure home view) ---
     useEffect(() => {
@@ -467,7 +520,7 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
             )}
 
             {/* Main Movie Grid (for search results or category/country/year list pages) */}
-            {showMainMovieGrid && (
+            {showMainMovieGrid ? (
                 <>
                     {movies.length === 0 && !loadingMain ? (
                         <p className="no-movies-found">Không tìm thấy phim nào phù hợp với lựa chọn của bạn.</p>
@@ -513,11 +566,20 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
                         </div>
                     )}
                 </>
-            )}
-
-            {/* Home Page Sections (only visible if not showing the main movie grid) */}
-            {!showMainMovieGrid && (
+            ) : (
                 <div className="home-sections-container">
+                    {/* NEW: Watched History Section - Only show if history exists */}
+                    {watchedHistory.length > 0 && (
+                        <HomePageSection
+                            title="Lịch Sử Xem Phim"
+                            movies={watchedHistory.slice(0, DEFAULT_PAGE_LIMIT)} // Show limited for horizontal scroll
+                            linkToAll="/history" // You'll need to create a dedicated /history page
+                            isLoading={false}
+                            isHistorySection={true}
+                            onRemoveHistoryItem={handleRemoveHistoryItem}
+                        />
+                    )}
+
                     <HomePageSection
                         title="Phim Mới Cập Nhật"
                         movies={homeSectionsData.recentMovies}
