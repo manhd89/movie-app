@@ -578,18 +578,6 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
             {/* Home Page Sections (only visible if not showing the main movie grid) */}
             {!showMainMovieGrid && (
                 <div className="home-sections-container">
-                    {/* NEW: Watched History Section - Renders only if history exists */}
-                    {homeSectionsData.watchedHistory.length > 0 && (
-                        <HomePageSection
-                            title="Lịch Sử Đã Xem"
-                            movies={homeSectionsData.watchedHistory.slice(0, DEFAULT_PAGE_LIMIT)} // Show limited, add 'Xem tất cả' logic if needed
-                            type="history"
-                            onRemoveHistoryItem={handleRemoveHistoryItem}
-                            // linkToAll="/history" // Could create a dedicated history page
-                            isLoading={false} // History loading is handled by direct localStorage access
-                        />
-                    )}
-
                     <HomePageSection
                         title="Phim Mới Cập Nhật"
                         movies={homeSectionsData.recentMovies}
@@ -609,6 +597,19 @@ function Home({ showFilterModal, onCloseFilterModal }) { // Nhận props showFil
                         linkToAll="/?category=phim-le&page=1"
                         isLoading={loadingSections}
                     />
+
+                    {/* VỊ TRÍ MỚI CỦA LỊCH SỬ ĐÃ XEM - Dưới Phim Lẻ */}
+                    {homeSectionsData.watchedHistory.length > 0 && (
+                        <HomePageSection
+                            title="Lịch Sử Đã Xem"
+                            movies={homeSectionsData.watchedHistory.slice(0, DEFAULT_PAGE_LIMIT)} // Show limited, add 'Xem tất cả' logic if needed
+                            type="history"
+                            onRemoveHistoryItem={handleRemoveHistoryItem}
+                            // linkToAll="/history" // Could create a dedicated history page
+                            isLoading={false} // History loading is handled by direct localStorage access
+                        />
+                    )}
+
                     <HomePageSection
                         title="TV Shows"
                         movies={homeSectionsData.tvShows}
