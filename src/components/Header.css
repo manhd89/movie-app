@@ -17,10 +17,11 @@
   font-size: 1.8rem; /* Adjusted for better visibility */
   font-weight: bold; /* Added font-weight */
   text-decoration: none;
+  /* margin-right: 20px; */ /* Removed, flex handles spacing */
   flex-shrink: 0; /* Prevent logo from shrinking */
 }
 
-/* Style for the search toggle button (kính lúp/X) */
+/* NEW: Style for the search toggle button (kính lúp/X) */
 .search-toggle-button {
   background: none;
   border: none;
@@ -93,6 +94,11 @@
 
 .search-input:focus {
   border-color: #007bff; /* Highlight on focus */
+}
+
+/* Removed the explicit "Tìm" button in JS, so hide if it's somehow rendered */
+.search-button {
+  display: none;
 }
 
 /* Suggestions List */
@@ -170,26 +176,6 @@
   background-color: #dc3545; /* Red background on hover */
 }
 
-/* NEW: History Link Button in Header */
-.history-link-button {
-  background: none;
-  border: none;
-  color: #fff;
-  font-size: 1.5rem; /* Consistent icon size */
-  cursor: pointer;
-  padding: 0.5rem;
-  display: flex; /* To center icon */
-  align-items: center;
-  justify-content: center;
-  margin-left: 15px; /* Space between search toggle and history */
-  flex-shrink: 0;
-  text-decoration: none; /* Remove underline for link */
-}
-
-.history-link-button:hover {
-  color: #007bff;
-}
-
 /* Hamburger menu */
 .hamburger-menu {
   background: none;
@@ -201,7 +187,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: 15px; /* Space between history button and hamburger */
+  /* margin-left: 20px; */ /* Removed, flex handles spacing */
   order: 3; /* Order in flex container, ensures it's last */
   flex-shrink: 0;
 }
@@ -221,10 +207,8 @@
   }
 
   .search-toggle-button,
-  .history-link-button, /* Apply to history link too */
   .hamburger-menu {
     font-size: 1.3rem; /* Slightly smaller icons */
-    padding: 0.3rem; /* Adjusted padding */
   }
 
   /* Search container overlay for smaller screens */
@@ -250,7 +234,6 @@
   }
 
   .search-toggle-button,
-  .history-link-button, /* Apply to history link too */
   .hamburger-menu {
     font-size: 1.2rem; /* Even smaller icons */
     padding: 0.3rem;

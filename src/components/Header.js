@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import './Header.css';
-import { FaBars, FaSearch, FaTimes, FaHistory } from 'react-icons/fa'; // Import FaSearch, FaTimes, FaHistory
+import { FaBars, FaSearch, FaTimes } from 'react-icons/fa'; // Import FaSearch and FaTimes
 
 // --- Constants ---
 // Use environment variables for API URLs
@@ -14,7 +14,7 @@ function Header({ onOpenFilters }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showSearchBar, setShowSearchBar] = useState(false); // State to control visibility of the search bar
+  const [showSearchBar, setShowSearchBar] = useState(false); // NEW: State to control visibility of the search bar
   const navigate = useNavigate();
   const searchContainerRef = useRef(null);
   const inputRef = useRef(null);
@@ -24,11 +24,11 @@ function Header({ onOpenFilters }) {
     setSearchQuery('');
     setSuggestions([]);
     setShowSuggestions(false);
-    setShowSearchBar(false); // Hide the search bar itself
+    setShowSearchBar(false); // NEW: Hide the search bar itself
     if (inputRef.current) {
       inputRef.current.blur(); // Đảm bảo ẩn bàn phím ảo
     }
-  }, []);
+  }, []); // Không có dependencies vì nó chỉ reset trạng thái
 
   // Toggle search bar visibility
   const toggleSearchBar = () => {
@@ -233,11 +233,6 @@ function Header({ onOpenFilters }) {
           )}
         </div>
       )}
-
-      {/* Link to History Page */}
-      <Link to="/history" className="history-link-button" aria-label="Lịch sử xem">
-        <FaHistory />
-      </Link>
 
       {/* Hamburger menu button */}
       <button className="hamburger-menu" onClick={onOpenFilters}>
