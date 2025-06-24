@@ -2,11 +2,9 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import axios from 'axios';
-// import { ToastContainer, toast } from 'react-toastify'; // REMOVED
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import Hls from 'hls.js';
-import { FaArrowLeft, FaRegPlayCircle } from 'react-icons/fa';
-// import 'react-toastify/dist/ReactToastify.css'; // REMOVED
+import { FaArrowLeft, FaRegPlayCircle, FaTimesCircle, FaPlayCircle } from 'react-icons/fa'; // Import new icons
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
 
@@ -25,7 +23,8 @@ async function removeAds(playlistUrl) {
 
 // Hằng số để lưu trữ vị trí tối thiểu để coi là đang xem
 const PLAYBACK_SAVE_THRESHOLD_SECONDS = 5; // Lưu vị trí nếu đã xem ít nhất 5 giây
-const LAST_PLAYED_KEY_PREFIX = 'lastPlayedPosition-';
+const LAST_PLAYED_KEY_PREFIX = 'lastPlayedPosition-'; // Prefix for individual episode playback position
+const WATCHED_HISTORY_KEY = 'watchedHistory'; // Key for the overall watched history list
 
 function MovieDetail() {
   const { slug, episodeSlug } = useParams();
@@ -46,6 +45,9 @@ function MovieDetail() {
   // Thêm một ref để lưu trữ vị trí video hiện tại khi tạm dừng/thoát
   const currentPlaybackPositionRef = useRef(0);
 
+  // State for watched history for *this specific movie* on the detail page
+  const [watchedHistoryForThisMovie, setWatchedHistoryForThisMovie] = useState(null); // { slug, name, episodeName, position, totalDuration, timestamp, poster_url }
+
   // Inject ad-blocking CSS (giữ nguyên)
   useEffect(() => {
     const style = document.createElement('style');
@@ -53,6 +55,75 @@ function MovieDetail() {
     document.head.appendChild(style);
     return () => style.remove();
   }, []);
+
+  // Hàm để tạo key lưu trữ vị trí video
+  const getPlaybackPositionKey = useCallback((epSlug) => {
+    return `${LAST_PLAYED_KEY_PREFIX}${slug}-${epSlug}`;
+  }, [slug]);
+
+  // --- Watched History Management Functions ---
+  const saveWatchedHistory = useCallback(() => {
+    const video = videoRef.current;
+    if (movie && currentEpisode && video && video.currentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+      const historyItem = {
+        slug: movie.slug,
+        name: movie.name,
+        episodeSlug: currentEpisode.slug,
+        episodeName: currentEpisode.name || `Tập ${currentEpisode.slug.split('-').pop()}`, // Try to get episode number
+        position: video.currentTime,
+        totalDuration: video.duration,
+        timestamp: Date.now(),
+        poster_url: movie.poster_url,
+        // Add current server index to history for better "continue watching" accuracy
+        selectedServerIndex: selectedServer,
+      };
+
+      try {
+        const storedHistory = JSON.parse(localStorage.getItem(WATCHED_HISTORY_KEY) || '[]');
+        const existingIndex = storedHistory.findIndex(item => item.slug === movie.slug);
+
+        if (existingIndex !== -1) {
+          // Update existing item
+          storedHistory[existingIndex] = historyItem;
+        } else {
+          // Add new item to the beginning (most recent)
+          storedHistory.unshift(historyItem);
+        }
+        // Limit history to a reasonable number, e.g., 50 items
+        localStorage.setItem(WATCHED_HISTORY_KEY, JSON.stringify(storedHistory.slice(0, 50)));
+        // Update local state for this movie's history
+        setWatchedHistoryForThisMovie(historyItem);
+        console.log("Saved watched history for:", movie.name, currentEpisode.name);
+      } catch (e) {
+        console.error("Error saving watched history to localStorage:", e);
+      }
+    }
+  }, [movie, currentEpisode, selectedServer]);
+
+  // Hàm để lưu vị trí video hiện tại
+  const savePlaybackPosition = useCallback(() => {
+    const video = videoRef.current;
+    if (video && currentEpisode && video.currentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+      const key = getPlaybackPositionKey(currentEpisode.slug);
+      localStorage.setItem(key, video.currentTime.toString());
+      console.log(`Saved playback position for ${currentEpisode.name}: ${video.currentTime}s`);
+    }
+  }, [currentEpisode, getPlaybackPositionKey]);
+
+  // Effect to load watched history for *this movie* when component mounts or movie changes
+  useEffect(() => {
+    if (movie) {
+      try {
+        const storedHistory = JSON.parse(localStorage.getItem(WATCHED_HISTORY_KEY) || '[]');
+        const thisMovieHistory = storedHistory.find(item => item.slug === movie.slug);
+        setWatchedHistoryForThisMovie(thisMovieHistory || null);
+      } catch (e) {
+        console.error("Error loading watched history from localStorage:", e);
+        setWatchedHistoryForThisMovie(null);
+      }
+    }
+  }, [movie]);
+
 
   // Effect 1: Fetch movie data. CHỈ chạy khi `slug` thay đổi.
   useEffect(() => {
@@ -67,11 +138,6 @@ function MovieDetail() {
         setInitialLoading(false);
       } catch (error) {
         console.error('Lỗi khi lấy dữ liệu phim:', error); // Giữ lại console.error
-        // if (error.response?.status === 404) {
-        //   toast.error('Phim hoặc tập phim không tồn tại.'); // REMOVED
-        // } else {
-        //   toast.error('Lỗi kết nối server. Vui lòng thử lại sau.'); // REMOVED
-        // }
         setInitialLoading(false);
       }
     };
@@ -98,20 +164,17 @@ function MovieDetail() {
           } else {
             setCurrentEpisode(null);
             setShowMovieInfoPanel(true);
-            // toast.warn('Tập phim không tồn tại trên server này. Đã quay lại trang chi tiết.'); // REMOVED
             navigate(`/movie/${slug}`, { replace: true });
           }
         } else {
           setCurrentEpisode(null);
           setShowMovieInfoPanel(true);
-          // toast.warn('Server hoặc tập phim không tồn tại. Đã quay lại trang chi tiết.'); // REMOVED
           navigate(`/movie/${slug}`, { replace: true });
         }
       }
     } else if (movie && episodes.length === 0) {
       setCurrentEpisode(null);
       setShowMovieInfoPanel(true);
-      // toast.info('Bộ phim này hiện chưa có tập nào.'); // REMOVED
       if (episodeSlug) {
         navigate(`/movie/${slug}`, { replace: true });
       }
@@ -123,20 +186,6 @@ function MovieDetail() {
     localStorage.setItem(`selectedServer-${slug}`, selectedServer);
   }, [selectedServer, slug]);
 
-  // Hàm để tạo key lưu trữ vị trí video
-  const getPlaybackPositionKey = useCallback((epSlug) => {
-    return `${LAST_PLAYED_KEY_PREFIX}${slug}-${epSlug}`;
-  }, [slug]);
-
-  // Hàm để lưu vị trí video hiện tại
-  const savePlaybackPosition = useCallback(() => {
-    const video = videoRef.current;
-    if (video && currentEpisode && video.currentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
-      const key = getPlaybackPositionKey(currentEpisode.slug);
-      localStorage.setItem(key, video.currentTime.toString());
-      console.log(`Saved playback position for ${currentEpisode.name}: ${video.currentTime}s`);
-    }
-  }, [currentEpisode, getPlaybackPositionKey]);
 
   // Effect 4: Handle video playback with HLS.js. CHỈ chạy khi `currentEpisode` thay đổi
   const loadVideo = useCallback(async () => {
@@ -241,7 +290,6 @@ function MovieDetail() {
     } catch (error) {
       console.error('Error loading video:', error); // Giữ lại console.error
       setVideoLoading(false);
-      // toast.error('Không thể tải video: ' + error.message); // REMOVED
     }
   }, [currentEpisode, showMovieInfoPanel, getPlaybackPositionKey]);
 
@@ -250,6 +298,7 @@ function MovieDetail() {
     return () => {
       // Lưu vị trí video trước khi unmount hoặc tải tập mới
       savePlaybackPosition();
+      saveWatchedHistory(); // Save to history when leaving episode
       if (hlsInstanceRef.current) {
         hlsInstanceRef.current.destroy();
         hlsInstanceRef.current = null;
@@ -260,7 +309,7 @@ function MovieDetail() {
         videoRef.current.load();
       }
     };
-  }, [currentEpisode, loadVideo, savePlaybackPosition]);
+  }, [currentEpisode, loadVideo, savePlaybackPosition, saveWatchedHistory]);
 
   // NEW EFFECT: Handle page visibility for video playback and saving position
   useEffect(() => {
@@ -270,6 +319,7 @@ function MovieDetail() {
     // Listener để lưu vị trí khi video tạm dừng
     const handleVideoPause = () => {
         savePlaybackPosition();
+        saveWatchedHistory(); // Also save to history on pause
     };
 
     // Listener để cập nhật vị trí thường xuyên khi đang phát
@@ -289,6 +339,7 @@ function MovieDetail() {
         }
         // Lưu vị trí ngay lập tức khi chuyển sang background
         savePlaybackPosition();
+        saveWatchedHistory(); // Save to history on visibility change
       } else {
         // Tab chuyển sang foreground
         if (video.src && !showMovieInfoPanel) {
@@ -315,7 +366,7 @@ function MovieDetail() {
       video.removeEventListener('pause', handleVideoPause);
       video.removeEventListener('timeupdate', handleTimeUpdate);
     };
-  }, [showMovieInfoPanel, savePlaybackPosition]);
+  }, [showMovieInfoPanel, savePlaybackPosition, saveWatchedHistory]);
 
 
   // handleServerChange: Chuyển server, cố gắng giữ tập hiện tại hoặc chọn tập đầu tiên của server mới.
@@ -325,6 +376,7 @@ function MovieDetail() {
 
     // Lưu vị trí đang xem của tập phim hiện tại trước khi chuyển server
     savePlaybackPosition();
+    saveWatchedHistory(); // Save to history when changing server
 
     setSelectedServer(index);
     setShowMovieInfoPanel(false);
@@ -338,27 +390,79 @@ function MovieDetail() {
       if (!targetEpisode) {
         // Nếu không tìm thấy, chuyển sang tập đầu tiên của server mới
         targetEpisode = newServerData[0];
-        // toast.info('Tập hiện tại không có trên server này. Đã chuyển sang tập đầu tiên.'); // REMOVED
       }
       setCurrentEpisode(targetEpisode);
       navigate(`/movie/${slug}/${targetEpisode.slug}`, { replace: true });
     } else {
       setCurrentEpisode(null);
-      // toast.warn('Server này không có tập phim nào.'); // REMOVED
       navigate(`/movie/${slug}`, { replace: true });
     }
-  }, [slug, navigate, episodes, currentEpisode, savePlaybackPosition]);
+  }, [slug, navigate, episodes, currentEpisode, savePlaybackPosition, saveWatchedHistory]);
 
 
   // handleEpisodeSelect: Chọn một tập cụ thể. Luôn hiển thị player.
   const handleEpisodeSelect = useCallback((episode) => {
     // Lưu vị trí đang xem của tập phim hiện tại trước khi chuyển tập
     savePlaybackPosition();
+    saveWatchedHistory(); // Save to history when changing episode
 
     setCurrentEpisode(episode);
     setShowMovieInfoPanel(false);
     navigate(`/movie/${slug}/${episode.slug}`);
-  }, [slug, navigate, savePlaybackPosition]);
+  }, [slug, navigate, savePlaybackPosition, saveWatchedHistory]);
+
+  // Handle "Continue Watching" button click from history
+  const handleContinueWatching = useCallback((historyItem) => {
+    const { slug: movieSlug, episodeSlug: epSlug, selectedServerIndex } = historyItem;
+
+    if (movieSlug !== slug) {
+      // Navigate to the correct movie detail page first
+      navigate(`/movie/${movieSlug}/${epSlug}`);
+    } else {
+      // Already on the correct movie page, just load the episode and server
+      const targetServerIndex = selectedServerIndex < episodes.length ? selectedServerIndex : 0;
+      setSelectedServer(targetServerIndex); // Set selected server from history
+
+      const serverData = episodes[targetServerIndex]?.server_data;
+      if (serverData && serverData.length > 0) {
+        const episodeToLoad = serverData.find(ep => ep.slug === epSlug);
+        if (episodeToLoad) {
+          setCurrentEpisode(episodeToLoad);
+          setShowMovieInfoPanel(false);
+          navigate(`/movie/${movieSlug}/${epSlug}`, { replace: true });
+          // The loadVideo effect will then restore currentTime based on LAST_PLAYED_KEY_PREFIX
+        } else {
+          console.warn("Episode from history not found on current server:", epSlug);
+          // Fallback to movie info if episode not found
+          setShowMovieInfoPanel(true);
+          navigate(`/movie/${movieSlug}`, { replace: true });
+        }
+      } else {
+        console.warn("Server from history not found or has no episodes.");
+        setShowMovieInfoPanel(true);
+        navigate(`/movie/${movieSlug}`, { replace: true });
+      }
+    }
+  }, [navigate, slug, episodes]);
+
+
+  // Handle "Remove from History" button click
+  const handleRemoveFromHistory = useCallback(() => {
+    try {
+      let storedHistory = JSON.parse(localStorage.getItem(WATCHED_HISTORY_KEY) || '[]');
+      storedHistory = storedHistory.filter(item => item.slug !== movie.slug);
+      localStorage.setItem(WATCHED_HISTORY_KEY, JSON.stringify(storedHistory));
+      setWatchedHistoryForThisMovie(null); // Clear history for this movie in state
+      console.log("Removed movie from watched history:", movie.name);
+
+      // Optionally, also clear individual episode playback positions for this movie
+      // This requires iterating through all localStorage keys, which can be slow
+      // For simplicity, we'll only remove the general history entry here.
+      // If full cleanup is needed, consider using a dedicated history object structure.
+    } catch (e) {
+      console.error("Error removing movie from watched history:", e);
+    }
+  }, [movie]);
 
 
   // Các hàm tiện ích khác (giữ nguyên)
@@ -366,7 +470,7 @@ function MovieDetail() {
     if (url && url.startsWith('https://')) {
       return url;
     }
-    return url ? `${process.env.REACT_APP_API_CDN_IMAGE}/${url}` : '/fallback-image.jpg';
+    return url ? `${process.env.REACT_APP_API_CDN_IMAGE}/${url}` : '/placeholder.jpg'; // Changed fallback
   };
 
   const truncateDescription = (text, maxLength = 160) => {
@@ -386,6 +490,7 @@ function MovieDetail() {
 
   // Hàm định dạng thời gian từ giây sang HH:MM:SS (Giữ lại để có thể dùng cho console.log hoặc debug)
   const formatTime = (seconds) => {
+    if (isNaN(seconds) || seconds < 0) return "00:00";
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = Math.floor(seconds % 60);
@@ -420,7 +525,6 @@ function MovieDetail() {
           content={movie.seoOnPage?.descriptionHead || truncateDescription(movie.content)}
         />
       </Helmet>
-      {/* <ToastContainer /> // REMOVED */}
       <h1 className="movie-title">
         {movie.name}
         {currentEpisode && ` - ${currentEpisode.name || 'Tập phim'}`}
@@ -452,6 +556,23 @@ function MovieDetail() {
               <p><strong>Thời lượng:</strong> {movie.time || 'N/A'}</p>
               <p><strong>Trạng thái:</strong> {movie.episode_current || 'Full'}</p>
               <p><strong>Nội dung:</strong> {movie.content || 'Không có mô tả.'}</p>
+              {/* NEW: Display Continue Watching / Remove from History buttons if history exists for this movie */}
+              {watchedHistoryForThisMovie && (
+                <div className="watched-item-actions" style={{ marginTop: '20px' }}>
+                  <button
+                    onClick={() => handleContinueWatching(watchedHistoryForThisMovie)}
+                    className="continue-button"
+                  >
+                    <FaPlayCircle /> Tiếp tục xem ({watchedHistoryForThisMovie.episodeName})
+                  </button>
+                  <button
+                    onClick={handleRemoveFromHistory}
+                    className="remove-button"
+                  >
+                    <FaTimesCircle /> Xóa khỏi lịch sử
+                  </button>
+                </div>
+              )}
             </div>
           </>
         ) : (
