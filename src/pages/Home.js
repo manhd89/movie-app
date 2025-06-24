@@ -237,10 +237,10 @@ function Home({ showFilterModal, onCloseFilterModal }) {
             '&:active': { backgroundColor: '#0056b3' }
         }),
         menu: (provided) => ({ ...provided, backgroundColor: '#333' }),
-        multiValue: (provided) => ({ provide, backgroundColor: '#007bff' }),
+        multiValue: (provided) => ({ ...provided, backgroundColor: '#007bff' }),
         multiValueLabel: (provided) => ({ ...provided, color: '#fff' }),
         multiValueRemove: (provided) => ({
-            provided,
+            ...provided,
             color: '#fff',
             '&:hover': { backgroundColor: '#0056b3', color: '#fff' }
         })
