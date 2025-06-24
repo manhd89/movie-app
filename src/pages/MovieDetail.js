@@ -8,7 +8,7 @@ import { FaArrowLeft, FaRegPlayCircle } from 'react-icons/fa';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
 
-// Ad-blocking CSS (giữ nguyên)
+// Ad-blocking CSS
 const adBlockCSS = `
   .bg-opacity-40.bg-white.w-full.text-center.space-x-2.bottom-0.absolute {
     display: none !important;
@@ -26,7 +26,7 @@ const PLAYBACK_SAVE_THRESHOLD_SECONDS = 5; // Lưu vị trí nếu đã xem ít 
 const LAST_PLAYED_KEY_PREFIX = 'lastPlayedPosition-';
 const VIEWED_HISTORY_KEY = 'viewedHistory'; // KEY mới cho lịch sử xem
 
-// Hàm định dạng thời gian từ giây sang HH:MM:SS (Giữ lại để có thể dùng cho console.log hoặc debug)
+// Hàm định dạng thời gian từ giây sang HH:MM:SS
 const formatTime = (seconds) => {
   if (isNaN(seconds) || seconds < 0) return "00:00";
   const h = Math.floor(seconds / 3600);
@@ -61,7 +61,7 @@ function MovieDetail() {
   // Thêm một ref để lưu trữ vị trí video hiện tại khi tạm dừng/thoát
   const currentPlaybackPositionRef = useRef(0);
 
-  // Inject ad-blocking CSS (giữ nguyên)
+  // Inject ad-blocking CSS
   useEffect(() => {
     const style = document.createElement('style');
     style.textContent = adBlockCSS;
@@ -71,6 +71,7 @@ function MovieDetail() {
 
   // Hàm để tạo key lưu trữ vị trí video
   const getPlaybackPositionKey = useCallback((epSlug) => {
+    // Key bao gồm slug phim và slug tập phim để phân biệt vị trí giữa các tập
     return `${LAST_PLAYED_KEY_PREFIX}${slug}-${epSlug}`;
   }, [slug]);
 
@@ -83,13 +84,13 @@ function MovieDetail() {
       console.log(`Saved playback position for ${currentEpisode.name}: ${video.currentTime}s`);
 
       // Cập nhật lastPosition trong lịch sử xem
-      saveMovieToHistory();
+      saveMovieToHistory(video.currentTime);
     }
   }, [currentEpisode, getPlaybackPositionKey]);
 
 
   // Hàm để lưu thông tin phim vào lịch sử xem
-  const saveMovieToHistory = useCallback(() => {
+  const saveMovieToHistory = useCallback((currentVideoPosition = 0) => {
     if (!movie) return;
 
     let history = JSON.parse(localStorage.getItem(VIEWED_HISTORY_KEY) || '[]');
@@ -100,11 +101,12 @@ function MovieDetail() {
       origin_name: movie.origin_name,
       poster_url: movie.poster_url,
       year: movie.year,
+      // Lưu lại slug của tập cuối cùng đã xem để khi bấm "Tiếp tục xem"
+      // trên trang chủ, nó sẽ dẫn đến đúng tập đó.
+      currentEpisodeSlug: currentEpisode?.slug || null,
+      // Vị trí xem dở của tập hiện tại
+      lastPosition: currentVideoPosition,
     };
-
-    // Cập nhật lastPosition nếu có từ localStorage
-    const lastPositionKey = `${LAST_PLAYED_KEY_PREFIX}${movie.slug}-${currentEpisode?.slug || 'default'}`;
-    movieToSave.lastPosition = parseFloat(localStorage.getItem(lastPositionKey)) || 0;
 
     // Lọc bỏ phim cũ nếu đã có trong lịch sử để đưa lên đầu
     history = history.filter(item => item.slug !== movie.slug);
@@ -117,7 +119,7 @@ function MovieDetail() {
 
     localStorage.setItem(VIEWED_HISTORY_KEY, JSON.stringify(history));
     console.log(`Movie '${movie.name}' saved/updated in history.`);
-  }, [movie, currentEpisode]); // currentEpisode để đảm bảo lastPosition được cập nhật chính xác cho tập hiện tại
+  }, [movie, currentEpisode]);
 
 
   // Effect 1: Fetch movie data. CHỈ chạy khi `slug` thay đổi.
@@ -142,9 +144,11 @@ function MovieDetail() {
   // NEW EFFECT: Call saveMovieToHistory when movie data is available
   useEffect(() => {
     if (movie) {
-      saveMovieToHistory();
+      // Khi movie được tải, lưu vào lịch sử nhưng không có vị trí cụ thể (vị trí 0)
+      // Vị trí sẽ được cập nhật khi video bắt đầu phát.
+      saveMovieToHistory(0);
     }
-  }, [movie, saveMovieToHistory]); // `saveMovieToHistory` là một dependency
+  }, [movie, saveMovieToHistory]);
 
 
   // Effect 2: Cập nhật currentEpisode và `showMovieInfoPanel` ban đầu
@@ -184,7 +188,7 @@ function MovieDetail() {
     }
   }, [movie, episodes, selectedServer, episodeSlug, navigate, slug]);
 
-  // Effect 3: Persist selected server (giữ nguyên)
+  // Effect 3: Persist selected server
   useEffect(() => {
     localStorage.setItem(`selectedServer-${slug}`, selectedServer);
   }, [selectedServer, slug]);
@@ -323,8 +327,7 @@ function MovieDetail() {
         videoRef.current.load();
       }
     };
-  }, [currentEpisode, loadVideo, savePlaybackPosition]); // Dependencies đầy đủ
-
+  }, [currentEpisode, loadVideo, savePlaybackPosition]);
 
   // NEW EFFECT: Handle page visibility for video playback and saving position
   useEffect(() => {
@@ -340,6 +343,8 @@ function MovieDetail() {
         savePlaybackPosition();
       } else {
         if (video.src && !showMovieInfoPanel) {
+            // Attempt to resume playback if tab comes to foreground
+            // and video was playing or supposed to play
             if (hlsInstanceRef.current && hlsInstanceRef.current.media && hlsInstanceRef.current.media.readyState < 4) {
                 console.log("Attempting to recover HLS.js media error on foreground.");
                 hlsInstanceRef.current.recoverMediaError();
@@ -399,7 +404,7 @@ function MovieDetail() {
   }, [slug, navigate, savePlaybackPosition]);
 
 
-  // Các hàm tiện ích khác (giữ nguyên)
+  // Các hàm tiện ích khác
   const getImageUrl = (url) => {
     if (url && url.startsWith('https://')) {
       return url;
@@ -435,10 +440,10 @@ function MovieDetail() {
     return <div className="container">Phim không tồn tại.</div>;
   }
 
-  // Lấy vị trí xem dở của phim hiện tại để hiển thị nút "Tiếp tục xem"
-  // Lấy từ `viewedHistory` hoặc `localStorage` riêng lẻ cho tập đang hiển thị
-  const lastPlayedPositionForCurrentMovie = parseFloat(localStorage.getItem(`${LAST_PLAYED_KEY_PREFIX}${movie.slug}-${currentEpisode?.slug || 'default'}`)) || 0;
-
+  // Lấy vị trí xem dở của tập phim hiện tại để hiển thị nút "Tiếp tục xem"
+  const lastPlayedPositionForCurrentEpisode = currentEpisode
+    ? parseFloat(localStorage.getItem(getPlaybackPositionKey(currentEpisode.slug))) || 0
+    : 0;
 
   return (
     <div className="container">
@@ -458,26 +463,27 @@ function MovieDetail() {
         {currentEpisode && ` - ${currentEpisode.name || 'Tập phim'}`}
       </h1>
 
-      {/* NEW: Nút "Tiếp tục xem" trên trang chi tiết */}
-      {showMovieInfoPanel && movie && lastPlayedPositionForCurrentMovie > PLAYBACK_SAVE_THRESHOLD_SECONDS && (
+      {/* Hiển thị nút "Tiếp tục xem" ngay dưới tiêu đề phim nếu có vị trí và đang ở trang thông tin */}
+      {showMovieInfoPanel && lastPlayedPositionForCurrentEpisode > PLAYBACK_SAVE_THRESHOLD_SECONDS && (
         <button
           onClick={() => {
-            // Đảm bảo currentEpisode đã được set đúng hoặc tìm tập đầu tiên
-            // để chuyển sang chế độ xem video
+            // Khi click "Tiếp tục xem", điều hướng đến tập cuối cùng đã xem
+            // và ẩn movie info panel để hiển thị player
             if (currentEpisode) {
                 setShowMovieInfoPanel(false);
                 // navigate(`/movie/${slug}/${currentEpisode.slug}`); // Không cần navigate lại vì đã ở trang đúng
                 // loadVideo() sẽ tự khôi phục vị trí
             } else if (episodes.length > 0 && episodes[selectedServer]?.server_data?.length > 0) {
+                // Nếu chưa có currentEpisode nhưng có server data, chọn tập đầu tiên
                 const firstEpisode = episodes[selectedServer].server_data[0];
-                setCurrentEpisode(firstEpisode); // Set để load video
+                setCurrentEpisode(firstEpisode);
                 setShowMovieInfoPanel(false);
-                navigate(`/movie/${slug}/${firstEpisode.slug}`); // Điều hướng để URL cập nhật
+                navigate(`/movie/${slug}/${firstEpisode.slug}`);
             }
           }}
           className="continue-watching-detail-button"
         >
-          <FaRegPlayCircle className="icon" /> Tiếp tục xem từ {formatTime(lastPlayedPositionForCurrentMovie)}
+          <FaRegPlayCircle className="icon" /> Tiếp tục xem từ {formatTime(lastPlayedPositionForCurrentEpisode)}
         </button>
       )}
 
@@ -549,7 +555,7 @@ function MovieDetail() {
             <button
               onClick={() => {
                 setShowMovieInfoPanel(true);
-                setCurrentEpisode(null);
+                setCurrentEpisode(null); // Clear current episode when going back to info
                 navigate(`/movie/${slug}`, { replace: true });
               }}
               className="back-button"
