@@ -341,44 +341,78 @@
     }
 }
 
+/* Add these styles to the bottom of src/pages/Home.css */
+
+/* History section specific styles */
 .history-actions {
-  display: flex;
-  gap: 5px;
-  padding: 5px 8px;
-  justify-content: space-between;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 8px 0;
+    width: 100%;
+    gap: 5px; /* Space between buttons */
 }
 
-.continue-watching-button {
-  flex: 1;
-  padding: 6px 10px;
-  background-color: #28a745; /* Green color */
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  text-align: center;
+.continue-watching-button,
+.remove-history-button-card {
+    background-color: #007bff; /* Blue for continue */
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1; /* Allow buttons to share space */
+    justify-content: center;
+    transition: background-color 0.3s ease;
 }
 
 .continue-watching-button:hover {
-  background-color: #218838; /* Darker green */
+    background-color: #0056b3;
 }
 
-.delete-history-button {
-  padding: 6px 10px;
-  background-color: #dc3545; /* Red color */
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  display: flex;
-  align-items: center;
+.remove-history-button-card {
+    background-color: #dc3545; /* Red for remove */
 }
 
-.delete-history-button:hover {
-  background-color: #c82333; /* Darker red */
+.remove-history-button-card:hover {
+    background-color: #c82333;
+}
+
+/* Ensure history card text does not overflow due to buttons */
+.movie-card-horizontal.history-card h3,
+.movie-card-horizontal.history-card p {
+    white-space: normal; /* Allow text to wrap */
+    height: auto; /* Adjust height based on content */
+    margin-bottom: 0; /* Remove bottom margin to make space for buttons */
+}
+
+/* Adjust poster height to make space for action buttons in history */
+.movie-card-horizontal .movie-poster-horizontal {
+    height: 180px; /* Reduced height to make space for buttons */
+    margin-bottom: 5px; /* Small margin between poster and text */
+}
+
+/* Responsive adjustments for history section */
+@media (max-width: 768px) {
+    .continue-watching-button,
+    .remove-history-button-card {
+        padding: 5px 8px;
+        font-size: 0.7rem;
+        gap: 3px;
+    }
+}
+
+@media (max-width: 480px) {
+    .continue-watching-button,
+    .remove-history-button-card {
+        padding: 4px 6px;
+        font-size: 0.65rem;
+    }
+    .movie-card-horizontal .movie-poster-horizontal {
+        height: 150px;
+    }
 }
