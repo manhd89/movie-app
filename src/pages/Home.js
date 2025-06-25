@@ -7,7 +7,7 @@ import { LazyLoadImage } from 'react-lazy-load-image-component';
 import { FaAngleRight, FaTimes, FaHistory, FaTrashAlt } from 'react-icons/fa'; // Import FaHistory, FaTrashAlt
 
 import 'react-lazy-load-image-component/src/effects/blur.css';
-import './Home.css';
+import './Home.css'; // Đảm bảo đã import Home.css
 
 const BASE_API_URL = process.env.REACT_APP_API_URL;
 const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`;
@@ -38,22 +38,24 @@ const movieApi = {
     }
 };
 
-// Hàm tiện ích để định dạng thời gian từ giây sang phút:giây
-const formatTime = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes} phút ${remainingSeconds} giây`;
-};
+// Hàm tiện ích để định dạng thời gian từ giây sang phút:giây (có thể không dùng trong Home.js nhưng giữ lại nếu cần)
+// const formatTime = (seconds) => {
+//     const minutes = Math.floor(seconds / 60);
+//     const remainingSeconds = Math.floor(seconds % 60);
+//     return `${minutes} phút ${remainingSeconds} giây`;
+// };
 
-// Component riêng cho section Lịch sử
+// NEW: Component riêng cho section Lịch sử đã xem
 function HistorySection({ historyMovies, onDeleteHistoryItem }) {
     const navigate = useNavigate();
 
     // Hàm xử lý "Tiếp tục xem"
     const handleContinueWatching = useCallback((movieSlug, episodeSlug) => {
+        // Điều hướng tới trang chi tiết phim với tập cụ thể
         navigate(`/movie/${movieSlug}/${episodeSlug}`);
     }, [navigate]);
 
+    // Chỉ render nếu có phim trong lịch sử
     if (!historyMovies || historyMovies.length === 0) {
         return null;
     }
@@ -67,7 +69,8 @@ function HistorySection({ historyMovies, onDeleteHistoryItem }) {
             <div className="section-header">
                 <h2>Lịch Sử Đã Xem</h2>
                 {hasMoreHistory && (
-                    <Link to="/history" className="see-all-link"> {/* Link to a dedicated history page if needed */}
+                    // Bạn có thể tạo một trang riêng cho lịch sử hoặc sử dụng modal để hiển thị tất cả
+                    <Link to="/history" className="see-all-link">
                         Xem tất cả <FaAngleRight />
                     </Link>
                 )}
@@ -79,20 +82,26 @@ function HistorySection({ historyMovies, onDeleteHistoryItem }) {
                             <LazyLoadImage
                                 src={getImageUrl(movie.poster_url)}
                                 alt={movie.name}
-                                className="movie-poster-horizontal" /* Reuse existing horizontal poster style */
+                                className="movie-poster-horizontal"
                                 effect="blur"
                                 onError={(e) => (e.target.src = '/placeholder.jpg')}
                             />
                             <h3>{movie.name}</h3>
-                            <p>Tập: {movie.episode?.name || 'Tập cuối'} ({movie.episode?.server_name})</p>
+                            {/* Hiển thị thông tin tập phim đã xem */}
+                            {movie.episode?.name && (
+                                <p>Tập: {movie.episode.name} ({movie.episode.server_name || 'N/A'})</p>
+                            )}
+                            {!movie.episode?.name && movie.year && <p>{movie.year}</p>} {/* Fallback nếu không có tập */}
                         </Link>
                         <div className="history-actions">
-                            <button
-                                onClick={() => handleContinueWatching(movie.slug, movie.episode?.slug || '')}
-                                className="continue-watching-button"
-                            >
-                                <FaHistory /> Tiếp tục xem
-                            </button>
+                            {movie.episode?.slug && (
+                                <button
+                                    onClick={() => handleContinueWatching(movie.slug, movie.episode.slug)}
+                                    className="continue-watching-button"
+                                >
+                                    <FaHistory /> Tiếp tục xem
+                                </button>
+                            )}
                             <button
                                 onClick={() => onDeleteHistoryItem(movie.slug)}
                                 className="delete-history-item-button"
@@ -109,6 +118,7 @@ function HistorySection({ historyMovies, onDeleteHistoryItem }) {
 }
 
 
+// Component HomePageSection (không thay đổi nhiều, chỉ đảm bảo nó hoạt động bình thường)
 function HomePageSection({ title, movies, linkToAll, isLoading }) {
     if (isLoading) {
         return (
@@ -310,8 +320,8 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                 movieApi.fetchMoviesBySlug('category', 'phim-bo').then(res => ({ key: 'seriesMovies', data: res.data.data?.items || [] })),
                 movieApi.fetchMoviesBySlug('category', 'phim-le').then(res => ({ key: 'singleMovies', data: res.data.data?.items || [] })),
                 movieApi.fetchMoviesBySlug('category', 'tv-shows').then(res => ({ key: 'tvShows', data: res.data.data?.items || [] })),
-                movieApi.fetchMoviesBySlug('category', 'phim-thuyet-minh').then(res => ({ key: 'dubbedMovies', data: res.data.data?.items || [] })),
                 movieApi.fetchMoviesBySlug('category', 'hoat-hinh').then(res => ({ key: 'cartoonMovies', data: res.data.data?.items || [] })),
+                movieApi.fetchMoviesBySlug('category', 'phim-thuyet-minh').then(res => ({ key: 'dubbedMovies', data: res.data.data?.items || [] })),
                 movieApi.fetchMoviesBySlug('category', 'phim-long-tieng').then(res => ({ key: 'longTiengMovies', data: res.data.data?.items || [] })),
                 movieApi.fetchMoviesBySlug('country', 'viet-nam').then(res => ({ key: 'vietnamMovies', data: res.data.data?.items || [] })),
                 movieApi.fetchMoviesBySlug('country', 'trung-quoc').then(res => ({ key: 'chinaMovies', data: res.data.data?.items || [] })),
@@ -338,8 +348,14 @@ function Home({ showFilterModal, onCloseFilterModal }) {
             }
         };
 
+        if (showMainMovieGrid) {
+            setLoadingSections(false); // Khi ở trang kết quả tìm kiếm/lọc, không cần load các section phụ
+            return;
+        }
+
         fetchHomePageSections();
     }, [showMainMovieGrid]);
+
 
     useEffect(() => {
         const fetchMainMovies = async () => {
@@ -347,8 +363,8 @@ function Home({ showFilterModal, onCloseFilterModal }) {
             let url = '';
             let params = { page: currentPage, limit: DEFAULT_PAGE_LIMIT };
             let newSeoData = {
-                titleHead: 'PhimAPI - Danh Sách Phim',
-                descriptionHead: 'Xem phim mới cập nhật nhanh nhất'
+                titleHead: 'PhimAPI - Trang Chủ',
+                descriptionHead: 'Xem phim mới cập nhật nhanh nhất, tổng hợp phim bộ, phim lẻ, TV Shows.'
             };
 
             try {
@@ -386,6 +402,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                     newSeoData.titleHead = `Phim năm ${urlYear} - PhimAPI`;
                     newSeoData.descriptionHead = `Danh sách phim phát hành năm ${urlYear} mới nhất.`;
                 } else {
+                    // Khi không có bộ lọc nào, không cần fetch main movie grid
                     setMovies([]);
                     setTotalPages(1);
                     setLoadingMain(false);
@@ -398,6 +415,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                 let paginationData = {};
                 let seoOnPageData = {};
 
+                // Điều chỉnh logic phân tích phản hồi API tùy thuộc vào cấu trúc của API bạn
                 if (url === `${BASE_API_URL}/danh-sach/phim-moi-cap-nhat`) {
                     items = response.data.items || [];
                     paginationData = response.data.pagination || {};
@@ -423,11 +441,13 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         if (showMainMovieGrid) {
             fetchMainMovies();
         } else {
+            // Khi không ở chế độ grid (trên trang chủ mặc định), không cần fetch main movies
             setLoadingMain(false);
             setMovies([]);
             setTotalPages(1);
         }
-    }, [currentPage, urlKeyword, urlCategorySlug, urlCountrySlug, urlYear, genres, countries, showMainMovieGrid]);
+    }, [currentPage, urlKeyword, urlCategorySlug, urlCountrySlug, urlYear, genres, countries, showMainMovieGrid, CATEGORIES_MAPPING]);
+
 
     const handleFilterChange = useCallback((type, selectedValue) => {
         const value = selectedValue ? selectedValue.value : '';
@@ -464,13 +484,14 @@ function Home({ showFilterModal, onCloseFilterModal }) {
             if (predefined) return predefined.name;
             const genre = genres.find(g => g.slug === urlCategorySlug);
             if (genre) return genre.name;
-            return urlCategorySlug;
+            return urlCategorySlug; // Fallback nếu không tìm thấy
         }
         if (urlCountrySlug) return countries.find(c => c.slug === urlCountrySlug)?.name || urlCountrySlug;
         if (urlYear) return `Phim năm ${urlYear}`;
         return 'Danh sách phim';
     };
 
+    // Kiểm soát spinner toàn cục: chỉ hiển thị nếu đang tải trang chính HOẶC đang tải các section TRÊN TRANG CHỦ MẶC ĐỊNH
     const showGlobalSpinner = (loadingMain && showMainMovieGrid) || (loadingSections && !showMainMovieGrid);
 
     if (showGlobalSpinner) {
@@ -527,7 +548,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                 </h1>
             )}
 
-            {showMainMovieGrid && (
+            {showMainMovieGrid ? (
                 <>
                     {movies.length === 0 && !loadingMain ? (
                         <p className="no-movies-found">Không tìm thấy phim nào phù hợp với lựa chọn của bạn.</p>
@@ -572,15 +593,16 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         </div>
                     )}
                 </>
-            )}
-
-            {!showMainMovieGrid && (
+            ) : ( // Chỉ hiển thị các section khi không có bộ lọc / tìm kiếm
                 <div className="home-sections-container">
                     {/* NEW: Lịch sử đã xem */}
-                    <HistorySection
-                        historyMovies={watchHistory}
-                        onDeleteHistoryItem={handleDeleteHistoryItem}
-                    />
+                    {/* `watchHistory.length > 0` đảm bảo section này chỉ hiển thị khi có dữ liệu */}
+                    {watchHistory.length > 0 && (
+                        <HistorySection
+                            historyMovies={watchHistory}
+                            onDeleteHistoryItem={handleDeleteHistoryItem}
+                        />
+                    )}
 
                     <HomePageSection
                         title="Phim Mới Cập Nhật"

@@ -16,6 +16,7 @@ const adBlockCSS = `
 `;
 
 async function removeAds(playlistUrl) {
+  // Logic removeAds của bạn (nếu có Service Worker, phần này có thể không cần thiết hoặc chỉ là fallback)
   return playlistUrl;
 }
 
@@ -58,8 +59,19 @@ function MovieDetail() {
         const response = await axios.get(`/api/movie?slug=${slug}`, {
           timeout: 5000,
         });
-        setMovie(response.data.movie);
-        setEpisodes(response.data.episodes || []);
+        // Kiểm tra xem dữ liệu có đúng định dạng mong muốn không (movie và episodes)
+        if (response.data && response.data.movie && response.data.episodes) {
+          setMovie(response.data.movie);
+          setEpisodes(response.data.episodes || []);
+        } else if (response.data && response.data.item) { // Fallback cho cấu trúc cũ nếu có
+            setMovie(response.data.item);
+            setEpisodes(response.data.item.episodes || []);
+        } else {
+            console.error("Dữ liệu API không đúng định dạng:", response.data);
+            setMovie(null);
+            setEpisodes([]);
+        }
+
         setInitialLoading(false);
 
         // NEW: Load last viewed position for this movie
@@ -98,20 +110,22 @@ function MovieDetail() {
             setCurrentEpisode(episodeToLoad);
             setShowMovieInfoPanel(false);
           } else {
+            // Nếu không tìm thấy tập theo slug, chuyển về trang info
             setCurrentEpisode(null);
             setShowMovieInfoPanel(true);
             navigate(`/movie/${slug}`, { replace: true });
           }
         } else {
+          // Nếu không có server data, chuyển về trang info
           setCurrentEpisode(null);
           setShowMovieInfoPanel(true);
           navigate(`/movie/${slug}`, { replace: true });
         }
       }
-    } else if (movie && episodes.length === 0) {
+    } else if (movie && episodes.length === 0) { // Nếu phim không có tập nào
       setCurrentEpisode(null);
       setShowMovieInfoPanel(true);
-      if (episodeSlug) {
+      if (episodeSlug) { // Nếu có episodeSlug nhưng phim không có tập
         navigate(`/movie/${slug}`, { replace: true });
       }
     }
@@ -127,6 +141,7 @@ function MovieDetail() {
 
   // NEW: Hàm để lưu thông tin phim vào lịch sử xem
   const saveMovieToHistory = useCallback((movieData, episodeData, position) => {
+    // Chỉ lưu nếu có dữ liệu phim, tập phim và vị trí xem đủ lớn
     if (!movieData || !episodeData || position < PLAYBACK_SAVE_THRESHOLD_SECONDS) return;
 
     const historyEntry = {
@@ -140,16 +155,17 @@ function MovieDetail() {
       episode: {
         slug: episodeData.slug,
         name: episodeData.name,
-        server_name: episodes[selectedServer]?.server_name,
+        // Đảm bảo server_name tồn tại trước khi truy cập
+        server_name: episodes[selectedServer]?.server_name || 'N/A',
       },
       position: Math.floor(position), // Làm tròn vị trí xem
       timestamp: Date.now(), // Thời gian xem gần nhất
     };
 
     let history = JSON.parse(localStorage.getItem(WATCH_HISTORY_KEY) || '[]');
-    // Remove existing entry for this movie if it exists
+    // Remove existing entry for this movie if it exists (update, not duplicate)
     history = history.filter(item => item.slug !== movieData.slug);
-    // Add new entry to the beginning
+    // Add new entry to the beginning (most recent first)
     history.unshift(historyEntry);
     // Keep only the latest 20 entries
     localStorage.setItem(WATCH_HISTORY_KEY, JSON.stringify(history.slice(0, 20)));
@@ -179,7 +195,7 @@ function MovieDetail() {
         if (video) {
             video.src = '';
             video.removeAttribute('src');
-            video.load();
+            video.load(); // Đảm bảo video player dừng tải và hiển thị trống
         }
         if (!showMovieInfoPanel && currentEpisode && !isValidUrl(currentEpisode.link_m3u8)) {
             console.error('Video không khả dụng cho tập này.');
@@ -195,7 +211,9 @@ function MovieDetail() {
     }
 
     try {
-      const originalM3u8Url = await removeAds(currentEpisode.link_m3u8);
+      // Dùng Service Worker để xử lý M3U8, nên không cần gọi removeAds() ở đây nữa
+      // Service Worker sẽ chặn request tới originalM3u8Url
+      const originalM3u8Url = currentEpisode.link_m3u8;
 
       if (Hls.isSupported()) {
         const hls = new Hls({
@@ -234,6 +252,7 @@ function MovieDetail() {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
                 console.error('Lỗi mạng khi tải video. Vui lòng kiểm tra kết nối.');
+                // Có thể thử tải lại hoặc chuyển server
                 hls.startLoad();
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
@@ -249,6 +268,7 @@ function MovieDetail() {
         });
 
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        // Hỗ trợ native HLS (Safari)
         video.src = originalM3u8Url;
 
         const savedPositionKey = getPlaybackPositionKey(currentEpisode.slug);
@@ -277,12 +297,14 @@ function MovieDetail() {
   useEffect(() => {
     loadVideo();
     return () => {
+      // Lưu vị trí xem khi component unmount hoặc currentEpisode thay đổi
       savePlaybackPosition();
       if (hlsInstanceRef.current) {
         hlsInstanceRef.current.destroy();
         hlsInstanceRef.current = null;
       }
       if (videoRef.current) {
+        // Dừng video khi rời khỏi trang hoặc thay đổi tập
         videoRef.current.src = '';
         videoRef.current.removeAttribute('src');
         videoRef.current.load();
@@ -313,7 +335,9 @@ function MovieDetail() {
         }
         savePlaybackPosition();
       } else {
+        // Cố gắng tiếp tục phát khi tab trở lại foreground
         if (video.src && !showMovieInfoPanel) {
+            // Kiểm tra trạng thái hls.js nếu đang sử dụng
             if (hlsInstanceRef.current && hlsInstanceRef.current.media && hlsInstanceRef.current.media.readyState < 4) {
                 console.log("Attempting to recover HLS.js media error on foreground.");
                 hlsInstanceRef.current.recoverMediaError();
@@ -341,7 +365,7 @@ function MovieDetail() {
   const handleServerChange = useCallback((index) => {
     if (episodes.length === 0) return;
 
-    savePlaybackPosition();
+    savePlaybackPosition(); // Lưu vị trí hiện tại trước khi chuyển server
 
     setSelectedServer(index);
     setShowMovieInfoPanel(false);
@@ -350,13 +374,16 @@ function MovieDetail() {
     let targetEpisode = null;
 
     if (newServerData && newServerData.length > 0) {
+      // Cố gắng giữ nguyên tập đang xem nếu nó có trên server mới
       targetEpisode = newServerData.find(ep => ep.slug === currentEpisode?.slug);
       if (!targetEpisode) {
+        // Nếu không có, chọn tập đầu tiên của server mới
         targetEpisode = newServerData[0];
       }
       setCurrentEpisode(targetEpisode);
       navigate(`/movie/${slug}/${targetEpisode.slug}`, { replace: true });
     } else {
+      // Nếu server mới không có tập nào, về trang info
       setCurrentEpisode(null);
       navigate(`/movie/${slug}`, { replace: true });
     }
@@ -364,7 +391,7 @@ function MovieDetail() {
 
 
   const handleEpisodeSelect = useCallback((episode) => {
-    savePlaybackPosition();
+    savePlaybackPosition(); // Lưu vị trí hiện tại trước khi chuyển tập
 
     setCurrentEpisode(episode);
     setShowMovieInfoPanel(false);
@@ -373,23 +400,25 @@ function MovieDetail() {
 
   // NEW: Hàm xử lý nút "Tiếp tục xem"
   const handleContinueWatching = useCallback(() => {
-    if (lastViewedEpisodeInfo) {
+    if (lastViewedEpisodeInfo && movie) {
+        // Tìm server index dựa trên server_name đã lưu
         const serverIndex = episodes.findIndex(server => server.server_name === lastViewedEpisodeInfo.server_name);
+
         if (serverIndex !== -1) {
-            setSelectedServer(serverIndex);
-            // navigate to the specific episode if it exists on that server
+            setSelectedServer(serverIndex); // Chọn server đã xem
             const targetEpisode = episodes[serverIndex].server_data.find(ep => ep.slug === lastViewedEpisodeInfo.slug);
             if (targetEpisode) {
+                // Nếu tìm thấy tập trên server đã lưu
                 setCurrentEpisode(targetEpisode);
                 setShowMovieInfoPanel(false);
                 navigate(`/movie/${movie.slug}/${targetEpisode.slug}`);
             } else {
-                // Fallback: If episode not found on saved server, try to find it on any other server
+                // Nếu tập không tìm thấy trên server đã lưu, thử tìm trên các server khác
                 let foundOnOtherServer = false;
                 for (let i = 0; i < episodes.length; i++) {
                     const ep = episodes[i].server_data.find(epData => epData.slug === lastViewedEpisodeInfo.slug);
                     if (ep) {
-                        setSelectedServer(i);
+                        setSelectedServer(i); // Chuyển sang server tìm thấy
                         setCurrentEpisode(ep);
                         setShowMovieInfoPanel(false);
                         navigate(`/movie/${movie.slug}/${ep.slug}`);
