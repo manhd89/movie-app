@@ -588,13 +588,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                 </>
             ) : ( // Hiển thị các section khi không có bộ lọc / tìm kiếm
                 <div className="home-sections-container">
-                    {watchHistory.length > 0 && (
-                        <HistorySection
-                            historyMovies={watchHistory}
-                            onDeleteHistoryItem={handleDeleteHistoryItem}
-                        />
-                    )}
-
                     <HomePageSection
                         title="Phim Mới Cập Nhật"
                         movies={homeSectionsData.recentMovies}
@@ -614,6 +607,12 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         linkToAll="/?category=phim-le&page=1"
                         isLoading={loadingSections}
                     />
+                    {watchHistory.length > 0 && (
+                        <HistorySection
+                            historyMovies={watchHistory}
+                            onDeleteHistoryItem={handleDeleteHistoryItem}
+                        />
+                    )}
                     <HomePageSection
                         title="TV Shows"
                         movies={homeSectionsData.tvShows}
