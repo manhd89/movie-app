@@ -1,0 +1,214 @@
+/* src/pages/HistoryPage.css */
+
+.history-full-page {
+    padding: 20px;
+    color: #fff;
+    max-width: 1200px;
+    margin: 0 auto; /* Căn giữa trang */
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #007bff; /* Viền dưới để phân cách */
+    padding-bottom: 15px;
+}
+
+.history-header h1 {
+    font-size: 2.5em;
+    color: #007bff;
+    margin: 0;
+    font-weight: 700;
+}
+
+.clear-all-history-button {
+    background-color: #dc3545; /* Màu đỏ cho nút xóa */
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Khoảng cách giữa icon và chữ */
+    transition: background-color 0.3s ease;
+}
+
+.clear-all-history-button:hover {
+    background-color: #c82333;
+}
+
+.no-history-message {
+    text-align: center;
+    font-size: 1.2em;
+    color: #aaa;
+    margin-top: 50px;
+    padding: 20px;
+    background-color: #282c34;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Sử dụng lại các class của movie-grid để đảm bảo tính nhất quán */
+.history-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* 180px là chiều rộng tối thiểu của mỗi cột */
+    gap: 20px; /* Khoảng cách giữa các card phim */
+    justify-content: center; /* Căn giữa các item nếu không đủ lấp đầy hàng */
+}
+
+.history-card-item {
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    text-decoration: none; /* Bỏ gạch chân cho link */
+    color: #fff;
+    position: relative; /* Để chứa nút xóa */
+    display: flex;
+    flex-direction: column;
+}
+
+.history-card-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+.history-card-item .movie-poster {
+    width: 100%;
+    height: 270px; /* Chiều cao cố định cho poster */
+    object-fit: cover; /* Đảm bảo hình ảnh không bị méo */
+    display: block; /* Loại bỏ khoảng trống dưới ảnh */
+}
+
+.history-card-item h3 {
+    font-size: 1.1em;
+    margin: 10px 10px 5px;
+    white-space: nowrap; /* Ngăn không cho tiêu đề xuống dòng */
+    overflow: hidden; /* Ẩn phần văn bản tràn */
+    text-overflow: ellipsis; /* Hiển thị dấu ba chấm nếu tràn */
+    min-height: 25px; /* Giữ chiều cao cố định cho tiêu đề */
+}
+
+.history-card-item p {
+    font-size: 0.9em;
+    color: #ccc;
+    margin: 0 10px 10px;
+    min-height: 20px; /* Giữ chiều cao cố định cho paragraph */
+}
+
+.history-card-item .episode-info {
+    font-size: 0.85em;
+    color: #00aaff; /* Màu xanh cho thông tin tập */
+    margin: 0 10px 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-item-actions {
+    position: absolute; /* Đặt nút xóa chồng lên poster */
+    top: 5px;
+    right: 5px;
+    z-index: 10; /* Đảm bảo nút nằm trên poster */
+}
+
+.history-item-actions .delete-history-item-button {
+    background-color: rgba(0, 0, 0, 0.7); /* Nền đen trong suốt */
+    color: white;
+    border: none;
+    border-radius: 50%; /* Làm tròn nút */
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-size: 0.8em;
+    opacity: 0; /* Mặc định ẩn */
+    transition: opacity 0.3s ease, background-color 0.3s ease;
+}
+
+.history-card-item:hover .history-item-actions .delete-history-item-button {
+    opacity: 1; /* Hiện ra khi hover vào card */
+}
+
+.history-item-actions .delete-history-item-button:hover {
+    background-color: #dc3545; /* Màu đỏ khi hover nút */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .history-full-page {
+        padding: 15px;
+    }
+
+    .history-header h1 {
+        font-size: 2em;
+    }
+
+    .clear-all-history-button {
+        padding: 8px 15px;
+        font-size: 0.9em;
+    }
+
+    .history-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 15px;
+    }
+
+    .history-card-item .movie-poster {
+        height: 220px;
+    }
+
+    .history-card-item h3 {
+        font-size: 1em;
+        margin: 8px 8px 4px;
+    }
+
+    .history-card-item p,
+    .history-card-item .episode-info {
+        font-size: 0.8em;
+        margin: 0 8px 8px;
+    }
+
+    .history-item-actions .delete-history-item-button {
+        width: 25px;
+        height: 25px;
+        font-size: 0.7em;
+    }
+}
+
+@media (max-width: 480px) {
+    .history-full-page {
+        padding: 10px;
+    }
+
+    .history-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .history-header h1 {
+        font-size: 1.8em;
+    }
+
+    .clear-all-history-button {
+        width: 100%; /* Nút xóa tất cả rộng toàn bộ trên mobile */
+        justify-content: center;
+    }
+
+    .history-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 10px;
+    }
+
+    .history-card-item .movie-poster {
+        height: 180px;
+    }
+}
