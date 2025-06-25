@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import axios from 'axios';
@@ -7,7 +7,7 @@ import { LazyLoadImage } from 'react-lazy-load-image-component';
 import { FaAngleRight, FaTimes, FaHistory, FaTrashAlt } from 'react-icons/fa'; 
 
 import 'react-lazy-load-image-component/src/effects/blur.css';
-import './Home.css'; // Đảm bảo đã import Home.css
+import './Home.css';
 
 const BASE_API_URL = process.env.REACT_APP_API_URL;
 const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`;
@@ -37,6 +37,25 @@ const movieApi = {
         return axios.get(url, { params: { page, limit, ...filters } });
     }
 };
+
+const CATEGORIES_MAPPING = [
+    { slug: 'phim-moi-cap-nhat', name: 'Phim Mới Cập Nhật' },
+    { slug: 'phim-bo', name: 'Phim Bộ' },
+    { slug: 'phim-le', name: 'Phim Lẻ' },
+    { slug: 'tv-shows', name: 'TV Shows' },
+    { slug: 'hoat-hinh', name: 'Hoạt Hình' },
+    { slug: 'phim-vietsub', name: 'Phim Vietsub' },
+    { slug: 'phim-thuyet-minh', name: 'Phim Thuyết Minh' },
+    { slug: 'phim-long-tieng', name: 'Phim Lồng Tiếng' },
+];
+
+const COUNTRIES_MAPPING = [
+    { slug: 'viet-nam', name: 'Việt Nam' },
+    { slug: 'trung-quoc', name: 'Trung Quốc' },
+    { slug: 'au-my', name: 'Âu Mỹ' },
+    { slug: 'nhat-ban', name: 'Nhật Bản' },
+    { slug: 'han-quoc', name: 'Hàn Quốc' },
+];
 
 function HistorySection({ historyMovies, onDeleteHistoryItem }) {
     const navigate = useNavigate();
@@ -156,15 +175,14 @@ function Home({ showFilterModal, onCloseFilterModal }) {
     const [loadingMain, setLoadingMain] = useState(true);
     const [totalPages, setTotalPages] = useState(1);
 
+    const [keyword, setKeyword] = useState(''); 
     const [filterCategory, setFilterCategory] = useState('');
     const [filterCountry, setFilterCountry] = useState('');
     const [filterYear, setFilterYear] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [keyword, setKeyword] = useState(''); 
 
     const [genres, setGenres] = useState([]);
     const [countries, setCountries] = useState([]);
-
     const [seoData, setSeoData] = useState({
         titleHead: 'PhimAPI - Trang Chủ',
         descriptionHead: 'Xem phim mới cập nhật nhanh nhất, tổng hợp phim bộ, phim lẻ, TV Shows.'
@@ -176,35 +194,25 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         vietnamMovies: [], chinaMovies: [], usEuMovies: [], japanMovies: [], koreaMovies: [],
     });
     const [loadingSections, setLoadingSections] = useState(true);
-
     const [watchHistory, setWatchHistory] = useState([]);
 
+    // Ref để theo dõi liệu có đang fetch dữ liệu không, tránh race condition
+    const isFetchingRef = useRef(false);
+
+    // Cập nhật state từ URL params
     useEffect(() => {
-        setKeyword(searchParams.get('keyword') || '');
-        setFilterCategory(searchParams.get('category') || '');
-        setFilterCountry(searchParams.get('country') || '');
-        setFilterYear(searchParams.get('year') || '');
-        setCurrentPage(parseInt(searchParams.get('page')) || 1);
-    }, [searchParams]); 
+        const urlKeyword = searchParams.get('keyword') || '';
+        const urlCategory = searchParams.get('category') || '';
+        const urlCountry = searchParams.get('country') || '';
+        const urlYear = searchParams.get('year') || '';
+        const urlPage = parseInt(searchParams.get('page')) || 1;
 
-    const CATEGORIES_MAPPING = [
-        { slug: 'phim-moi-cap-nhat', name: 'Phim Mới Cập Nhật' },
-        { slug: 'phim-bo', name: 'Phim Bộ' },
-        { slug: 'phim-le', name: 'Phim Lẻ' },
-        { slug: 'tv-shows', name: 'TV Shows' },
-        { slug: 'hoat-hinh', name: 'Hoạt Hình' },
-        { slug: 'phim-vietsub', name: 'Phim Vietsub' },
-        { slug: 'phim-thuyet-minh', name: 'Phim Thuyết Minh' },
-        { slug: 'phim-long-tieng', name: 'Phim Lồng Tiếng' },
-    ];
-
-    const COUNTRIES_MAPPING = [
-        { slug: 'viet-nam', name: 'Việt Nam' },
-        { slug: 'trung-quoc', name: 'Trung Quốc' },
-        { slug: 'au-my', name: 'Âu Mỹ' },
-        { slug: 'nhat-ban', name: 'Nhật Bản' },
-        { slug: 'han-quoc', name: 'Hàn Quốc' },
-    ];
+        setKeyword(urlKeyword);
+        setFilterCategory(urlCategory);
+        setFilterCountry(urlCountry);
+        setFilterYear(urlYear);
+        setCurrentPage(urlPage);
+    }, [searchParams]);
 
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: currentYear - 1970 + 2 }, (_, i) => ({
@@ -240,6 +248,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         })
     };
 
+    // Fetch genres and countries once on mount
     useEffect(() => {
         const fetchFilters = async () => {
             try {
@@ -267,7 +276,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
 
         const history = JSON.parse(localStorage.getItem(WATCH_HISTORY_KEY) || '[]');
         setWatchHistory(history.sort((a, b) => b.timestamp - a.timestamp));
-
     }, []);
 
     const handleDeleteHistoryItem = useCallback((slugToRemove) => {
@@ -278,8 +286,10 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         });
     }, []);
 
+    // Determine if main movie grid should be shown
     const showMainMovieGrid = !!keyword || !!filterCategory || !!filterCountry || !!filterYear;
 
+    // Fetch home sections only when not in main movie grid mode
     useEffect(() => {
         if (showMainMovieGrid) {
             setLoadingSections(false);
@@ -325,16 +335,23 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         fetchHomePageSections();
     }, [showMainMovieGrid]);
 
-
+    // Fetch main movies based on search/filter params
     useEffect(() => {
-        const fetchMainMovies = async () => {
-            if (!showMainMovieGrid) {
-                setMovies([]);
-                setTotalPages(1);
-                setLoadingMain(false);
-                return;
-            }
+        // Prevent re-fetching if no search/filter criteria and not initially loading
+        if (!showMainMovieGrid && !loadingMain) { // Added !loadingMain here
+            setMovies([]);
+            setTotalPages(1);
+            return;
+        }
 
+        // Prevent multiple simultaneous fetches
+        if (isFetchingRef.current) {
+            console.log("Already fetching, skipping redundant call.");
+            return;
+        }
+
+        const fetchMainMovies = async () => {
+            isFetchingRef.current = true;
             setLoadingMain(true);
             let url = '';
             let params = { page: currentPage, limit: DEFAULT_PAGE_LIMIT };
@@ -378,10 +395,12 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                     newSeoData.titleHead = `Phim năm ${filterYear} - PhimAPI`;
                     newSeoData.descriptionHead = `Danh sách phim phát hành năm ${filterYear} mới nhất.`;
                 } else {
-                    // Fallback to avoid making API calls if no criteria are present
+                    // This case should be caught by !showMainMovieGrid check above
+                    // but as a fallback, clear data and stop loading.
                     setMovies([]);
                     setTotalPages(1);
                     setLoadingMain(false);
+                    isFetchingRef.current = false;
                     return;
                 }
 
@@ -395,7 +414,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                 if (url.includes('/danh-sach/phim-moi-cap-nhat')) {
                     items = response.data.items || [];
                     paginationData = response.data.pagination || {};
-                } else { // For /tim-kiem, /danh-sach, /the-loai, /quoc-gia, /nam
+                } else { 
                     items = response.data.data?.items || [];
                     paginationData = response.data.data?.params?.pagination || {};
                     seoOnPageData = response.data.data?.seoOnPage || {};
@@ -410,46 +429,76 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                 setTotalPages(1);
             } finally {
                 setLoadingMain(false);
+                isFetchingRef.current = false;
             }
         };
 
-        fetchMainMovies();
-    }, [currentPage, keyword, filterCategory, filterCountry, filterYear, genres, countries, showMainMovieGrid, CATEGORIES_MAPPING]);
-
+        if (showMainMovieGrid) {
+            fetchMainMovies();
+        } else {
+             // If not showing main grid, ensure loading state is false and clear movies
+            setLoadingMain(false);
+            setMovies([]);
+            setTotalPages(1);
+        }
+    }, [currentPage, keyword, filterCategory, filterCountry, filterYear, showMainMovieGrid, genres, countries]); // Dependencies
 
     const handleFilterChange = useCallback((type, selectedValue) => {
         const value = selectedValue ? selectedValue.value : '';
         const newSearchParams = new URLSearchParams();
 
+        // Preserve keyword
+        if (keyword) newSearchParams.set('keyword', keyword);
+
         if (value) {
             newSearchParams.set('page', '1');
             if (type === 'category') {
                 newSearchParams.set('category', value);
-                // Clear other filters when category is selected
-                newSearchParams.delete('country');
+                newSearchParams.delete('country'); // Clear other filters
                 newSearchParams.delete('year');
             } else if (type === 'country') {
                 newSearchParams.set('country', value);
-                // Clear other filters when country is selected
-                newSearchParams.delete('category');
+                newSearchParams.delete('category'); // Clear other filters
                 newSearchParams.delete('year');
             } else if (type === 'year') {
                 newSearchParams.set('year', value);
-                // Clear other filters when year is selected
-                newSearchParams.delete('category');
+                newSearchParams.delete('category'); // Clear other filters
                 newSearchParams.delete('country');
             }
-        } else { // If an empty value is selected (e.g., "Tất cả")
+        } else { // Clear filter if "Tất cả" is selected
             if (type === 'category') newSearchParams.delete('category');
             if (type === 'country') newSearchParams.delete('country');
             if (type === 'year') newSearchParams.delete('year');
         }
-        // Preserve keyword if it exists
-        if (keyword) newSearchParams.set('keyword', keyword);
+        
+        // Ensure that if a filter is set, keyword is cleared, and vice versa.
+        // This is a design choice: either search by keyword OR filter by category/country/year.
+        // If you want all to combine, remove these lines.
+        if ((type === 'category' || type === 'country' || type === 'year') && value) {
+            newSearchParams.delete('keyword');
+        } else if (type === 'keyword' && value) { // If keyword is actively used
+             newSearchParams.delete('category');
+             newSearchParams.delete('country');
+             newSearchParams.delete('year');
+        }
 
         navigate(`/?${newSearchParams.toString()}`);
         onCloseFilterModal();
-    }, [navigate, onCloseFilterModal, keyword]); // Add keyword to dependency array
+    }, [navigate, onCloseFilterModal, keyword]); 
+
+    // This is for search input directly, not filter modal selects
+    const handleKeywordSearch = useCallback((newKeyword) => {
+        const newSearchParams = new URLSearchParams();
+        if (newKeyword) {
+            newSearchParams.set('keyword', newKeyword);
+            newSearchParams.set('page', '1');
+            // Clear all other filters when performing a keyword search
+            newSearchParams.delete('category');
+            newSearchParams.delete('country');
+            newSearchParams.delete('year');
+        }
+        navigate(`/?${newSearchParams.toString()}`);
+    }, [navigate]);
 
 
     const handlePageChange = useCallback((newPage) => {
@@ -475,7 +524,8 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         return 'Danh sách phim';
     };
 
-    const showGlobalSpinner = loadingMain || (loadingSections && !showMainMovieGrid);
+    // Global spinner condition
+    const showGlobalSpinner = (loadingMain && showMainMovieGrid) || (loadingSections && !showMainMovieGrid);
 
     if (showGlobalSpinner) {
         return <div className="container"><div className="spinner"></div></div>;
