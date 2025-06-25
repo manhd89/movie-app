@@ -65,17 +65,14 @@ function MovieDetail() {
       const currentTime = video.currentTime;
       const duration = video.duration;
 
-      // Lưu vị trí chỉ khi đã xem một phần đáng kể và chưa gần hết phim
-      if (currentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS && currentTime < duration - PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+      if (currentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS && currentTime < duration - 10) { // Save only if watched significant part and not almost finished
         const key = getPlaybackPositionKey(currentEpisode.slug);
         localStorage.setItem(key, currentTime.toString());
         console.log(`Saved playback position for ${currentEpisode.name}: ${currentTime}s`);
 
         // Save to watched history
         let history = JSON.parse(localStorage.getItem(WATCHED_HISTORY_KEY) || '[]');
-        
-        // Tìm và loại bỏ tất cả các mục của cùng một bộ phim, chỉ giữ lại một mục mới nhất
-        history = history.filter(item => item.slug !== movie.slug);
+        const existingIndex = history.findIndex(item => item.slug === movie.slug && item.episodeSlug === currentEpisode.slug);
 
         const historyEntry = {
           slug: movie.slug,
@@ -84,15 +81,19 @@ function MovieDetail() {
           episodeName: currentEpisode.name || `Tập ${currentEpisode.slug.split('-').pop()}`,
           poster_url: movie.poster_url,
           year: movie.year,
-          lastWatchedTime: Date.now(), // Thời điểm cuối cùng xem
+          lastWatchedTime: Date.now(),
           playbackPosition: currentTime,
           totalDuration: duration,
           serverName: episodes[selectedServer]?.server_name || 'Server',
         };
 
-        history.unshift(historyEntry); // Thêm mục mới nhất lên đầu
+        if (existingIndex !== -1) {
+          history[existingIndex] = historyEntry; // Update existing entry
+        } else {
+          history.unshift(historyEntry); // Add new entry to the beginning
+        }
 
-        // Giới hạn lịch sử xem (ví dụ 50 phim gần nhất)
+        // Keep history to a reasonable size (e.g., last 50 movies)
         localStorage.setItem(WATCHED_HISTORY_KEY, JSON.stringify(history.slice(0, 50)));
         console.log(`Saved movie ${movie.name} - ${currentEpisode.name} to watched history.`);
       }
@@ -561,3 +562,4 @@ function MovieDetail() {
 }
 
 export default MovieDetail;
+
