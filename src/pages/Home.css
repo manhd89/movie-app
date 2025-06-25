@@ -341,21 +341,114 @@
     }
 }
 
-/* Add these styles to the bottom of src/pages/Home.css */
-
-/* History section specific styles */
-.history-actions {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    padding: 8px 0;
-    width: 100%;
-    gap: 5px; /* Space between buttons */
+/* --- NEW: History Section Styles --- */
+.history-section {
+    margin-bottom: 40px;
 }
 
-.continue-watching-button,
-.remove-history-button-card {
-    background-color: #007bff; /* Blue for continue */
+.history-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.history-section h2 {
+    color: #f0f0f0;
+    font-size: 2rem;
+    margin: 0;
+}
+
+.history-section .see-all-link {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: color 0.3s ease;
+}
+
+.history-section .see-all-link:hover {
+    color: #0056b3;
+}
+
+.history-movie-list {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(160px, 1fr);
+    gap: 15px;
+    overflow-x: auto;
+    padding-bottom: 15px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #007bff #2a2a2a;
+}
+
+.history-movie-list::-webkit-scrollbar {
+    height: 8px;
+}
+
+.history-movie-list::-webkit-scrollbar-track {
+    background: #2a2a2a;
+    border-radius: 10px;
+}
+
+.history-movie-list::-webkit-scrollbar-thumb {
+    background-color: #007bff;
+    border-radius: 10px;
+    border: 2px solid #2a2a2a;
+}
+
+.history-movie-card {
+    position: relative; /* For the delete button */
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    display: flex;
+    flex-direction: column;
+}
+
+.history-movie-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 123, 255, 0.4);
+}
+
+.history-movie-card img {
+    width: 100%;
+    height: 240px;
+    object-fit: cover;
+    display: block;
+}
+
+.history-movie-card h3 {
+    font-size: 1rem;
+    margin: 10px 8px 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #f0f0f0;
+}
+
+.history-movie-card p {
+    font-size: 0.85rem;
+    color: #bbb;
+    margin: 0 8px 10px;
+}
+
+.history-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 8px 10px;
+    margin-top: auto; /* Push actions to the bottom */
+}
+
+.continue-watching-button {
+    background-color: #28a745; /* Green for continue */
     color: white;
     border: none;
     padding: 6px 10px;
@@ -365,54 +458,49 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    flex: 1; /* Allow buttons to share space */
-    justify-content: center;
     transition: background-color 0.3s ease;
 }
 
 .continue-watching-button:hover {
-    background-color: #0056b3;
+    background-color: #218838;
 }
 
-.remove-history-button-card {
-    background-color: #dc3545; /* Red for remove */
+.delete-history-item-button {
+    background: none;
+    border: none;
+    color: #dc3545; /* Red for delete */
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 5px;
+    margin-left: auto; /* Push to the right */
+    transition: color 0.3s ease;
 }
 
-.remove-history-button-card:hover {
-    background-color: #c82333;
-}
-
-/* Ensure history card text does not overflow due to buttons */
-.movie-card-horizontal.history-card h3,
-.movie-card-horizontal.history-card p {
-    white-space: normal; /* Allow text to wrap */
-    height: auto; /* Adjust height based on content */
-    margin-bottom: 0; /* Remove bottom margin to make space for buttons */
-}
-
-/* Adjust poster height to make space for action buttons in history */
-.movie-card-horizontal .movie-poster-horizontal {
-    height: 180px; /* Reduced height to make space for buttons */
-    margin-bottom: 5px; /* Small margin between poster and text */
+.delete-history-item-button:hover {
+    color: #c82333;
 }
 
 /* Responsive adjustments for history section */
 @media (max-width: 768px) {
-    .continue-watching-button,
-    .remove-history-button-card {
-        padding: 5px 8px;
-        font-size: 0.7rem;
-        gap: 3px;
+    .history-section h2 {
+        font-size: 1.8rem;
+    }
+    .history-movie-list {
+        grid-template-columns: repeat(2, minmax(140px, 1fr));
+    }
+    .history-movie-card img {
+        height: 210px;
     }
 }
 
 @media (max-width: 480px) {
-    .continue-watching-button,
-    .remove-history-button-card {
-        padding: 4px 6px;
-        font-size: 0.65rem;
+    .history-section h2 {
+        font-size: 1.5rem;
     }
-    .movie-card-horizontal .movie-poster-horizontal {
-        height: 150px;
+    .history-movie-list {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+    }
+    .history-movie-card img {
+        height: 180px;
     }
 }

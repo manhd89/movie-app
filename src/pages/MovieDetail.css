@@ -178,19 +178,25 @@
   }
 }
 
-.continue-watching-button {
-  margin: 10px 0;
-  padding: 10px 20px;
-  background-color: #28a745; /* Green color to distinguish from other buttons */
+/* NEW: Styles for "Continue Watching" button on MovieDetail page */
+.continue-watching-detail-button {
+  display: block; /* Make it a block element to take full width */
+  width: fit-content; /* Adjust width to content */
+  margin: 20px 0 0; /* Margin from other elements */
+  padding: 12px 25px;
+  background-color: #28a745; /* Green color */
   color: #fff;
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  display: inline-flex;
+  font-size: 1.1rem;
+  font-weight: bold;
+  display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 10px; /* Space between text and icon */
+  transition: background-color 0.3s ease;
 }
 
-.continue-watching-button:hover {
+.continue-watching-detail-button:hover {
   background-color: #218838; /* Darker green on hover */
 }
