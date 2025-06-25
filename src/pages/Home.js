@@ -7,7 +7,7 @@ import { LazyLoadImage } from 'react-lazy-load-image-component';
 import { FaAngleRight, FaTimes, FaHistory, FaTrashAlt } from 'react-icons/fa';
 
 import 'react-lazy-load-image-component/src/effects/blur.css';
-import './Home.css';
+import './Home.css'; // Đảm bảo đã import Home.css
 
 const BASE_API_URL = process.env.REACT_APP_API_URL;
 const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`;
@@ -57,33 +57,41 @@ const COUNTRIES_MAPPING = [
     { slug: 'han-quoc', name: 'Hàn Quốc' },
 ];
 
+// NEW: Component riêng cho section Lịch sử đã xem
 function HistorySection({ historyMovies, onDeleteHistoryItem }) {
     const navigate = useNavigate();
 
+    // Hàm xử lý "Tiếp tục xem"
     const handleContinueWatching = useCallback((movieSlug, episodeSlug) => {
         navigate(`/movie/${movieSlug}/${episodeSlug}`);
     }, [navigate]);
 
+    // Chỉ render nếu có phim trong lịch sử
     if (!historyMovies || historyMovies.length === 0) {
         return null;
     }
 
-    const displayMovies = historyMovies.slice(0, 10);
-    const hasMoreHistory = historyMovies.length > 10;
+    // Lấy tối đa 12 phim để hiển thị trên trang chủ (hoặc số lượng bạn muốn hiển thị)
+    // Cần 12 phim để khớp với kiểu hiển thị của movie-grid hoặc movie-horizontal-scroll
+    const displayMovies = historyMovies.slice(0, 12);
+    const hasMoreHistory = historyMovies.length > 12; // Nếu có nhiều hơn 12 phim, hiển thị nút xem tất cả
 
     return (
-        <div className="history-section">
+        <div className="history-section homepage-section"> {/* Thêm class homepage-section để dùng chung CSS */}
             <div className="section-header">
                 <h2>Lịch Sử Đã Xem</h2>
                 {hasMoreHistory && (
+                    // Link đến trang lịch sử xem riêng
                     <Link to="/history" className="see-all-link">
                         Xem tất cả <FaAngleRight />
                     </Link>
                 )}
             </div>
-            <div className="history-movie-list">
+            {/* Sử dụng class movie-horizontal-scroll để dàn hàng ngang */}
+            <div className="movie-horizontal-scroll">
                 {displayMovies.map((movie) => (
-                    <div key={movie.slug + (movie.episode?.slug || '')} className="history-movie-card">
+                    // Sử dụng movie-card-horizontal để khớp với kiểu hiển thị của HomePageSection
+                    <div key={movie.slug + (movie.episode?.slug || '')} className="movie-card-horizontal history-movie-card">
                         <Link to={`/movie/${movie.slug}/${movie.episode?.slug || ''}`}>
                             <LazyLoadImage
                                 src={getImageUrl(movie.poster_url)}
@@ -94,9 +102,9 @@ function HistorySection({ historyMovies, onDeleteHistoryItem }) {
                             />
                             <h3>{movie.name}</h3>
                             {movie.episode?.name && (
-                                <p>Tập: {movie.episode.name} ({movie.episode.server_name || 'N/A'})</p>
+                                <p className="episode-info">Tập: {movie.episode.name}</p>
                             )}
-                            {!movie.episode?.name && movie.year && <p>{movie.year}</p>}
+                            {!movie.episode?.name && movie.year && <p className="movie-year">{movie.year}</p>}
                         </Link>
                         <div className="history-actions">
                             {movie.episode?.slug && (
@@ -104,7 +112,7 @@ function HistorySection({ historyMovies, onDeleteHistoryItem }) {
                                     onClick={() => handleContinueWatching(movie.slug, movie.episode.slug)}
                                     className="continue-watching-button"
                                 >
-                                    <FaHistory /> Tiếp tục xem
+                                    <FaHistory /> Tiếp tục
                                 </button>
                             )}
                             <button
@@ -112,7 +120,7 @@ function HistorySection({ historyMovies, onDeleteHistoryItem }) {
                                 className="delete-history-item-button"
                                 title="Xóa khỏi lịch sử"
                             >
-                                <FaTrashAlt />
+                                <FaTrashAlt /> Xóa
                             </button>
                         </div>
                     </div>
@@ -122,6 +130,7 @@ function HistorySection({ historyMovies, onDeleteHistoryItem }) {
     );
 }
 
+// Component HomePageSection (không thay đổi nhiều, chỉ đảm bảo nó hoạt động bình thường)
 function HomePageSection({ title, movies, linkToAll, isLoading }) {
     if (isLoading) {
         return (
@@ -172,17 +181,15 @@ function Home({ showFilterModal, onCloseFilterModal }) {
     const navigate = useNavigate();
 
     const [movies, setMovies] = useState([]);
-    const [loadingMain, setLoadingMain] = useState(false); // Default to false, will be true if showMainMovieGrid is true
+    const [loadingMain, setLoadingMain] = useState(false);
     const [totalPages, setTotalPages] = useState(1);
 
-    // Lấy giá trị trực tiếp từ URL params
     const urlKeyword = searchParams.get('keyword');
     const urlCategorySlug = searchParams.get('category');
     const urlCountrySlug = searchParams.get('country');
     const urlYear = searchParams.get('year');
     const urlPage = parseInt(searchParams.get('page')) || 1;
 
-    // State cục bộ để Select component hiển thị đúng giá trị
     const [filterCategory, setFilterCategory] = useState(urlCategorySlug || '');
     const [filterCountry, setFilterCountry] = useState(urlCountrySlug || '');
     const [filterYear, setFilterYear] = useState(urlYear || '');
@@ -206,7 +213,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
 
     const [watchHistory, setWatchHistory] = useState([]);
 
-    // Cập nhật state cục bộ khi URL params thay đổi
     useEffect(() => {
         setKeyword(urlKeyword || '');
         setFilterCategory(urlCategorySlug || '');
@@ -249,7 +255,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         })
     };
 
-    // Fetch genres, countries, and watch history once on mount
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
@@ -287,16 +292,13 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         });
     }, []);
 
-    // Determine if main movie grid should be shown based on URL params
     const showMainMovieGrid = !!urlKeyword || !!urlCategorySlug || !!urlCountrySlug || !!urlYear;
 
-    // Unified useEffect for fetching data
     useEffect(() => {
         const fetchData = async () => {
             if (showMainMovieGrid) {
-                // Logic for search/filter results
                 setLoadingMain(true);
-                setLoadingSections(false); // Don't load sections when showing main grid
+                setLoadingSections(false);
                 let url = '';
                 let params = { page: currentPage, limit: DEFAULT_PAGE_LIMIT };
                 let newSeoData = {
@@ -339,8 +341,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         newSeoData.titleHead = `Phim năm ${urlYear} - PhimAPI`;
                         newSeoData.descriptionHead = `Danh sách phim phát hành năm ${urlYear} mới nhất.`;
                     } else {
-                        // This case should ideally not be reached if showMainMovieGrid is true,
-                        // but as a safeguard, clear movies and stop loading.
                         setMovies([]);
                         setTotalPages(1);
                         setLoadingMain(false);
@@ -374,9 +374,8 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                     setLoadingMain(false);
                 }
             } else {
-                // Logic for home page sections
                 setLoadingSections(true);
-                setLoadingMain(false); // Ensure main grid loading is false
+                setLoadingMain(false);
 
                 const sectionPromises = [
                     movieApi.fetchRecentUpdates().then(res => ({ key: 'recentMovies', data: res.data.items || [] })),
@@ -398,7 +397,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                     const newSectionsData = {};
                     results.forEach(result => {
                         if (result.status === 'fulfilled') {
-                            // Ensure data is `items` or `data.items`
                             newSectionsData[result.value.key] = result.value.data?.items || result.value.data;
                         } else {
                             console.error(`Failed to fetch section ${result.reason?.config?.url || ''}:`, result.reason);
@@ -416,7 +414,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         fetchData();
     }, [currentPage, urlKeyword, urlCategorySlug, urlCountrySlug, urlYear, showMainMovieGrid, genres, countries]);
 
-
     const handleFilterChange = useCallback((type, selectedValue) => {
         const value = selectedValue ? selectedValue.value : '';
         const newSearchParams = new URLSearchParams();
@@ -427,32 +424,27 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                 newSearchParams.set('category', value);
                 newSearchParams.delete('country');
                 newSearchParams.delete('year');
-                newSearchParams.delete('keyword'); // Clear keyword if category is selected
+                newSearchParams.delete('keyword');
             } else if (type === 'country') {
                 newSearchParams.set('country', value);
                 newSearchParams.delete('category');
                 newSearchParams.delete('year');
-                newSearchParams.delete('keyword'); // Clear keyword if country is selected
+                newSearchParams.delete('keyword');
             } else if (type === 'year') {
                 newSearchParams.set('year', value);
                 newSearchParams.delete('category');
                 newSearchParams.delete('country');
-                newSearchParams.delete('keyword'); // Clear keyword if year is selected
+                newSearchParams.delete('keyword');
             }
-        } else { // If "Tất cả" is selected, clear only that filter
+        } else {
             if (type === 'category') newSearchParams.delete('category');
             if (type === 'country') newSearchParams.delete('country');
             if (type === 'year') newSearchParams.delete('year');
         }
 
-        // Preserve keyword if it was the *only* active filter before this change
-        // This logic is tricky, better to explicitly clear other filters when one is set.
-        // For example, if you filter by category, it's implied you don't also want a keyword search.
-
         navigate(`/?${newSearchParams.toString()}`);
         onCloseFilterModal();
-    }, [navigate, onCloseFilterModal]); // Removed keyword from dependencies as it's not directly modified here
-
+    }, [navigate, onCloseFilterModal]);
 
     const handlePageChange = useCallback((newPage) => {
         if (newPage >= 1 && newPage <= totalPages) {
@@ -477,10 +469,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         return 'Danh sách phim';
     };
 
-    // Global spinner condition
-    // Spinner hiển thị khi:
-    // 1. Đang tải dữ liệu chính (tìm kiếm/lọc) VÀ đang ở chế độ hiển thị main grid
-    // 2. HOẶC đang tải các section trang chủ VÀ đang ở chế độ hiển thị sections (không phải main grid)
     const showGlobalSpinner = (loadingMain && showMainMovieGrid) || (loadingSections && !showMainMovieGrid);
 
     if (showGlobalSpinner) {
@@ -586,7 +574,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         </div>
                     )}
                 </>
-            ) : ( // Hiển thị các section khi không có bộ lọc / tìm kiếm
+            ) : (
                 <div className="home-sections-container">
                     <HomePageSection
                         title="Phim Mới Cập Nhật"
@@ -594,6 +582,14 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         linkToAll="/?category=phim-moi-cap-nhat&page=1"
                         isLoading={loadingSections}
                     />
+
+                    {/* Lịch sử đã xem được đặt ở đây, sau "Phim Mới Cập Nhật" */}
+                    {watchHistory.length > 0 && (
+                        <HistorySection
+                            historyMovies={watchHistory}
+                            onDeleteHistoryItem={handleDeleteHistoryItem}
+                        />
+                    )}
 
                     <HomePageSection
                         title="Phim Bộ"
@@ -607,12 +603,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         linkToAll="/?category=phim-le&page=1"
                         isLoading={loadingSections}
                     />
-                    {watchHistory.length > 0 && (
-                        <HistorySection
-                            historyMovies={watchHistory}
-                            onDeleteHistoryItem={handleDeleteHistoryItem}
-                        />
-                    )}
                     <HomePageSection
                         title="TV Shows"
                         movies={homeSectionsData.tvShows}
