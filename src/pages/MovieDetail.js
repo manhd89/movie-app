@@ -23,6 +23,7 @@ async function removeAds(playlistUrl) {
 const PLAYBACK_SAVE_THRESHOLD_SECONDS = 5;
 const LAST_PLAYED_KEY_PREFIX = 'lastPlayedPosition-';
 const WATCH_HISTORY_KEY = 'watchHistory';
+const SAVE_INTERVAL_SECONDS = 10; // NEW: Save playback position every 10 seconds
 
 function MovieDetail() {
   const { slug, episodeSlug } = useParams();
@@ -42,6 +43,7 @@ function MovieDetail() {
   const currentPlaybackPositionRef = useRef(0);
   const [lastViewedPosition, setLastViewedPosition] = useState(0);
   const [lastViewedEpisodeInfo, setLastViewedEpisodeInfo] = useState(null);
+  const saveIntervalRef = useRef(null); // NEW: Ref for the interval timer
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -61,12 +63,12 @@ function MovieDetail() {
           setMovie(response.data.movie);
           setEpisodes(response.data.episodes || []);
         } else if (response.data && response.data.item) {
-          setMovie(response.data.item);
-          setEpisodes(response.data.item.episodes || []);
+            setMovie(response.data.item);
+            setEpisodes(response.data.item.episodes || []);
         } else {
-          console.error("Dữ liệu API không đúng định dạng:", response.data);
-          setMovie(null);
-          setEpisodes([]);
+            console.error("Dữ liệu API không đúng định dạng:", response.data);
+            setMovie(null);
+            setEpisodes([]);
         }
 
         setInitialLoading(false);
@@ -74,11 +76,11 @@ function MovieDetail() {
         const history = JSON.parse(localStorage.getItem(WATCH_HISTORY_KEY) || '[]');
         const currentMovieHistory = history.find(item => item.slug === slug);
         if (currentMovieHistory) {
-          setLastViewedPosition(currentMovieHistory.position);
-          setLastViewedEpisodeInfo(currentMovieHistory.episode || null);
+            setLastViewedPosition(currentMovieHistory.position);
+            setLastViewedEpisodeInfo(currentMovieHistory.episode || null);
         } else {
-          setLastViewedPosition(0);
-          setLastViewedEpisodeInfo(null);
+            setLastViewedPosition(0);
+            setLastViewedEpisodeInfo(null);
         }
 
       } catch (error) {
@@ -178,19 +180,25 @@ function MovieDetail() {
   const loadVideo = useCallback(async () => {
     const video = videoRef.current;
     if (showMovieInfoPanel || !currentEpisode?.link_m3u8 || !video) {
-      setVideoLoading(false);
-      if (video) {
-        video.src = '';
-        video.removeAttribute('src');
-        video.load();
-      }
-      if (!showMovieInfoPanel && currentEpisode && !isValidUrl(currentEpisode.link_m3u8)) {
-        console.error('Video không khả dụng cho tập này.');
-      }
-      return;
+        setVideoLoading(false);
+        if (video) {
+            video.src = '';
+            video.removeAttribute('src');
+            video.load();
+        }
+        if (!showMovieInfoPanel && currentEpisode && !isValidUrl(currentEpisode.link_m3u8)) {
+            console.error('Video không khả dụng cho tập này.');
+        }
+        return;
     }
 
     setVideoLoading(true);
+
+    // NEW: Clear any existing interval before loading new video
+    if (saveIntervalRef.current) {
+        clearInterval(saveIntervalRef.current);
+        saveIntervalRef.current = null;
+    }
 
     if (hlsInstanceRef.current) {
       hlsInstanceRef.current.destroy();
@@ -202,11 +210,11 @@ function MovieDetail() {
 
       if (Hls.isSupported()) {
         const hls = new Hls({
-          maxBufferLength: 60,
-          maxMaxBufferLength: 120,
-          maxBufferSize: 100 * 1000 * 1000,
-          startFragPrefetch: true,
-          enableWorker: true,
+            maxBufferLength: 60,
+            maxMaxBufferLength: 120,
+            maxBufferSize: 100 * 1000 * 1000,
+            startFragPrefetch: true,
+            enableWorker: true,
         });
         hlsInstanceRef.current = hls;
         hls.loadSource(originalM3u8Url);
@@ -258,29 +266,40 @@ function MovieDetail() {
         const savedTime = parseFloat(localStorage.getItem(savedPositionKey));
 
         video.onloadedmetadata = () => {
-          if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
-            video.currentTime = savedTime;
-            console.log(`Restored playback position (native) for ${currentEpisode.name}: ${savedTime}s`);
-          } else {
-            video.currentTime = 0;
-          }
-          setVideoLoading(false);
-          video.play().catch(error => console.warn("Autoplay was prevented (native):", error));
+            if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+                video.currentTime = savedTime;
+                console.log(`Restored playback position (native) for ${currentEpisode.name}: ${savedTime}s`);
+            } else {
+                video.currentTime = 0;
+            }
+            setVideoLoading(false);
+            video.play().catch(error => console.warn("Autoplay was prevented (native):", error));
         };
       } else {
         console.error('Trình duyệt không hỗ trợ phát HLS. Vui lòng cập nhật.');
         setVideoLoading(false);
       }
+
+      // NEW: Start periodic save when video is successfully loaded (or attempted to load)
+      if (video) {
+        saveIntervalRef.current = setInterval(() => {
+          if (!video.paused) { // Only save if video is playing
+            savePlaybackPosition();
+          }
+        }, SAVE_INTERVAL_SECONDS * 1000);
+        console.log(`Started periodic save every ${SAVE_INTERVAL_SECONDS} seconds.`);
+      }
+
     } catch (error) {
       console.error('Error loading video:', error);
       setVideoLoading(false);
     }
-  }, [currentEpisode, showMovieInfoPanel, getPlaybackPositionKey]);
+  }, [currentEpisode, showMovieInfoPanel, getPlaybackPositionKey, savePlaybackPosition]); // Add savePlaybackPosition to dependencies
 
   useEffect(() => {
     loadVideo();
     return () => {
-      savePlaybackPosition(); // Lưu vị trí xem khi component unmount
+      savePlaybackPosition();
       if (hlsInstanceRef.current) {
         hlsInstanceRef.current.destroy();
         hlsInstanceRef.current = null;
@@ -290,6 +309,12 @@ function MovieDetail() {
         videoRef.current.removeAttribute('src');
         videoRef.current.load();
       }
+      // NEW: Clear the interval when component unmounts or currentEpisode changes
+      if (saveIntervalRef.current) {
+          clearInterval(saveIntervalRef.current);
+          saveIntervalRef.current = null;
+          console.log("Cleared periodic save interval.");
+      }
     };
   }, [currentEpisode, loadVideo, savePlaybackPosition]);
 
@@ -298,12 +323,15 @@ function MovieDetail() {
     if (!video) return;
 
     const handleVideoPause = () => {
-      savePlaybackPosition();
+        savePlaybackPosition();
     };
 
     const handleTimeUpdate = () => {
-      currentPlaybackPositionRef.current = video.currentTime;
+        currentPlaybackPositionRef.current = video.currentTime;
     };
+
+    video.addEventListener('pause', handleVideoPause);
+    video.addEventListener('timeupdate', handleTimeUpdate);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
@@ -314,44 +342,26 @@ function MovieDetail() {
         savePlaybackPosition();
       } else {
         if (video.src && !showMovieInfoPanel) {
-          if (hlsInstanceRef.current && hlsInstanceRef.current.media && hlsInstanceRef.current.media.readyState < 4) {
-            console.log("Attempting to recover HLS.js media error on foreground.");
-            hlsInstanceRef.current.recoverMediaError();
-            hlsInstanceRef.current.startLoad();
-          }
-          video.play().catch(error => {
-            console.warn("Autoplay was prevented on visibility change:", error);
-          });
-          console.log("Video attempted to play due to tab coming into foreground.");
+            if (hlsInstanceRef.current && hlsInstanceRef.current.media && hlsInstanceRef.current.media.readyState < 4) {
+                console.log("Attempting to recover HLS.js media error on foreground.");
+                hlsInstanceRef.current.recoverMediaError();
+                hlsInstanceRef.current.startLoad();
+            }
+
+            video.play().catch(error => {
+                console.warn("Autoplay was prevented on visibility change:", error);
+            });
+            console.log("Video attempted to play due to tab coming into foreground.");
         }
       }
     };
 
-    // NEW: Xử lý khi người dùng đóng/refresh trang (trước khiunload)
-    const handleBeforeUnload = (event) => {
-      savePlaybackPosition();
-      // Optional: for older browsers to prompt user, return a string
-      // event.returnValue = '';
-    };
-
-    // NEW: Xử lý khi trang bị đóng/chuyển đi (pagehide) - tốt hơn cho mobile
-    const handlePageHide = () => {
-        savePlaybackPosition();
-    };
-
-
-    video.addEventListener('pause', handleVideoPause);
-    video.addEventListener('timeupdate', handleTimeUpdate);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('beforeunload', handleBeforeUnload); // Ghi lại khi đóng trình duyệt
-    window.addEventListener('pagehide', handlePageHide); // Ghi lại khi chuyển trang/tab trên mobile
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       video.removeEventListener('pause', handleVideoPause);
       video.removeEventListener('timeupdate', handleTimeUpdate);
-      window.removeEventListener('beforeunload', handleBeforeUnload); // Clean up
-      window.removeEventListener('pagehide', handlePageHide); // Clean up
     };
   }, [showMovieInfoPanel, savePlaybackPosition]);
 
@@ -389,57 +399,48 @@ function MovieDetail() {
     navigate(`/movie/${slug}/${episode.slug}`);
   }, [slug, navigate, savePlaybackPosition]);
 
-  // NEW: Hàm xử lý nút "Quay lại thông tin phim"
-  const handleBackToInfo = useCallback(() => {
-    savePlaybackPosition(); // Lưu vị trí hiện tại trước khi quay lại
-    setShowMovieInfoPanel(true);
-    setCurrentEpisode(null);
-    navigate(`/movie/${slug}`, { replace: true });
-  }, [slug, navigate, savePlaybackPosition]);
-
-
   const handleContinueWatching = useCallback(() => {
     if (lastViewedEpisodeInfo && movie) {
-      const serverIndex = episodes.findIndex(server => server.server_name === lastViewedEpisodeInfo.server_name);
+        const serverIndex = episodes.findIndex(server => server.server_name === lastViewedEpisodeInfo.server_name);
 
-      if (serverIndex !== -1) {
-        setSelectedServer(serverIndex);
-        const targetEpisode = episodes[serverIndex].server_data.find(ep => ep.slug === lastViewedEpisodeInfo.slug);
-        if (targetEpisode) {
-          setCurrentEpisode(targetEpisode);
-          setShowMovieInfoPanel(false);
-          navigate(`/movie/${movie.slug}/${targetEpisode.slug}`);
-        } else {
-          let foundOnOtherServer = false;
-          for (let i = 0; i < episodes.length; i++) {
-            const ep = episodes[i].server_data.find(epData => epData.slug === lastViewedEpisodeInfo.slug);
-            if (ep) {
-              setSelectedServer(i);
-              setCurrentEpisode(ep);
-              setShowMovieInfoPanel(false);
-              navigate(`/movie/${movie.slug}/${ep.slug}`);
-              foundOnOtherServer = true;
-              break;
+        if (serverIndex !== -1) {
+            setSelectedServer(serverIndex);
+            const targetEpisode = episodes[serverIndex].server_data.find(ep => ep.slug === lastViewedEpisodeInfo.slug);
+            if (targetEpisode) {
+                setCurrentEpisode(targetEpisode);
+                setShowMovieInfoPanel(false);
+                navigate(`/movie/${movie.slug}/${targetEpisode.slug}`);
+            } else {
+                let foundOnOtherServer = false;
+                for (let i = 0; i < episodes.length; i++) {
+                    const ep = episodes[i].server_data.find(epData => epData.slug === lastViewedEpisodeInfo.slug);
+                    if (ep) {
+                        setSelectedServer(i);
+                        setCurrentEpisode(ep);
+                        setShowMovieInfoPanel(false);
+                        navigate(`/movie/${movie.slug}/${ep.slug}`);
+                        foundOnOtherServer = true;
+                        break;
+                    }
+                }
+                if (!foundOnOtherServer) {
+                    console.warn("Episode not found on any server, showing movie info.");
+                    setCurrentEpisode(null);
+                    setShowMovieInfoPanel(true);
+                    navigate(`/movie/${movie.slug}`, { replace: true });
+                }
             }
-          }
-          if (!foundOnOtherServer) {
-            console.warn("Episode not found on any server, showing movie info.");
+        } else {
+            console.warn("Server not found, showing movie info.");
             setCurrentEpisode(null);
             setShowMovieInfoPanel(true);
             navigate(`/movie/${movie.slug}`, { replace: true });
-          }
         }
-      } else {
-        console.warn("Server not found, showing movie info.");
+    } else {
+        console.warn("No last viewed episode info, showing movie info.");
         setCurrentEpisode(null);
         setShowMovieInfoPanel(true);
         navigate(`/movie/${movie.slug}`, { replace: true });
-      }
-    } else {
-      console.warn("No last viewed episode info, showing movie info.");
-      setCurrentEpisode(null);
-      setShowMovieInfoPanel(true);
-      navigate(`/movie/${movie.slug}`, { replace: true });
     }
   }, [episodes, lastViewedEpisodeInfo, navigate, movie]);
 
@@ -555,25 +556,29 @@ function MovieDetail() {
                 />
               ) : (
                 <div className="video-error-message" style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  color: '#fff',
-                  fontSize: '1.2rem',
-                  textAlign: 'center',
-                  padding: '20px',
-                  backgroundColor: 'rgba(0,0,0,0.7)',
-                  borderRadius: '8px',
-                  zIndex: 5
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    color: '#fff',
+                    fontSize: '1.2rem',
+                    textAlign: 'center',
+                    padding: '20px',
+                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    borderRadius: '8px',
+                    zIndex: 5
                 }}>
-                  <p>Video không khả dụng cho tập này.</p>
-                  <FaRegPlayCircle style={{ fontSize: '3rem', marginTop: '10px' }} />
+                    <p>Video không khả dụng cho tập này.</p>
+                    <FaRegPlayCircle style={{ fontSize: '3rem', marginTop: '10px' }} />
                 </div>
               )}
             </div>
             <button
-              onClick={handleBackToInfo} // Thay đổi từ inline function sang gọi hàm handleBackToInfo
+              onClick={() => {
+                setShowMovieInfoPanel(true);
+                setCurrentEpisode(null);
+                navigate(`/movie/${slug}`, { replace: true });
+              }}
               className="back-button"
               aria-label="Quay lại thông tin phim"
             >
