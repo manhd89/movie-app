@@ -1,9 +1,8 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { useState } from 'react';
+import { useState } from 'react'; // Import useState
 import Header from './components/Header';
 import Home from './pages/Home';
-import MovieDetail from './pages/MovieDetail';
-import HistoryPage from './pages/HistoryPage'; // Import HistoryPage
+import MovieDetail from './pages/MovieDetail'; // Đảm bảo tên file MovieDetail.js
 import './App.css';
 
 function App() {
@@ -17,20 +16,11 @@ function App() {
     setShowFilterModal(false);
   };
 
-  // Hàm xử lý tìm kiếm (nếu bạn có thanh tìm kiếm trong Header)
-  const handleSearch = (keyword) => {
-    // Điều hướng đến trang chủ với tham số tìm kiếm
-    window.location.href = `/?keyword=${encodeURIComponent(keyword)}`;
-  };
-
   return (
     <BrowserRouter>
       <div className="app">
-        {/* Truyền hàm mở modal lọc và hàm tìm kiếm xuống Header */}
-        <Header
-          onOpenFilters={handleOpenFilterModal}
-          onSearch={handleSearch} // Truyền prop onSearch xuống Header
-        />
+        {/* Truyền hàm mở modal xuống Header */}
+        <Header onOpenFilters={handleOpenFilterModal} />
         <Routes>
           <Route
             path="/"
@@ -41,14 +31,8 @@ function App() {
               />
             }
           />
-          {/* Route cho trang chi tiết phim có/không có episode slug */}
           <Route path="/movie/:slug" element={<MovieDetail />} />
           <Route path="/movie/:slug/:episodeSlug" element={<MovieDetail />} />
-
-          {/* Route cho trang lịch sử xem */}
-          <Route path="/history" element={<HistoryPage />} />
-
-          {/* Đã loại bỏ Route catch-all cho 404 page */}
         </Routes>
       </div>
     </BrowserRouter>
