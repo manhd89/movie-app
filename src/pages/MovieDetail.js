@@ -4,12 +4,11 @@ import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import Plyr from 'plyr';
-import 'plyr/dist/plyr.css'; // Nhập CSS của Plyr
+import 'plyr/dist/plyr.css';
 import { FaArrowLeft, FaRegPlayCircle, FaHistory } from 'react-icons/fa';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
 
-// Ad-blocking CSS (giữ nguyên)
 const adBlockCSS = `
   .bg-opacity-40.bg-white.w-full.text-center.space-x-2.bottom-0.absolute {
     display: none !important;
@@ -34,7 +33,7 @@ function MovieDetail() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [videoLoading, setVideoLoading] = useState(false);
   const videoRef = useRef(null);
-  const playerRef = useRef(null); // Ref cho Plyr player
+  const playerRef = useRef(null);
   const currentPlaybackPositionRef = useRef(0);
   const [lastViewedPosition, setLastViewedPosition] = useState(0);
   const [lastViewedEpisodeInfo, setLastViewedEpisodeInfo] = useState(null);
@@ -65,7 +64,6 @@ function MovieDetail() {
           setMovie(null);
           setEpisodes([]);
         }
-
         setInitialLoading(false);
 
         const history = JSON.parse(localStorage.getItem(WATCH_HISTORY_KEY) || '[]');
@@ -195,7 +193,6 @@ function MovieDetail() {
     try {
       const originalM3u8Url = currentEpisode.link_m3u8;
 
-      // Khởi tạo Plyr player
       if (!playerRef.current) {
         playerRef.current = new Plyr(video, {
           controls: [
@@ -214,7 +211,6 @@ function MovieDetail() {
           autoplay: false,
         });
 
-        // Xử lý khi video sẵn sàng
         playerRef.current.on('ready', () => {
           setVideoLoading(false);
           const savedPositionKey = getPlaybackPositionKey(currentEpisode.slug);
@@ -232,14 +228,12 @@ function MovieDetail() {
           });
         });
 
-        // Xử lý lỗi
         playerRef.current.on('error', (event) => {
           console.error('Plyr error:', event.detail);
           setVideoLoading(false);
         });
       }
 
-      // Cập nhật source cho Plyr
       playerRef.current.source = {
         type: 'video',
         sources: [
@@ -250,7 +244,6 @@ function MovieDetail() {
         ],
       };
 
-      // Lưu định kỳ vị trí phát
       saveIntervalRef.current = setInterval(() => {
         if (playerRef.current && !playerRef.current.paused) {
           savePlaybackPosition();
@@ -379,7 +372,6 @@ function MovieDetail() {
             if (ep) {
               setSelectedServer(i);
               setCurrentEpisode(ep);
-              loadVideo();
               setShowMovieInfoPanel(false);
               navigate(`/movie/${movie.slug}/${ep.slug}`);
               foundOnOtherServer = true;
@@ -499,7 +491,6 @@ function MovieDetail() {
               <p>
                 <strong>Nội dung:</strong> {movie.content || 'Không có mô tả.'}
               </p>
-
               {lastViewedPosition > PLAYBACK_SAVE_THRESHOLD_SECONDS && lastViewedEpisodeInfo && (
                 <button
                   onClick={handleContinueWatching}
@@ -596,8 +587,8 @@ function MovieDetail() {
               ))
             ) : (
               <p>Không có tập phim cho server này.</p>
-            )
-          }
+            )}
+          </div>
         </div>
       )}
     </div>
