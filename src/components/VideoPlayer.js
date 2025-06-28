@@ -1,7 +1,7 @@
 // src/components/VideoPlayer.js
 import React, { useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import shaka from 'shaka-player/dist/shaka-player.ui.js'; // Import UI module for default controls
-import 'shaka-player/dist/controls.css'; // Import default Shaka Player UI CSS
+import shaka from 'shaka-player/dist/shaka-player.ui.js';
+import 'shaka-player/dist/controls.css';
 
 const VideoPlayer = forwardRef(({ src, onPlaybackTimeUpdate, onLoaded, onPlay, onPause, onEnded, initialPlaybackTime }, ref) => {
   const videoRef = useRef(null);
@@ -21,7 +21,6 @@ const VideoPlayer = forwardRef(({ src, onPlaybackTimeUpdate, onLoaded, onPlay, o
     },
     currentTime: videoRef.current ? videoRef.current.currentTime : 0,
     duration: videoRef.current ? videoRef.current.duration : 0,
-    // You can expose more video properties/methods if needed
   }));
 
   const initPlayer = useCallback(async () => {
@@ -33,33 +32,47 @@ const VideoPlayer = forwardRef(({ src, onPlaybackTimeUpdate, onLoaded, onPlay, o
       playerRef.current = null;
     }
     if (uiRef.current) {
-        uiRef.current.destroy(); // Destroy existing UI
+        uiRef.current.destroy();
         uiRef.current = null;
     }
 
     const player = new shaka.Player(video);
     playerRef.current = player;
 
-    // Optional: Configure player
     player.configure({
       streaming: {
-        bufferingGoal: 60, // seconds of content to buffer ahead
-        rebufferingGoal: 5, // seconds of content needed to start playback after a rebuffer
-        bufferBehind: 30, // seconds of content to keep behind the playhead
+        bufferingGoal: 60,
+        rebufferingGoal: 5,
+        bufferBehind: 30,
       },
       abr: {
-        enabled: true, // Enable Adaptive Bitrate Streaming
+        enabled: true,
       },
     });
 
-    // Attach Shaka Player UI
     const ui = new shaka.ui.Overlay(player, video, video.parentNode);
     uiRef.current = ui;
-    ui.get -->().showBigPlayButton(true);
+
+    // --- FIX START ---
+    // The big play button is usually shown by default.
+    // If you need to explicitly control it, you would typically get the controls first.
+    // For example, if 'getControls()' was a method to access the controls object:
+    // const controls = ui.getControls();
+    // if (controls) {
+    //    controls.showBigPlayButton(true);
+    // }
+    // However, the `shaka.ui.Overlay` often manages this directly.
+    // The line `ui.get -->().showBigPlayButton(true);` is invalid.
+    // Let's remove or correct it.
+    // If you want to force the big play button to show (it usually does by default),
+    // you might set a configuration or call a specific UI method if it exists.
+    // For now, removing the problematic line is the safest fix for the syntax error.
+    // If you later find the big play button isn't showing, consult Shaka Player UI docs.
+    // --- FIX END ---
+
 
     player.addEventListener('error', (event) => {
       console.error('Shaka Error code:', event.detail.code, 'object:', event.detail.originalError);
-      // You might want to display a user-friendly error message
     });
 
     video.addEventListener('timeupdate', () => {
@@ -90,8 +103,8 @@ const VideoPlayer = forwardRef(({ src, onPlaybackTimeUpdate, onLoaded, onPlay, o
       });
     } catch (e) {
       console.error('Error loading video with Shaka Player:', e);
-      if (onLoaded) { // Call onLoaded even on error to stop loading spinner
-          onLoaded(true); // Pass true to indicate error
+      if (onLoaded) {
+          onLoaded(true);
       }
     }
   }, [src, onPlaybackTimeUpdate, onLoaded, onPlay, onPause, onEnded, initialPlaybackTime]);
@@ -102,7 +115,6 @@ const VideoPlayer = forwardRef(({ src, onPlaybackTimeUpdate, onLoaded, onPlay, o
     }
 
     return () => {
-      // Clean up player when component unmounts or src changes
       if (playerRef.current) {
         playerRef.current.destroy();
         playerRef.current = null;
@@ -119,7 +131,7 @@ const VideoPlayer = forwardRef(({ src, onPlaybackTimeUpdate, onLoaded, onPlay, o
       <video
         ref={videoRef}
         className="shaka-video"
-        poster="/path/to/your/poster.jpg" // Optional: add a poster image
+        poster="/path/to/your/poster.jpg"
       />
     </div>
   );
