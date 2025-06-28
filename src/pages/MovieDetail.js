@@ -3,7 +3,6 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
-// import Hls from 'hls.js'; // Xóa dòng này
 import { FaArrowLeft, FaRegPlayCircle, FaHistory } from 'react-icons/fa';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
@@ -33,9 +32,7 @@ function MovieDetail() {
   const [currentEpisode, setCurrentEpisode] = useState(null);
   const [showMovieInfoPanel, setShowMovieInfoPanel] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [videoLoading, setVideoLoading] = useState(false);
-  // const videoRef = useRef(null); // Không cần ref cho video nữa
-  // const hlsInstanceRef = useRef(null); // Không cần ref cho HLS nữa
+  const [videoLoading, setVideoLoading] = useState(false); // Trạng thái loading cho video player
   const currentPlaybackPositionRef = useRef(0);
   const [lastViewedPosition, setLastViewedPosition] = useState(0);
   const [lastViewedEpisodeInfo, setLastViewedEpisodeInfo] = useState(null);
@@ -98,12 +95,14 @@ function MovieDetail() {
       if (!episodeSlug) {
         setShowMovieInfoPanel(true);
         setCurrentEpisode(null);
+        // Không set videoLoading ở đây, chỉ khi bắt đầu phát video
       } else {
         if (serverData && serverData.length > 0) {
           const episodeToLoad = serverData.find((ep) => ep.slug === episodeSlug);
           if (episodeToLoad) {
             setCurrentEpisode(episodeToLoad);
             setShowMovieInfoPanel(false);
+            setVideoLoading(true); // Bắt đầu loading khi có tập cụ thể
           } else {
             setCurrentEpisode(null);
             setShowMovieInfoPanel(true);
@@ -161,7 +160,8 @@ function MovieDetail() {
 
 
   const savePlaybackPosition = useCallback(() => {
-    const video = shakaPlayerInstanceRef.current?.getVideo(); // Lấy video element từ Shaka Player
+    // Lấy video element từ Shaka Player instance
+    const video = shakaPlayerInstanceRef.current?.getVideo();
     if (video && currentEpisode && video.currentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
       const key = getPlaybackPositionKey(currentEpisode.slug);
       localStorage.setItem(key, video.currentTime.toString());
@@ -173,65 +173,79 @@ function MovieDetail() {
     }
   }, [currentEpisode, getPlaybackPositionKey, movie, saveMovieToHistory]);
 
+  // Callback từ ShakaPlayerComponent khi timeupdate
   const handleShakaTimeUpdate = useCallback((currentTime) => {
     currentPlaybackPositionRef.current = currentTime;
   }, []);
 
+  // Callback từ ShakaPlayerComponent khi video kết thúc
   const handleShakaEnded = useCallback(() => {
-    // Xử lý khi video kết thúc
     savePlaybackPosition(); // Đảm bảo lưu lại vị trí cuối cùng
-    // Có thể chuyển sang tập tiếp theo, hoặc hiển thị màn hình kết thúc
     console.log('Video ended.');
+    // Thêm logic chuyển tập tiếp theo nếu cần
   }, [savePlaybackPosition]);
 
+  // Callback từ ShakaPlayerComponent khi player đã sẵn sàng
   const handleShakaPlayerReady = useCallback((player) => {
-    shakaPlayerInstanceRef.current = player;
-    setVideoLoading(false);
+    shakaPlayerInstanceRef.current = player; // Gán instance của Shaka Player vào ref
+    setVideoLoading(false); // Video đã sẵn sàng, tắt trạng thái loading
 
-    // Bắt đầu lưu định kỳ sau khi player sẵn sàng
+    // Clear bất kỳ interval cũ nào trước khi bắt đầu cái mới
     if (saveIntervalRef.current) {
         clearInterval(saveIntervalRef.current);
+        saveIntervalRef.current = null;
     }
-    saveIntervalRef.current = setInterval(() => {
-        const video = shakaPlayerInstanceRef.current?.getVideo();
-        if (video && !video.paused) {
-            savePlaybackPosition();
-        }
-    }, SAVE_INTERVAL_SECONDS * 1000);
-    console.log(`Started periodic save every ${SAVE_INTERVAL_SECONDS} seconds.`);
+
+    // Bắt đầu lưu vị trí định kỳ
+    if (player) { // Chỉ bắt đầu interval nếu player khởi tạo thành công
+        saveIntervalRef.current = setInterval(() => {
+            const video = shakaPlayerInstanceRef.current?.getVideo();
+            if (video && !video.paused) { // Chỉ lưu nếu video đang phát
+                savePlaybackPosition();
+            }
+        }, SAVE_INTERVAL_SECONDS * 1000);
+        console.log(`Started periodic save every ${SAVE_INTERVAL_SECONDS} seconds.`);
+    }
   }, [savePlaybackPosition]);
 
+  // Cleanup effect: lưu vị trí, hủy interval và player khi component unmounts hoặc currentEpisode thay đổi
   useEffect(() => {
-    // Cleanup interval on unmount or episode change
     return () => {
-      savePlaybackPosition(); // Lưu lần cuối trước khi rời khỏi trang/chuyển tập
+      // Lưu vị trí lần cuối trước khi rời khỏi trang/chuyển tập
+      savePlaybackPosition();
+      // Clear interval
       if (saveIntervalRef.current) {
         clearInterval(saveIntervalRef.current);
         saveIntervalRef.current = null;
         console.log("Cleared periodic save interval.");
       }
+      // Hủy Shaka Player instance
       if (shakaPlayerInstanceRef.current) {
         shakaPlayerInstanceRef.current.destroy();
         shakaPlayerInstanceRef.current = null;
+        console.log('Shaka Player destroyed during cleanup.');
       }
     };
-  }, [currentEpisode, savePlaybackPosition]);
+  }, [currentEpisode, savePlaybackPosition]); // Chạy lại khi currentEpisode thay đổi
 
-
+  // Xử lý sự kiện thay đổi trạng thái hiển thị của tab/ứng dụng
   useEffect(() => {
-    const video = shakaPlayerInstanceRef.current?.getVideo();
-    if (!video) return;
-
     const handleVisibilityChange = () => {
+      // Lấy video element từ Shaka Player instance
+      const video = shakaPlayerInstanceRef.current?.getVideo();
+
+      if (!video) return; // Thoát nếu video chưa sẵn sàng hoặc player chưa được khởi tạo
+
       if (document.visibilityState === 'hidden') {
+        // Tab bị ẩn đi
         if (!video.paused) {
           video.pause();
           console.log("Video paused due to tab going into background.");
         }
-        savePlaybackPosition();
+        savePlaybackPosition(); // Lưu vị trí khi tab bị ẩn
       } else {
-        if (video.src && !showMovieInfoPanel) {
-            // Attempt to play only if video is not currently playing and we are not on info panel
+        // Tab được đưa ra phía trước
+        if (!showMovieInfoPanel && video.paused) { // Chỉ cố gắng play nếu không ở bảng info và video đang tạm dừng
             video.play().catch(error => {
                 console.warn("Autoplay was prevented on visibility change:", error);
             });
@@ -251,22 +265,26 @@ function MovieDetail() {
   const handleServerChange = useCallback((index) => {
     if (episodes.length === 0) return;
 
-    savePlaybackPosition();
+    savePlaybackPosition(); // Lưu vị trí tập hiện tại trước khi đổi server
 
     setSelectedServer(index);
     setShowMovieInfoPanel(false);
+    setVideoLoading(true); // Bắt đầu loading video mới
 
     const newServerData = episodes[index]?.server_data;
     let targetEpisode = null;
 
     if (newServerData && newServerData.length > 0) {
+      // Cố gắng tìm tập hiện tại trên server mới
       targetEpisode = newServerData.find(ep => ep.slug === currentEpisode?.slug);
       if (!targetEpisode) {
+        // Nếu không tìm thấy, chọn tập đầu tiên của server mới
         targetEpisode = newServerData[0];
       }
       setCurrentEpisode(targetEpisode);
       navigate(`/movie/${slug}/${targetEpisode.slug}`, { replace: true });
     } else {
+      // Nếu server không có tập nào
       setCurrentEpisode(null);
       navigate(`/movie/${slug}`, { replace: true });
     }
@@ -274,10 +292,11 @@ function MovieDetail() {
 
 
   const handleEpisodeSelect = useCallback((episode) => {
-    savePlaybackPosition();
+    savePlaybackPosition(); // Lưu vị trí tập hiện tại trước khi chuyển tập
 
     setCurrentEpisode(episode);
     setShowMovieInfoPanel(false);
+    setVideoLoading(true); // Bắt đầu loading video mới
     navigate(`/movie/${slug}/${episode.slug}`);
   }, [slug, navigate, savePlaybackPosition]);
 
@@ -291,6 +310,7 @@ function MovieDetail() {
             if (targetEpisode) {
                 setCurrentEpisode(targetEpisode);
                 setShowMovieInfoPanel(false);
+                setVideoLoading(true); // Bắt đầu loading khi tiếp tục xem
                 navigate(`/movie/${movie.slug}/${targetEpisode.slug}`);
             } else {
                 let foundOnOtherServer = false;
@@ -300,6 +320,7 @@ function MovieDetail() {
                         setSelectedServer(i);
                         setCurrentEpisode(ep);
                         setShowMovieInfoPanel(false);
+                        setVideoLoading(true); // Bắt đầu loading
                         navigate(`/movie/${movie.slug}/${ep.slug}`);
                         foundOnOtherServer = true;
                         break;
@@ -434,6 +455,7 @@ function MovieDetail() {
                   onEnded={handleShakaEnded}
                   initialPlaybackPosition={parseFloat(localStorage.getItem(getPlaybackPositionKey(currentEpisode.slug)) || 0)}
                   onPlayerReady={handleShakaPlayerReady}
+                  isVideoLoading={videoLoading} // Truyền trạng thái loading xuống component con
                 />
               ) : (
                 <div className="video-error-message" style={{
@@ -456,8 +478,10 @@ function MovieDetail() {
             </div>
             <button
               onClick={() => {
+                savePlaybackPosition(); // Lưu vị trí hiện tại trước khi thoát
                 setShowMovieInfoPanel(true);
                 setCurrentEpisode(null);
+                setVideoLoading(false); // Tắt loading khi quay về panel info
                 navigate(`/movie/${slug}`, { replace: true });
               }}
               className="back-button"
