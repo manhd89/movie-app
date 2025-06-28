@@ -1,3 +1,4 @@
+/* src/pages/MovieDetail.css */
 .container {
   max-width: 1200px;
   margin: 0 auto;
@@ -52,57 +53,35 @@
   color: #fff;
 }
 
+/* Updated styles for video player to accommodate Shaka Player */
 .video-player {
   position: relative;
-  width: 100%; /* Đảm bảo chiều rộng 100% */
   padding-bottom: 56.25%; /* 16:9 aspect ratio */
-  height: 0; /* Reset height */
+  height: 0;
   overflow: hidden;
   background-color: #000;
+  width: 100%;
 }
 
-/* Đảm bảo ShakaPlayerComponent chiếm toàn bộ không gian của .video-player */
-.video-player-shaka { /* This is the div with data-shaka-player-container */
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: flex; /* Helps align video and UI */
-    justify-content: center;
-    align-items: center;
+/* Shaka Player container styles */
+.shaka-player-container {
+  position: absolute; /* Take full space of .video-player */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex; /* Helps center the video element if needed */
+  justify-content: center;
+  align-items: center;
 }
 
-/* Ensure the video element itself fills the container */
-.shaka-video-element {
-    width: 100%;
-    height: 100%;
-    object-fit: contain; /* or 'cover' depending on desired fill behavior */
+.shaka-player-container .shaka-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* Ensures video fits without cropping */
 }
 
-/* Ensure the Shaka UI overlay also covers the player area */
-.shaka-player-ui {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1; /* Make sure UI is above video */
-}
-
-/* Shaka Player UI specific adjustments */
-.shaka-player-ui {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    /* Shaka Player will add its own controls, ensure our spinner is above them */
-    z-index: 1; /* Default controls z-index, can be adjusted */
-}
-
-
-/* NEW: Styles for video loading spinner */
+/* Overlay spinner for when video is loading (controlled by MovieDetail.js) */
 .video-overlay-spinner {
   position: absolute;
   top: 0;
@@ -113,18 +92,18 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 10; /* Ensure it's above the video and UI */
+  z-index: 10; /* Ensure it's above the video */
 }
 
 .video-overlay-spinner .spinner {
   margin: 0; /* Override default margin */
 }
 
-/* No longer needed as ShakaPlayerComponent manages visibility */
-/* .hidden-video {
-  visibility: hidden;
-} */
-/* END NEW */
+/* Hide the native video element if it's there, but Shaka Player overlays on it */
+/* This might be needed if the browser somehow renders a native video element underneath Shaka's UI */
+.video-player video.hidden-video {
+  visibility: hidden; /* Hide the video element while our custom spinner is active */
+}
 
 .back-button {
   margin: 10px 0;
@@ -178,7 +157,7 @@
   padding: 10px 20px;
   border: 1px solid #ccc;
   background: #f9f9f9;
-  color: #333; /* Ensure text is visible on light background */
+  color: #333;
   cursor: pointer;
   border-radius: 5px;
 }
@@ -211,13 +190,13 @@
   }
 }
 
-/* NEW: Styles for "Continue Watching" button on MovieDetail page */
+/* Styles for "Continue Watching" button on MovieDetail page */
 .continue-watching-detail-button {
-  display: block; /* Make it a block element to take full width */
-  width: fit-content; /* Adjust width to content */
-  margin: 20px 0 0; /* Margin from other elements */
+  display: block;
+  width: fit-content;
+  margin: 20px 0 0;
   padding: 12px 25px;
-  background-color: #28a745; /* Green color */
+  background-color: #28a745;
   color: #fff;
   border: none;
   border-radius: 5px;
@@ -226,10 +205,27 @@
   font-weight: bold;
   display: flex;
   align-items: center;
-  gap: 10px; /* Space between text and icon */
+  gap: 10px;
   transition: background-color 0.3s ease;
 }
 
 .continue-watching-detail-button:hover {
-  background-color: #218838; /* Darker green on hover */
+  background-color: #218838;
+}
+
+/* Styles for video error message */
+.video-error-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-size: 1.2rem;
+    text-align: center;
+    padding: 20px;
+    background-color: rgba(0,0,0,0.7);
+    border-radius: 8px;
+    z-index: 5;
+    width: 80%; /* Adjust as needed */
+    max-width: 400px; /* Adjust as needed */
 }
