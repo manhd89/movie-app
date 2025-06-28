@@ -52,31 +52,42 @@
   color: #fff;
 }
 
-/* NEW: Shaka Player container styles */
 .video-player {
   position: relative;
+  width: 100%; /* Đảm bảo chiều rộng 100% */
   padding-bottom: 56.25%; /* 16:9 aspect ratio */
-  height: 0;
+  height: 0; /* Reset height */
   overflow: hidden;
   background-color: #000;
-  width: 100%;
 }
 
-.video-player-shaka {
-    position: absolute; /* Take full space of parent .video-player */
+/* Đảm bảo ShakaPlayerComponent chiếm toàn bộ không gian của .video-player */
+.video-player-shaka { /* This is the div with data-shaka-player-container */
+    position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    display: flex; /* To contain video and UI */
+    display: flex; /* Helps align video and UI */
     justify-content: center;
     align-items: center;
 }
 
+/* Ensure the video element itself fills the container */
 .shaka-video-element {
     width: 100%;
     height: 100%;
-    object-fit: contain; /* Ensure video fits within bounds */
+    object-fit: contain; /* or 'cover' depending on desired fill behavior */
+}
+
+/* Ensure the Shaka UI overlay also covers the player area */
+.shaka-player-ui {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1; /* Make sure UI is above video */
 }
 
 /* Shaka Player UI specific adjustments */
