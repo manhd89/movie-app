@@ -1,147 +1,171 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react';
-import shaka from 'shaka-player/dist/shaka-player.compiled';
+// src/components/ShakaPlayerComponent.js
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import shaka from 'shaka-player/dist/shaka-player.ui'; // Import shaka player UI
+import 'shaka-player/dist/controls.css'; // Import Shaka Player UI CSS
 
-// Đảm bảo rằng các polyfill cần thiết được cài đặt một lần
-if (!window.shakaPolyfillInstalled) {
-  shaka.polyfill.installAll();
-  window.shakaPolyfillInstalled = true;
-}
+const PLAYBACK_SAVE_THRESHOLD_SECONDS = 5;
+const SAVE_INTERVAL_SECONDS = 10;
 
-const ShakaPlayerComponent = ({ src, onTimeUpdate, onEnded, initialPlaybackPosition, onPlayerReady, isVideoLoading }) => {
+function ShakaPlayerComponent({
+  videoUrl,
+  episodeSlug,
+  movieSlug,
+  onPlaybackPositionChange,
+  onVideoLoaded,
+  onVideoError,
+}) {
   const videoRef = useRef(null);
+  const uiRef = useRef(null);
   const playerRef = useRef(null);
+  const saveIntervalRef = useRef(null);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
 
-  // Initialize Shaka Player
-  const initPlayer = useCallback(async () => {
+  const getPlaybackPositionKey = useCallback(() => {
+    return `lastPlayedPosition-${movieSlug}-${episodeSlug}`;
+  }, [movieSlug, episodeSlug]);
+
+  const savePlaybackPosition = useCallback(() => {
     const video = videoRef.current;
-    if (!video) return;
-
-    // Destroy existing player if it exists before creating a new one
-    if (playerRef.current) {
-      playerRef.current.destroy();
-      playerRef.current = null;
+    if (video && playerRef.current && video.currentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+      const key = getPlaybackPositionKey();
+      localStorage.setItem(key, video.currentTime.toString());
+      // console.log(`Saved playback position for ${episodeSlug}: ${video.currentTime}s`);
+      onPlaybackPositionChange && onPlaybackPositionChange(video.currentTime);
     }
-
-    const player = new shaka.Player(video);
-    playerRef.current = player;
-
-    // Lắng nghe các sự kiện lỗi của Shaka Player
-    player.addEventListener('error', (event) => {
-      console.error('Shaka Player Error:', event.detail);
-      // Bạn có thể truyền lỗi này lên component cha để xử lý hiển thị
-      // if (onError) onError(event.detail);
-    });
-
-    // Cấu hình Shaka Player (tùy chọn)
-    player.configure({
-      streaming: {
-        bufferingGoal: 60,
-        bufferBehind: 30,
-        retryParameters: {
-          maxAttempts: 5,
-          baseDelay: 500,
-          timeout: 30000,
-          // Removed 'factor' as it's not a direct config key for retryParameters
-        },
-      },
-      manifest: {
-        retryParameters: {
-          maxAttempts: 5,
-          baseDelay: 500,
-          timeout: 30000,
-          // Removed 'factor' as it's not a direct config key for retryParameters
-        },
-      },
-      // Thêm cấu hình cho DASH/HLS nếu cần
-      // adaptif: { ... }
-    });
-
-    try {
-      await player.load(src);
-      console.log('Shaka Player loaded source:', src);
-
-      // Restore playback position
-      if (initialPlaybackPosition && initialPlaybackPosition > 0 && initialPlaybackPosition < video.duration) {
-        video.currentTime = initialPlaybackPosition;
-        console.log(`Restored Shaka playback position: ${initialPlaybackPosition}s`);
-      } else {
-        video.currentTime = 0; // Đặt về 0 nếu không có vị trí lưu hoặc vị trí không hợp lệ
-      }
-
-      // Try to autoplay
-      video.play().catch(error => {
-        console.warn("Autoplay was prevented by Shaka Player:", error);
-        // Có thể hiển thị một nút play nếu autoplay bị chặn
-      });
-
-      // Báo hiệu cho component cha rằng player đã sẵn sàng
-      if (onPlayerReady) {
-        onPlayerReady(player);
-      }
-
-    } catch (e) {
-      console.error('Error loading Shaka Player source:', e);
-      // Báo hiệu cho component cha rằng có lỗi tải video
-      if (onPlayerReady) {
-        onPlayerReady(null); // Truyền null hoặc một đối tượng lỗi để báo hiệu lỗi
-      }
-    }
-  }, [src, onPlayerReady, initialPlaybackPosition]);
+  }, [episodeSlug, getPlaybackPositionKey, onPlaybackPositionChange]);
 
   useEffect(() => {
-    // Chỉ khởi tạo khi src thay đổi và video element đã sẵn sàng
-    if (src && videoRef.current) {
-      initPlayer();
-    }
-    // Cleanup function: destroy player when component unmounts or src changes
-    return () => {
+    const video = videoRef.current;
+    if (!video || !videoUrl) {
       if (playerRef.current) {
         playerRef.current.destroy();
         playerRef.current = null;
-        console.log('Shaka Player destroyed.');
       }
-    };
-  }, [src, initPlayer]);
+      setIsPlayerReady(false);
+      return;
+    }
 
-  // Lắng nghe sự kiện timeupdate và ended từ video element
+    if (playerRef.current) {
+        playerRef.current.destroy(); // Destroy existing player if any
+        playerRef.current = null;
+    }
+
+    if (saveIntervalRef.current) {
+      clearInterval(saveIntervalRef.current);
+      saveIntervalRef.current = null;
+    }
+
+    shaka.polyfill.installAll(); // Ensure polyfills are installed
+
+    // Check if the browser has native HLS support or if Shaka can handle it
+    const player = new shaka.Player(video);
+    playerRef.current = player;
+
+    // Attach UI
+    const ui = new shaka.ui.Overlay(player, uiRef.current, video);
+    uiRef.current = ui;
+    const controls = ui.get ="//";
+
+    player.addEventListener('error', (event) => {
+      console.error('Shaka Error event:', event.detail);
+      onVideoError && onVideoError(event.detail);
+    });
+
+    player.load(videoUrl)
+      .then(() => {
+        setIsPlayerReady(true);
+        console.log('Shaka Player: The video has been loaded and is now playing!');
+        const savedTime = parseFloat(localStorage.getItem(getPlaybackPositionKey()));
+
+        if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+          video.currentTime = savedTime;
+          console.log(`Restored playback position for ${episodeSlug}: ${savedTime}s`);
+        } else {
+          video.currentTime = 0;
+        }
+
+        video.play().catch(error => {
+          console.warn("Autoplay was prevented:", error);
+        });
+
+        onVideoLoaded && onVideoLoaded();
+
+        saveIntervalRef.current = setInterval(() => {
+          if (!video.paused) {
+            savePlaybackPosition();
+          }
+        }, SAVE_INTERVAL_SECONDS * 1000);
+      })
+      .catch((error) => {
+        console.error('Shaka Player: Error loading video', error);
+        setIsPlayerReady(false);
+        onVideoError && onVideoError(error);
+      });
+
+    const handleVideoPause = () => {
+        savePlaybackPosition();
+    };
+
+    video.addEventListener('pause', handleVideoPause);
+
+    return () => {
+      savePlaybackPosition(); // Save on unmount
+      if (playerRef.current) {
+        playerRef.current.destroy();
+        playerRef.current = null;
+      }
+      if (saveIntervalRef.current) {
+        clearInterval(saveIntervalRef.current);
+        saveIntervalRef.current = null;
+      }
+      video.removeEventListener('pause', handleVideoPause);
+    };
+  }, [videoUrl, episodeSlug, movieSlug, getPlaybackPositionKey, savePlaybackPosition, onVideoLoaded, onVideoError, onPlaybackPositionChange]);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    const handleTimeUpdate = () => {
-      if (onTimeUpdate) {
-        onTimeUpdate(video.currentTime);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        if (!video.paused) {
+          video.pause();
+          console.log("Video paused due to tab going into background.");
+        }
+        savePlaybackPosition();
+      } else {
+        if (video.src) { // Check if video source is set
+            video.play().catch(error => {
+                console.warn("Autoplay was prevented on visibility change:", error);
+            });
+            console.log("Video attempted to play due to tab coming into foreground.");
+        }
       }
     };
 
-    const handleEnded = () => {
-      if (onEnded) {
-        onEnded();
-      }
-    };
-
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('ended', handleEnded);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('ended', handleEnded);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [onTimeUpdate, onEnded]);
+  }, [savePlaybackPosition]);
 
 
   return (
-    <video
-      ref={videoRef}
-      controls
-      autoPlay // Thử autoplay, nhưng trình duyệt có thể chặn
-      width="100%"
-      height="100%"
-      className={isVideoLoading ? 'hidden-video' : ''} // Được kiểm soát bởi MovieDetail
-      aria-label="Video player"
-      playsInline // Quan trọng cho iOS autoplay
-    />
+    <div data-shaka-player-container className="video-player-shaka">
+      <video
+        ref={videoRef}
+        data-shaka-player
+        className="shaka-video-element"
+      />
+      <div data-shaka-player-ui ref={uiRef} className="shaka-player-ui" />
+      {!isPlayerReady && (
+        <div className="video-overlay-spinner">
+          <div className="spinner"></div>
+        </div>
+      )}
+    </div>
   );
-};
+}
 
 export default ShakaPlayerComponent;
