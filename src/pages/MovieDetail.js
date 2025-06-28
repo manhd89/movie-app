@@ -161,7 +161,7 @@ function MovieDetail() {
 
 
   const savePlaybackPosition = useCallback(() => {
-    const video = shakaPlayerInstanceRef.current?.get  Video(); // Lấy video element từ Shaka Player
+    const video = shakaPlayerInstanceRef.current?.getVideo(); // Lấy video element từ Shaka Player
     if (video && currentEpisode && video.currentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
       const key = getPlaybackPositionKey(currentEpisode.slug);
       localStorage.setItem(key, video.currentTime.toString());
