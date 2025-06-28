@@ -1,12 +1,14 @@
+// src/pages/MovieDetail.js
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
+// import Hls from 'hls.js'; // REMOVE HLS.js import
 import { FaArrowLeft, FaRegPlayCircle, FaHistory } from 'react-icons/fa';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
-import ShakaPlayerComponent from '../components/ShakaPlayerComponent'; // Import the new component
+import VideoPlayer from '../components/VideoPlayer'; // NEW: Import your custom video player
 
 // Ad-blocking CSS (giữ nguyên)
 const adBlockCSS = `
@@ -18,6 +20,7 @@ const adBlockCSS = `
 const PLAYBACK_SAVE_THRESHOLD_SECONDS = 5;
 const LAST_PLAYED_KEY_PREFIX = 'lastPlayedPosition-';
 const WATCH_HISTORY_KEY = 'watchHistory';
+const SAVE_INTERVAL_SECONDS = 10;
 
 function MovieDetail() {
   const { slug, episodeSlug } = useParams();
@@ -31,10 +34,14 @@ function MovieDetail() {
   const [currentEpisode, setCurrentEpisode] = useState(null);
   const [showMovieInfoPanel, setShowMovieInfoPanel] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [videoLoading, setVideoLoading] = useState(false); // Managed by ShakaPlayerComponent now
+  const [videoLoading, setVideoLoading] = useState(false);
+  // const videoRef = useRef(null); // REMOVE videoRef
+  // const hlsInstanceRef = useRef(null); // REMOVE hlsInstanceRef
+  const videoPlayerRef = useRef(null); // NEW: Reference to your custom VideoPlayer component
+  const currentPlaybackPositionRef = useRef(0);
   const [lastViewedPosition, setLastViewedPosition] = useState(0);
   const [lastViewedEpisodeInfo, setLastViewedEpisodeInfo] = useState(null);
-  const currentPlaybackPositionRef = useRef(0); // To store the latest playback position from ShakaPlayerComponent
+  const saveIntervalRef = useRef(null);
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -122,13 +129,9 @@ function MovieDetail() {
     localStorage.setItem(`selectedServer-${slug}`, selectedServer);
   }, [selectedServer, slug]);
 
-  // This function is now called by ShakaPlayerComponent when playback position changes
-  const handlePlaybackPositionChange = useCallback((position) => {
-    currentPlaybackPositionRef.current = position;
-    if (movie && currentEpisode) {
-      saveMovieToHistory(movie, currentEpisode, position);
-    }
-  }, [movie, currentEpisode]);
+  const getPlaybackPositionKey = useCallback((epSlug) => {
+    return `${LAST_PLAYED_KEY_PREFIX}${slug}-${epSlug}`;
+  }, [slug]);
 
   const saveMovieToHistory = useCallback((movieData, episodeData, position) => {
     if (!movieData || !episodeData || position < PLAYBACK_SAVE_THRESHOLD_SECONDS) return;
@@ -154,11 +157,118 @@ function MovieDetail() {
     history = history.filter(item => item.slug !== movieData.slug);
     history.unshift(historyEntry);
     localStorage.setItem(WATCH_HISTORY_KEY, JSON.stringify(history.slice(0, 20)));
-    // console.log(`Saved movie to history: ${movieData.name} - ${episodeData.name} at ${position}s`);
+    console.log(`Saved movie to history: ${movieData.name} - ${episodeData.name} at ${position}s`);
   }, [episodes, selectedServer]);
+
+
+  const savePlaybackPosition = useCallback(() => {
+    const videoCurrentTime = videoPlayerRef.current?.currentTime;
+    if (videoPlayerRef.current && currentEpisode && videoCurrentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+      const key = getPlaybackPositionKey(currentEpisode.slug);
+      localStorage.setItem(key, videoCurrentTime.toString());
+      console.log(`Saved playback position for ${currentEpisode.name}: ${videoCurrentTime}s`);
+
+      if (movie) {
+        saveMovieToHistory(movie, currentEpisode, videoCurrentTime);
+      }
+    }
+  }, [currentEpisode, getPlaybackPositionKey, movie, saveMovieToHistory]);
+
+
+  // Removed the old loadVideo function. Shaka Player logic is now encapsulated in VideoPlayer component.
+
+  // NEW: Handlers for VideoPlayer events
+  const handleVideoLoaded = useCallback((errorOccurred) => {
+    setVideoLoading(false);
+    if (errorOccurred) {
+        console.error("VideoPlayer reported an error during loading.");
+    }
+  }, []);
+
+  const handleVideoPlay = useCallback(() => {
+      // Logic when video starts playing (if needed)
+  }, []);
+
+  const handleVideoPause = useCallback(() => {
+      savePlaybackPosition();
+  }, [savePlaybackPosition]);
+
+  const handleVideoEnded = useCallback(() => {
+      savePlaybackPosition();
+      // Logic when video ends (e.g., go to next episode)
+  }, [savePlaybackPosition]);
+
+  const handlePlaybackTimeUpdate = useCallback((currentTime) => {
+      currentPlaybackPositionRef.current = currentTime;
+  }, []);
+
+  // Effect to manage periodic saving
+  useEffect(() => {
+    if (currentEpisode && !showMovieInfoPanel) {
+        // Clear any existing interval before starting a new one
+        if (saveIntervalRef.current) {
+            clearInterval(saveIntervalRef.current);
+            saveIntervalRef.current = null;
+        }
+
+        saveIntervalRef.current = setInterval(() => {
+            if (videoPlayerRef.current && !videoPlayerRef.current.paused) {
+                savePlaybackPosition();
+            }
+        }, SAVE_INTERVAL_SECONDS * 1000);
+        console.log(`Started periodic save every ${SAVE_INTERVAL_SECONDS} seconds.`);
+    } else {
+        // Clear interval if not playing or showing info panel
+        if (saveIntervalRef.current) {
+            clearInterval(saveIntervalRef.current);
+            saveIntervalRef.current = null;
+            console.log("Cleared periodic save interval.");
+        }
+    }
+
+    // Cleanup on unmount or dependency change
+    return () => {
+      if (saveIntervalRef.current) {
+        clearInterval(saveIntervalRef.current);
+        saveIntervalRef.current = null;
+        console.log("Cleared periodic save interval on unmount/change.");
+      }
+    };
+  }, [currentEpisode, showMovieInfoPanel, savePlaybackPosition]);
+
+  // Effect for visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        if (videoPlayerRef.current) {
+          videoPlayerRef.current.pause();
+          console.log("Video paused due to tab going into background.");
+        }
+        savePlaybackPosition();
+      } else {
+        if (videoPlayerRef.current && videoPlayerRef.current.src && !showMovieInfoPanel) {
+            videoPlayerRef.current.play().catch(error => {
+                console.warn("Autoplay was prevented on visibility change:", error);
+            });
+            console.log("Video attempted to play due to tab coming into foreground.");
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // No need to remove 'pause' or 'timeupdate' from videoRef directly,
+      // as they are handled inside VideoPlayer component.
+    };
+  }, [showMovieInfoPanel, savePlaybackPosition]);
+
 
   const handleServerChange = useCallback((index) => {
     if (episodes.length === 0) return;
+
+    savePlaybackPosition();
 
     setSelectedServer(index);
     setShowMovieInfoPanel(false);
@@ -169,7 +279,7 @@ function MovieDetail() {
     if (newServerData && newServerData.length > 0) {
       targetEpisode = newServerData.find(ep => ep.slug === currentEpisode?.slug);
       if (!targetEpisode) {
-        targetEpisode = newServerData[0]; // Fallback to first episode if current not found
+        targetEpisode = newServerData[0];
       }
       setCurrentEpisode(targetEpisode);
       navigate(`/movie/${slug}/${targetEpisode.slug}`, { replace: true });
@@ -177,14 +287,16 @@ function MovieDetail() {
       setCurrentEpisode(null);
       navigate(`/movie/${slug}`, { replace: true });
     }
-  }, [slug, navigate, episodes, currentEpisode]);
+  }, [slug, navigate, episodes, currentEpisode, savePlaybackPosition]);
 
 
   const handleEpisodeSelect = useCallback((episode) => {
+    savePlaybackPosition();
+
     setCurrentEpisode(episode);
     setShowMovieInfoPanel(false);
     navigate(`/movie/${slug}/${episode.slug}`);
-  }, [slug, navigate]);
+  }, [slug, navigate, savePlaybackPosition]);
 
   const handleContinueWatching = useCallback(() => {
     if (lastViewedEpisodeInfo && movie) {
@@ -327,14 +439,21 @@ function MovieDetail() {
         ) : (
           <>
             <div className="video-player">
+              {videoLoading && (
+                <div className="video-overlay-spinner">
+                  <div className="spinner"></div>
+                </div>
+              )}
               {currentEpisode && isValidUrl(currentEpisode.link_m3u8) ? (
-                <ShakaPlayerComponent
-                  videoUrl={currentEpisode.link_m3u8}
-                  episodeSlug={currentEpisode.slug}
-                  movieSlug={movie.slug}
-                  onPlaybackPositionChange={handlePlaybackPositionChange}
-                  onVideoLoaded={() => setVideoLoading(false)}
-                  onVideoError={() => setVideoLoading(false)}
+                <VideoPlayer
+                    ref={videoPlayerRef}
+                    src={currentEpisode.link_m3u8}
+                    onPlaybackTimeUpdate={handlePlaybackTimeUpdate}
+                    onLoaded={handleVideoLoaded}
+                    onPlay={handleVideoPlay}
+                    onPause={handleVideoPause}
+                    onEnded={handleVideoEnded}
+                    initialPlaybackTime={parseFloat(localStorage.getItem(getPlaybackPositionKey(currentEpisode.slug)) || '0')}
                 />
               ) : (
                 <div className="video-error-message" style={{
