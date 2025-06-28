@@ -1,14 +1,12 @@
-// src/pages/MovieDetail.js
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
-// import Hls from 'hls.js'; // REMOVE HLS.js import
+import Hls from 'hls.js';
 import { FaArrowLeft, FaRegPlayCircle, FaHistory } from 'react-icons/fa';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
-import VideoPlayer from '../components/VideoPlayer'; // NEW: Import your custom video player
 
 // Ad-blocking CSS (giữ nguyên)
 const adBlockCSS = `
@@ -17,10 +15,15 @@ const adBlockCSS = `
   }
 `;
 
+async function removeAds(playlistUrl) {
+  // Logic removeAds của bạn (nếu có Service Worker, phần này có thể không cần thiết hoặc chỉ là fallback)
+  return playlistUrl;
+}
+
 const PLAYBACK_SAVE_THRESHOLD_SECONDS = 5;
 const LAST_PLAYED_KEY_PREFIX = 'lastPlayedPosition-';
 const WATCH_HISTORY_KEY = 'watchHistory';
-const SAVE_INTERVAL_SECONDS = 10;
+const SAVE_INTERVAL_SECONDS = 10; // NEW: Save playback position every 10 seconds
 
 function MovieDetail() {
   const { slug, episodeSlug } = useParams();
@@ -35,13 +38,12 @@ function MovieDetail() {
   const [showMovieInfoPanel, setShowMovieInfoPanel] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
   const [videoLoading, setVideoLoading] = useState(false);
-  // const videoRef = useRef(null); // REMOVE videoRef
-  // const hlsInstanceRef = useRef(null); // REMOVE hlsInstanceRef
-  const videoPlayerRef = useRef(null); // NEW: Reference to your custom VideoPlayer component
+  const videoRef = useRef(null);
+  const hlsInstanceRef = useRef(null);
   const currentPlaybackPositionRef = useRef(0);
   const [lastViewedPosition, setLastViewedPosition] = useState(0);
   const [lastViewedEpisodeInfo, setLastViewedEpisodeInfo] = useState(null);
-  const saveIntervalRef = useRef(null);
+  const saveIntervalRef = useRef(null); // NEW: Ref for the interval timer
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -162,92 +164,191 @@ function MovieDetail() {
 
 
   const savePlaybackPosition = useCallback(() => {
-    const videoCurrentTime = videoPlayerRef.current?.currentTime;
-    if (videoPlayerRef.current && currentEpisode && videoCurrentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+    const video = videoRef.current;
+    if (video && currentEpisode && video.currentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
       const key = getPlaybackPositionKey(currentEpisode.slug);
-      localStorage.setItem(key, videoCurrentTime.toString());
-      console.log(`Saved playback position for ${currentEpisode.name}: ${videoCurrentTime}s`);
+      localStorage.setItem(key, video.currentTime.toString());
+      console.log(`Saved playback position for ${currentEpisode.name}: ${video.currentTime}s`);
 
       if (movie) {
-        saveMovieToHistory(movie, currentEpisode, videoCurrentTime);
+        saveMovieToHistory(movie, currentEpisode, video.currentTime);
       }
     }
   }, [currentEpisode, getPlaybackPositionKey, movie, saveMovieToHistory]);
 
 
-  // Removed the old loadVideo function. Shaka Player logic is now encapsulated in VideoPlayer component.
-
-  // NEW: Handlers for VideoPlayer events
-  const handleVideoLoaded = useCallback((errorOccurred) => {
-    setVideoLoading(false);
-    if (errorOccurred) {
-        console.error("VideoPlayer reported an error during loading.");
-    }
-  }, []);
-
-  const handleVideoPlay = useCallback(() => {
-      // Logic when video starts playing (if needed)
-  }, []);
-
-  const handleVideoPause = useCallback(() => {
-      savePlaybackPosition();
-  }, [savePlaybackPosition]);
-
-  const handleVideoEnded = useCallback(() => {
-      savePlaybackPosition();
-      // Logic when video ends (e.g., go to next episode)
-  }, [savePlaybackPosition]);
-
-  const handlePlaybackTimeUpdate = useCallback((currentTime) => {
-      currentPlaybackPositionRef.current = currentTime;
-  }, []);
-
-  // Effect to manage periodic saving
-  useEffect(() => {
-    if (currentEpisode && !showMovieInfoPanel) {
-        // Clear any existing interval before starting a new one
-        if (saveIntervalRef.current) {
-            clearInterval(saveIntervalRef.current);
-            saveIntervalRef.current = null;
+  const loadVideo = useCallback(async () => {
+    const video = videoRef.current;
+    if (showMovieInfoPanel || !currentEpisode?.link_m3u8 || !video) {
+        setVideoLoading(false);
+        if (video) {
+            video.src = '';
+            video.removeAttribute('src');
+            video.load();
         }
-
-        saveIntervalRef.current = setInterval(() => {
-            if (videoPlayerRef.current && !videoPlayerRef.current.paused) {
-                savePlaybackPosition();
-            }
-        }, SAVE_INTERVAL_SECONDS * 1000);
-        console.log(`Started periodic save every ${SAVE_INTERVAL_SECONDS} seconds.`);
-    } else {
-        // Clear interval if not playing or showing info panel
-        if (saveIntervalRef.current) {
-            clearInterval(saveIntervalRef.current);
-            saveIntervalRef.current = null;
-            console.log("Cleared periodic save interval.");
+        if (!showMovieInfoPanel && currentEpisode && !isValidUrl(currentEpisode.link_m3u8)) {
+            console.error('Video không khả dụng cho tập này.');
         }
+        return;
     }
 
-    // Cleanup on unmount or dependency change
-    return () => {
-      if (saveIntervalRef.current) {
+    setVideoLoading(true);
+
+    // NEW: Clear any existing interval before loading new video
+    if (saveIntervalRef.current) {
         clearInterval(saveIntervalRef.current);
         saveIntervalRef.current = null;
-        console.log("Cleared periodic save interval on unmount/change.");
+    }
+
+    if (hlsInstanceRef.current) {
+      hlsInstanceRef.current.destroy();
+      hlsInstanceRef.current = null;
+    }
+
+    try {
+      const originalM3u8Url = currentEpisode.link_m3u8;
+
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+            maxBufferLength: 60,
+            maxMaxBufferLength: 120,
+            maxBufferSize: 100 * 1000 * 1000,
+            startFragPrefetch: true,
+            enableWorker: true,
+        });
+        hlsInstanceRef.current = hls;
+        hls.loadSource(originalM3u8Url);
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          setVideoLoading(false);
+
+          const savedPositionKey = getPlaybackPositionKey(currentEpisode.slug);
+          const savedTime = parseFloat(localStorage.getItem(savedPositionKey));
+
+          if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+            video.currentTime = savedTime;
+            console.log(`Restored playback position for ${currentEpisode.name}: ${savedTime}s`);
+          } else {
+            video.currentTime = 0;
+          }
+
+          video.play().catch(error => {
+            console.warn("Autoplay was prevented:", error);
+          });
+        });
+
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          console.error('HLS.js error:', data);
+          setVideoLoading(false);
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                console.error('Lỗi mạng khi tải video. Vui lòng kiểm tra kết nối.');
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                console.error('Lỗi phát video. Có thể do định dạng không hỗ trợ.');
+                hls.recoverMediaError();
+                break;
+              default:
+                console.error('Lỗi video nghiêm trọng. Vui lòng thử tập khác.');
+                hls.destroy();
+                break;
+            }
+          }
+        });
+
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = originalM3u8Url;
+
+        const savedPositionKey = getPlaybackPositionKey(currentEpisode.slug);
+        const savedTime = parseFloat(localStorage.getItem(savedPositionKey));
+
+        video.onloadedmetadata = () => {
+            if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+                video.currentTime = savedTime;
+                console.log(`Restored playback position (native) for ${currentEpisode.name}: ${savedTime}s`);
+            } else {
+                video.currentTime = 0;
+            }
+            setVideoLoading(false);
+            video.play().catch(error => console.warn("Autoplay was prevented (native):", error));
+        };
+      } else {
+        console.error('Trình duyệt không hỗ trợ phát HLS. Vui lòng cập nhật.');
+        setVideoLoading(false);
+      }
+
+      // NEW: Start periodic save when video is successfully loaded (or attempted to load)
+      if (video) {
+        saveIntervalRef.current = setInterval(() => {
+          if (!video.paused) { // Only save if video is playing
+            savePlaybackPosition();
+          }
+        }, SAVE_INTERVAL_SECONDS * 1000);
+        console.log(`Started periodic save every ${SAVE_INTERVAL_SECONDS} seconds.`);
+      }
+
+    } catch (error) {
+      console.error('Error loading video:', error);
+      setVideoLoading(false);
+    }
+  }, [currentEpisode, showMovieInfoPanel, getPlaybackPositionKey, savePlaybackPosition]); // Add savePlaybackPosition to dependencies
+
+  useEffect(() => {
+    loadVideo();
+    return () => {
+      savePlaybackPosition();
+      if (hlsInstanceRef.current) {
+        hlsInstanceRef.current.destroy();
+        hlsInstanceRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.src = '';
+        videoRef.current.removeAttribute('src');
+        videoRef.current.load();
+      }
+      // NEW: Clear the interval when component unmounts or currentEpisode changes
+      if (saveIntervalRef.current) {
+          clearInterval(saveIntervalRef.current);
+          saveIntervalRef.current = null;
+          console.log("Cleared periodic save interval.");
       }
     };
-  }, [currentEpisode, showMovieInfoPanel, savePlaybackPosition]);
+  }, [currentEpisode, loadVideo, savePlaybackPosition]);
 
-  // Effect for visibility change
   useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleVideoPause = () => {
+        savePlaybackPosition();
+    };
+
+    const handleTimeUpdate = () => {
+        currentPlaybackPositionRef.current = video.currentTime;
+    };
+
+    video.addEventListener('pause', handleVideoPause);
+    video.addEventListener('timeupdate', handleTimeUpdate);
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        if (videoPlayerRef.current) {
-          videoPlayerRef.current.pause();
+        if (!video.paused) {
+          video.pause();
           console.log("Video paused due to tab going into background.");
         }
         savePlaybackPosition();
       } else {
-        if (videoPlayerRef.current && videoPlayerRef.current.src && !showMovieInfoPanel) {
-            videoPlayerRef.current.play().catch(error => {
+        if (video.src && !showMovieInfoPanel) {
+            if (hlsInstanceRef.current && hlsInstanceRef.current.media && hlsInstanceRef.current.media.readyState < 4) {
+                console.log("Attempting to recover HLS.js media error on foreground.");
+                hlsInstanceRef.current.recoverMediaError();
+                hlsInstanceRef.current.startLoad();
+            }
+
+            video.play().catch(error => {
                 console.warn("Autoplay was prevented on visibility change:", error);
             });
             console.log("Video attempted to play due to tab coming into foreground.");
@@ -259,8 +360,8 @@ function MovieDetail() {
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      // No need to remove 'pause' or 'timeupdate' from videoRef directly,
-      // as they are handled inside VideoPlayer component.
+      video.removeEventListener('pause', handleVideoPause);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
     };
   }, [showMovieInfoPanel, savePlaybackPosition]);
 
@@ -445,15 +546,13 @@ function MovieDetail() {
                 </div>
               )}
               {currentEpisode && isValidUrl(currentEpisode.link_m3u8) ? (
-                <VideoPlayer
-                    ref={videoPlayerRef}
-                    src={currentEpisode.link_m3u8}
-                    onPlaybackTimeUpdate={handlePlaybackTimeUpdate}
-                    onLoaded={handleVideoLoaded}
-                    onPlay={handleVideoPlay}
-                    onPause={handleVideoPause}
-                    onEnded={handleVideoEnded}
-                    initialPlaybackTime={parseFloat(localStorage.getItem(getPlaybackPositionKey(currentEpisode.slug)) || '0')}
+                <video
+                  ref={videoRef}
+                  controls
+                  width="100%"
+                  height="100%"
+                  aria-label={`Video player for ${currentEpisode.name || 'Tập phim'}`}
+                  className={videoLoading ? 'hidden-video' : ''}
                 />
               ) : (
                 <div className="video-error-message" style={{

@@ -1,4 +1,3 @@
-/* src/pages/MovieDetail.css */
 .container {
   max-width: 1200px;
   margin: 0 auto;
@@ -53,7 +52,6 @@
   color: #fff;
 }
 
-/* Updated styles for video player to accommodate Shaka Player */
 .video-player {
   position: relative;
   padding-bottom: 56.25%; /* 16:9 aspect ratio */
@@ -63,25 +61,16 @@
   width: 100%;
 }
 
-/* Shaka Player container styles */
-.shaka-player-container {
-  position: absolute; /* Take full space of .video-player */
+.video-player video {
+  position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  display: flex; /* Helps center the video element if needed */
-  justify-content: center;
-  align-items: center;
+  border: none;
 }
 
-.shaka-player-container .shaka-video {
-  width: 100%;
-  height: 100%;
-  object-fit: contain; /* Ensures video fits without cropping */
-}
-
-/* Overlay spinner for when video is loading (controlled by MovieDetail.js) */
+/* NEW: Styles for video loading spinner */
 .video-overlay-spinner {
   position: absolute;
   top: 0;
@@ -99,11 +88,10 @@
   margin: 0; /* Override default margin */
 }
 
-/* Hide the native video element if it's there, but Shaka Player overlays on it */
-/* This might be needed if the browser somehow renders a native video element underneath Shaka's UI */
-.video-player video.hidden-video {
-  visibility: hidden; /* Hide the video element while our custom spinner is active */
+.hidden-video {
+  visibility: hidden; /* Hide the video element while loading */
 }
+/* END NEW */
 
 .back-button {
   margin: 10px 0;
@@ -157,7 +145,7 @@
   padding: 10px 20px;
   border: 1px solid #ccc;
   background: #f9f9f9;
-  color: #333;
+  color: #333; /* Ensure text is visible on light background */
   cursor: pointer;
   border-radius: 5px;
 }
@@ -190,13 +178,13 @@
   }
 }
 
-/* Styles for "Continue Watching" button on MovieDetail page */
+/* NEW: Styles for "Continue Watching" button on MovieDetail page */
 .continue-watching-detail-button {
-  display: block;
-  width: fit-content;
-  margin: 20px 0 0;
+  display: block; /* Make it a block element to take full width */
+  width: fit-content; /* Adjust width to content */
+  margin: 20px 0 0; /* Margin from other elements */
   padding: 12px 25px;
-  background-color: #28a745;
+  background-color: #28a745; /* Green color */
   color: #fff;
   border: none;
   border-radius: 5px;
@@ -205,27 +193,10 @@
   font-weight: bold;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 10px; /* Space between text and icon */
   transition: background-color 0.3s ease;
 }
 
 .continue-watching-detail-button:hover {
-  background-color: #218838;
-}
-
-/* Styles for video error message */
-.video-error-message {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: #fff;
-    font-size: 1.2rem;
-    text-align: center;
-    padding: 20px;
-    background-color: rgba(0,0,0,0.7);
-    border-radius: 8px;
-    z-index: 5;
-    width: 80%; /* Adjust as needed */
-    max-width: 400px; /* Adjust as needed */
+  background-color: #218838; /* Darker green on hover */
 }
