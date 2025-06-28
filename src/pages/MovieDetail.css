@@ -116,7 +116,7 @@
   background-color: #000; /* Đảm bảo nền đen khi chưa tải */
 }
 
-/* NEW: Styles for video loading spinner */
+/* Styles for video loading spinner */
 .video-overlay-spinner {
   position: absolute;
   top: 0;
@@ -291,7 +291,7 @@
 
 /* --- */
 
-/* NEW: Styles for "Continue Watching" button on MovieDetail page */
+/* Styles for "Continue Watching" button on MovieDetail page */
 .continue-watching-detail-button {
   display: flex; /* Sử dụng flexbox để căn chỉnh icon và text */
   align-items: center;
@@ -317,9 +317,4 @@
 
 .continue-watching-detail-button .fa-history {
   font-size: 1.3rem;
-}
-
-/* Ad-blocking CSS (giữ nguyên hoặc tùy chỉnh theo nhu cầu) */
-.bg-opacity-40.bg-white.w-full.text-center.space-x-2.bottom-0.absolute {
-  display: none !important;
 }
