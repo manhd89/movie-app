@@ -2,10 +2,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
-  color: #f0f0f0; /* Màu chữ mặc định cho toàn bộ container */
 }
-
-/* --- */
 
 .spinner {
   width: 40px;
@@ -22,220 +19,157 @@
   100% { transform: rotate(360deg); }
 }
 
-/* --- */
-
 .movie-title {
-  font-size: 2.2rem;
-  margin-bottom: 25px;
+  font-size: 2rem;
+  margin-bottom: 20px;
   color: #fff;
-  text-align: center;
-  font-weight: bold;
 }
-
-/* --- */
 
 .movie-detail {
   display: flex;
-  gap: 30px;
-  margin-bottom: 30px;
-  background-color: #1a1a1a; /* Nền tối cho phần chi tiết phim */
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  gap: 20px;
+  margin-bottom: 20px;
 }
-
-@media (max-width: 768px) {
-  .movie-detail {
-    flex-direction: column;
-    align-items: center; /* Căn giữa các mục khi xếp chồng */
-  }
-}
-
-/* --- */
 
 .movie-poster {
   width: 300px;
   height: 450px;
   object-fit: cover;
   border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-  flex-shrink: 0; /* Ngăn poster bị co lại */
 }
-
-@media (max-width: 768px) {
-  .movie-poster {
-    width: 80%; /* Giảm kích thước poster trên màn hình nhỏ */
-    height: auto;
-    max-width: 300px; /* Đảm bảo không quá lớn */
-  }
-}
-
-/* --- */
 
 .movie-info {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
 }
 
 .movie-info p {
-  font-size: 1.05rem;
-  margin: 8px 0;
+  font-size: 1rem;
+  margin: 5px 0;
   color: #ccc;
-  line-height: 1.6;
 }
 
 .movie-info p strong {
   color: #fff;
-  font-weight: 600;
-  min-width: 100px; /* Đảm bảo căn chỉnh tốt hơn cho các nhãn */
-  display: inline-block;
 }
 
-/* --- */
-
+/* NEW: Shaka Player container styles */
 .video-player {
   position: relative;
-  width: 100%;
   padding-bottom: 56.25%; /* 16:9 aspect ratio */
   height: 0;
   overflow: hidden;
   background-color: #000;
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
-}
-
-.video-player video {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
-  height: 100%;
-  border: none;
-  background-color: #000; /* Đảm bảo nền đen khi chưa tải */
 }
 
-/* Styles for video loading spinner */
+.video-player-shaka {
+    position: absolute; /* Take full space of parent .video-player */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex; /* To contain video and UI */
+    justify-content: center;
+    align-items: center;
+}
+
+.shaka-video-element {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Ensure video fits within bounds */
+}
+
+/* Shaka Player UI specific adjustments */
+.shaka-player-ui {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Shaka Player will add its own controls, ensure our spinner is above them */
+    z-index: 1; /* Default controls z-index, can be adjusted */
+}
+
+
+/* NEW: Styles for video loading spinner */
 .video-overlay-spinner {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.85); /* Nền tối hơn khi tải */
+  background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent black background */
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 10; /* Đảm bảo nó nằm trên video */
-  border-radius: 10px; /* Kế thừa border-radius của container cha */
+  z-index: 10; /* Ensure it's above the video and UI */
 }
 
 .video-overlay-spinner .spinner {
-  margin: 0; /* Ghi đè margin mặc định của spinner */
+  margin: 0; /* Override default margin */
 }
 
-.hidden-video {
-  visibility: hidden; /* Ẩn phần tử video trong khi tải */
-  opacity: 0; /* Thêm hiệu ứng mờ dần */
-  transition: visibility 0s 0.3s, opacity 0.3s linear;
-}
-
-.video-player video:not(.hidden-video) {
-  visibility: visible;
-  opacity: 1;
-  transition: visibility 0s, opacity 0.3s linear;
-}
-
-.video-error-message {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: #fff;
-  font-size: 1.2rem;
-  text-align: center;
-  padding: 25px;
-  background-color: rgba(0, 0, 0, 0.85);
-  border-radius: 10px;
-  z-index: 5;
-  box-shadow: 0 0 15px rgba(255, 0, 0, 0.5); /* Nhấn mạnh lỗi */
-}
-
-.video-error-message .fa-reg-play-circle {
-  font-size: 3.5rem;
-  margin-top: 15px;
-  color: #dc3545; /* Màu đỏ cho icon lỗi */
-}
-
-/* --- */
+/* No longer needed as ShakaPlayerComponent manages visibility */
+/* .hidden-video {
+  visibility: hidden;
+} */
+/* END NEW */
 
 .back-button {
-  margin: 20px 0;
-  padding: 12px 25px;
-  background-color: #dc3545; /* Màu đỏ nổi bật */
+  margin: 10px 0;
+  padding: 10px 20px;
+  background-color: #dc3545;
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 5px;
   cursor: pointer;
-  font-size: 1.1rem;
-  font-weight: bold;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: fit-content;
 }
 
 .back-button:hover {
   background-color: #c82333;
-  transform: translateY(-2px);
 }
-
-.back-button .icon {
-  font-size: 1.2rem;
-}
-
-/* --- */
 
 .episode-list {
-  margin-top: 30px;
-  background-color: #1a1a1a;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  margin-top: 20px;
 }
 
 .episode-list h3 {
-  font-size: 1.8rem;
-  margin-bottom: 20px;
-  color: #fff;
-  border-bottom: 2px solid #007bff;
-  padding-bottom: 10px;
+  font-size: 1.5rem;
+  margin-bottom: 10px;
 }
 
-/* --- */
+.episode-button {
+  display: inline-block;
+  padding: 8px 15px;
+  margin: 5px;
+  background-color: #007bff;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+}
+
+.episode-button.active {
+  background-color: #0056b3;
+}
+
+.episode-button:hover {
+  background-color: #0056b3;
+}
 
 .server-list {
   margin: 20px 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
 }
 
 .server-button {
-  margin: 0; /* Bỏ margin cũ */
+  margin: 5px;
   padding: 10px 20px;
-  border: 2px solid #007bff; /* Viền xanh */
-  background: transparent; /* Nền trong suốt */
-  color: #007bff; /* Chữ xanh */
+  border: 1px solid #ccc;
+  background: #f9f9f9;
+  color: #333; /* Ensure text is visible on light background */
   cursor: pointer;
-  border-radius: 25px; /* Bo tròn nhiều hơn */
-  font-weight: bold;
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  border-radius: 5px;
 }
 
 .server-button.active {
@@ -244,77 +178,47 @@
   border-color: #007bff;
 }
 
-.server-button:hover:not(.active) {
-  background-color: rgba(0, 123, 255, 0.1); /* Hiệu ứng hover nhẹ */
-  color: #0099ff;
-}
-
-.server-button .icon {
-  font-size: 1rem;
-}
-
-/* --- */
-
 .episodes {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px; /* Tăng khoảng cách giữa các nút tập */
-  margin-top: 20px;
+  gap: 10px;
 }
 
-.episode-button {
-  display: inline-block;
-  padding: 10px 18px;
-  margin: 0; /* Bỏ margin cũ */
-  background-color: #333; /* Nền tối hơn */
-  color: #fff;
-  text-decoration: none;
-  border-radius: 6px;
-  border: 1px solid #555;
-  cursor: pointer;
-  font-size: 0.95rem;
-  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+@media (max-width: 768px) {
+  .movie-detail {
+    flex-direction: column;
+  }
+  .movie-poster {
+    width: 100%;
+    height: auto;
+  }
+  .movie-info {
+    width: 100%;
+  }
+  .video-player {
+    width: 100%;
+  }
 }
 
-.episode-button.active {
-  background-color: #007bff; /* Màu xanh nổi bật khi active */
-  border-color: #007bff;
-  box-shadow: 0 0 8px rgba(0, 123, 255, 0.5);
-  transform: translateY(-1px);
-}
-
-.episode-button:hover:not(.active) {
-  background-color: #555;
-  border-color: #777;
-  transform: translateY(-1px);
-}
-
-/* --- */
-
-/* Styles for "Continue Watching" button on MovieDetail page */
+/* NEW: Styles for "Continue Watching" button on MovieDetail page */
 .continue-watching-detail-button {
-  display: flex; /* Sử dụng flexbox để căn chỉnh icon và text */
-  align-items: center;
-  gap: 10px; /* Khoảng cách giữa icon và text */
-  width: fit-content; /* Điều chỉnh chiều rộng theo nội dung */
-  margin: 25px 0 0; /* Margin từ các yếu tố khác */
-  padding: 14px 28px;
-  background-color: #28a745; /* Màu xanh lá cây */
+  display: block; /* Make it a block element to take full width */
+  width: fit-content; /* Adjust width to content */
+  margin: 20px 0 0; /* Margin from other elements */
+  padding: 12px 25px;
+  background-color: #28a745; /* Green color */
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 5px;
   cursor: pointer;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: bold;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  box-shadow: 0 4px 10px rgba(40, 167, 69, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 10px; /* Space between text and icon */
+  transition: background-color 0.3s ease;
 }
 
 .continue-watching-detail-button:hover {
-  background-color: #218838; /* Màu xanh lá cây đậm hơn khi hover */
-  transform: translateY(-2px);
-}
-
-.continue-watching-detail-button .fa-history {
-  font-size: 1.3rem;
+  background-color: #218838; /* Darker green on hover */
 }
