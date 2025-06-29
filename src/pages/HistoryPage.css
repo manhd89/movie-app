@@ -1,0 +1,198 @@
+/* src/pages/HistoryPage.css */
+
+.history-page-container {
+    padding: 20px;
+}
+
+.back-to-home-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 25px;
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+    font-weight: bold;
+}
+
+.back-to-home-button:hover {
+    background-color: #0056b3;
+}
+
+.history-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.history-page-title {
+    font-size: 2.5rem;
+    color: #f0f0f0;
+    margin: 0;
+}
+
+.clear-all-history-button {
+    background-color: #dc3545; /* Red for delete */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.3s ease;
+}
+
+.clear-all-history-button:hover {
+    background-color: #c82333;
+}
+
+.no-history-message {
+    text-align: center;
+    font-size: 1.2rem;
+    color: #ccc;
+    margin-top: 50px;
+}
+
+.history-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* Larger cards for full page */
+    gap: 25px;
+}
+
+.history-movie-card-full {
+    background-color: #2a2a2a;
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex; /* Flexbox for horizontal layout within card */
+    position: relative; /* For delete button */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.history-movie-card-full:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 123, 255, 0.4);
+}
+
+.history-card-link {
+    display: flex;
+    text-decoration: none;
+    color: inherit;
+    width: 100%; /* Take full width for link */
+}
+
+.history-movie-poster {
+    width: 120px; /* Fixed width for poster in list view */
+    height: 180px; /* Fixed height for poster */
+    object-fit: cover;
+    border-radius: 10px 0 0 10px; /* Rounded left corners */
+}
+
+.history-card-info {
+    flex-grow: 1; /* Take remaining space */
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.history-card-info h3 {
+    font-size: 1.2rem;
+    margin-top: 0;
+    margin-bottom: 8px;
+    color: #f0f0f0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-card-info p {
+    font-size: 0.9rem;
+    color: #bbb;
+    margin-bottom: 5px;
+    line-height: 1.4;
+}
+
+.history-card-info .last-watched-time {
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 10px;
+}
+
+.delete-history-item-button-full {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.6);
+    border: none;
+    color: #dc3545;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.delete-history-item-button-full:hover {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .history-page-title {
+        font-size: 2rem;
+    }
+    .history-grid {
+        grid-template-columns: 1fr; /* Single column on smaller screens */
+    }
+    .history-movie-card-full {
+        flex-direction: column; /* Stack poster and info vertically */
+        align-items: center;
+    }
+    .history-movie-poster {
+        width: 100%; /* Full width poster */
+        height: 220px; /* Adjust height */
+        border-radius: 10px 10px 0 0; /* Rounded top corners */
+    }
+    .history-card-info {
+        padding: 15px 10px;
+        text-align: center;
+    }
+    .history-card-info h3,
+    .history-card-info p {
+        white-space: normal; /* Allow text to wrap */
+        overflow: visible;
+        text-overflow: clip;
+    }
+    .delete-history-item-button-full {
+        top: 5px;
+        right: 5px;
+        font-size: 0.9rem;
+        padding: 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    .history-page-title {
+        font-size: 1.8rem;
+    }
+    .clear-all-history-button {
+        padding: 8px 15px;
+        font-size: 0.9rem;
+    }
+    .back-to-home-button {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+    .history-movie-poster {
+        height: 180px;
+    }
+}
