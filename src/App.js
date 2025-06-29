@@ -1,42 +1,34 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { useState } from 'react'; // Import useState
-import Header from './components/Header';
+// src/App.js (Ví dụ)
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
-import MovieDetail from './pages/MovieDetail'; // Đảm bảo tên file MovieDetail.js
-import './App.css';
+import MovieDetail from './pages/MovieDetail';
+import HistoryPage from './pages/HistoryPage'; // Import HistoryPage mới
 
 function App() {
-  const [showFilterModal, setShowFilterModal] = useState(false); // State để quản lý hiển thị modal lọc
+    const [showFilterModal, setShowFilterModal] = useState(false);
 
-  const handleOpenFilterModal = () => {
-    setShowFilterModal(true);
-  };
+    const handleOpenFilterModal = () => setShowFilterModal(true);
+    const handleCloseFilterModal = () => setShowFilterModal(false);
 
-  const handleCloseFilterModal = () => {
-    setShowFilterModal(false);
-  };
-
-  return (
-    <BrowserRouter>
-      <div className="app">
-        {/* Truyền hàm mở modal xuống Header */}
-        <Header onOpenFilters={handleOpenFilterModal} />
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <Home
-                showFilterModal={showFilterModal}
-                onCloseFilterModal={handleCloseFilterModal}
-              />
-            }
-          />
-          <Route path="/movie/:slug" element={<MovieDetail />} />
-          <Route path="/movie/:slug/:episodeSlug" element={<MovieDetail />} />
-        </Routes>
-      </div>
-    </BrowserRouter>
-  );
+    return (
+        <Router>
+            <Routes>
+                <Route
+                    path="/"
+                    element={
+                        <Home
+                            showFilterModal={showFilterModal}
+                            onCloseFilterModal={handleCloseFilterModal}
+                        />
+                    }
+                />
+                <Route path="/movie/:slug" element={<MovieDetail />} />
+                <Route path="/movie/:slug/:episodeSlug" element={<MovieDetail />} />
+                <Route path="/history" element={<HistoryPage />} /> {/* Thêm Route mới cho HistoryPage */}
+            </Routes>
+        </Router>
+    );
 }
 
 export default App;
