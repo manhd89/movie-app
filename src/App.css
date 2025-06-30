@@ -1,3 +1,62 @@
+/* App.css */
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#root { /* hoặc bất cứ id nào của div root trong index.html */
+  height: 100%;
+}
+
 .app {
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Đảm bảo .app chiếm ít nhất toàn bộ chiều cao viewport */
+}
+
+.main-content {
+  flex-grow: 1; /* Đẩy footer xuống dưới */
+  /* Có thể thêm padding-bottom nếu nội dung sát chân */
+}
+
+/* CSS cho .page-footer-info khi là sticky footer */
+.page-footer-info {
+  background-color: #1a1a1a;
+  color: #ccc;
+  text-align: center;
+  padding: 15px 0;
+  font-size: 0.85rem;
+  border-top: 1px solid #333;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
+  /* Loại bỏ position: fixed */
+}
+
+.page-footer-info .designer-text {
+  margin-bottom: 8px;
+  line-height: 1.5;
+  padding: 0 15px;
+}
+
+.page-footer-info .designer-name a {
+  color: #61dafb;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.page-footer-info .designer-name a:hover {
+  color: #97e8ff;
+  text-decoration: underline;
+}
+
+/* Media Queries cho .page-footer-info nếu là sticky footer */
+@media (max-width: 768px) {
+  .page-footer-info {
+    font-size: 0.75rem;
+    padding: 12px 0;
+  }
+  .page-footer-info .designer-text {
+    padding: 0 10px;
+  }
 }
