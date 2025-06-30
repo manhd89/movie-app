@@ -4,7 +4,8 @@ import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import Hls from 'hls.js';
-import { FaArrowLeft, FaRegPlayCircle, FaHistory, FaPlay, FaPause, FaVolumeUp, FaVolumeMute, FaExpand, FaCompress, FaFastForward, FaRewind } from 'react-icons/fa';
+import { FaArrowLeft, FaRegPlayCircle, FaHistory, FaPlay, FaPause, FaVolumeUp, FaVolumeMute, FaExpand, FaCompress } from 'react-icons/fa';
+import { FaForwardFast as FaFastForward, FaBackwardFast as FaRewind } from 'react-icons/fa6'; // Assuming Font Awesome 6 provides these
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
 
