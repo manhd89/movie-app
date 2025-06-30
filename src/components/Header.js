@@ -2,11 +2,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import './Header.css';
-import { FaBars, FaSearch, FaTimes } from 'react-icons/fa'; // Import FaSearch and FaTimes
+import { FaBars, FaSearch, FaTimes } from 'react-icons/fa';
 
 // --- Constants ---
 // Use environment variables for API URLs
-const BASE_API_URL = process.env.REACT_APP_API_URL;
 const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`;
 const CDN_IMAGE_URL = process.env.REACT_APP_API_CDN_IMAGE;
 
