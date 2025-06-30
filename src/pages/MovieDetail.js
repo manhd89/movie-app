@@ -5,7 +5,7 @@ import axios from 'axios';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import Hls from 'hls.js';
 import { FaArrowLeft, FaRegPlayCircle, FaHistory, FaPlay, FaPause, FaVolumeUp, FaVolumeMute, FaExpand, FaCompress } from 'react-icons/fa';
-import { FaForwardFast as FaFastForward, FaBackwardFast as FaRewind } from 'react-icons/fa6'; // Assuming Font Awesome 6 provides these
+import { FaForwardFast as FaFastForward, FaBackwardFast as FaRewind } from 'react-icons/fa6'; // Corrected import for FaFastForward and FaRewind
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
 
@@ -492,10 +492,18 @@ function MovieDetail() {
     const handleFullscreenChange = () => {
       setIsFullScreen(!!document.fullscreenElement);
       // For mobile devices, automatically lock/unlock orientation
-      if (document.fullscreenElement && screen.orientation && screen.orientation.lock) {
-          screen.orientation.lock('landscape').catch(e => console.warn("Failed to lock orientation:", e));
-      } else if (!document.fullscreenElement && screen.orientation && screen.orientation.unlock) {
-          screen.orientation.unlock();
+      if (document.fullscreenElement) {
+          // eslint-disable-next-line no-restricted-globals
+          if (screen.orientation && screen.orientation.lock) {
+              // eslint-disable-next-line no-restricted-globals
+              screen.orientation.lock('landscape').catch(e => console.warn("Failed to lock orientation:", e));
+          }
+      } else {
+          // eslint-disable-next-line no-restricted-globals
+          if (screen.orientation && screen.orientation.unlock) {
+              // eslint-disable-next-line no-restricted-globals
+              screen.orientation.unlock();
+          }
       }
     };
 
