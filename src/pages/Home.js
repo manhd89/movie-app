@@ -49,14 +49,6 @@ const CATEGORIES_MAPPING = [
     { slug: 'phim-long-tieng', name: 'Phim Lồng Tiếng' },
 ];
 
-const COUNTRIES_MAPPING = [
-    { slug: 'viet-nam', name: 'Việt Nam' },
-    { slug: 'trung-quoc', name: 'Trung Quốc' },
-    { slug: 'au-my', name: 'Âu Mỹ' },
-    { slug: 'nhat-ban', name: 'Nhật Bản' },
-    { slug: 'han-quoc', name: 'Hàn Quốc' },
-];
-
 function HistorySection({ historyMovies, onDeleteHistoryItem }) {
     const navigate = useNavigate();
 
@@ -168,26 +160,26 @@ function HomePageSection({ title, movies, linkToAll, isLoading }) {
 }
 
 function Home({ showFilterModal, onCloseFilterModal }) {
-    const [searchParams, setSearchParams] = useSearchParams();
+    // REMOVED setSearchParams from destructuring
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
 
     const [movies, setMovies] = useState([]);
-    const [loadingMain, setLoadingMain] = useState(false); // Default to false, will be true if showMainMovieGrid is true
+    const [loadingMain, setLoadingMain] = useState(false);
     const [totalPages, setTotalPages] = useState(1);
 
-    // Lấy giá trị trực tiếp từ URL params
     const urlKeyword = searchParams.get('keyword');
     const urlCategorySlug = searchParams.get('category');
     const urlCountrySlug = searchParams.get('country');
     const urlYear = searchParams.get('year');
     const urlPage = parseInt(searchParams.get('page')) || 1;
 
-    // State cục bộ để Select component hiển thị đúng giá trị
     const [filterCategory, setFilterCategory] = useState(urlCategorySlug || '');
     const [filterCountry, setFilterCountry] = useState(urlCountrySlug || '');
     const [filterYear, setFilterYear] = useState(urlYear || '');
     const [currentPage, setCurrentPage] = useState(urlPage);
-    const [keyword, setKeyword] = useState(urlKeyword || '');
+    // REMOVED keyword state as it was unused
+    // const [keyword, setKeyword] = useState(urlKeyword || '');
 
     const [genres, setGenres] = useState([]);
     const [countries, setCountries] = useState([]);
@@ -208,7 +200,8 @@ function Home({ showFilterModal, onCloseFilterModal }) {
 
     // Cập nhật state cục bộ khi URL params thay đổi
     useEffect(() => {
-        setKeyword(urlKeyword || '');
+        // Removed setKeyword as keyword state is removed
+        // setKeyword(urlKeyword || '');
         setFilterCategory(urlCategorySlug || '');
         setFilterCountry(urlCountrySlug || '');
         setFilterYear(urlYear || '');
@@ -339,8 +332,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         newSeoData.titleHead = `Phim năm ${urlYear} - PhimAPI`;
                         newSeoData.descriptionHead = `Danh sách phim phát hành năm ${urlYear} mới nhất.`;
                     } else {
-                        // This case should ideally not be reached if showMainMovieGrid is true,
-                        // but as a safeguard, clear movies and stop loading.
                         setMovies([]);
                         setTotalPages(1);
                         setLoadingMain(false);
@@ -374,9 +365,8 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                     setLoadingMain(false);
                 }
             } else {
-                // Logic for home page sections
                 setLoadingSections(true);
-                setLoadingMain(false); // Ensure main grid loading is false
+                setLoadingMain(false);
 
                 const sectionPromises = [
                     movieApi.fetchRecentUpdates().then(res => ({ key: 'recentMovies', data: res.data.items || [] })),
@@ -398,7 +388,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                     const newSectionsData = {};
                     results.forEach(result => {
                         if (result.status === 'fulfilled') {
-                            // Ensure data is `items` or `data.items`
                             newSectionsData[result.value.key] = result.value.data?.items || result.value.data;
                         } else {
                             console.error(`Failed to fetch section ${result.reason?.config?.url || ''}:`, result.reason);
@@ -421,38 +410,45 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         const value = selectedValue ? selectedValue.value : '';
         const newSearchParams = new URLSearchParams();
 
-        if (value) {
-            newSearchParams.set('page', '1');
-            if (type === 'category') {
-                newSearchParams.set('category', value);
-                newSearchParams.delete('country');
-                newSearchParams.delete('year');
-                newSearchParams.delete('keyword'); // Clear keyword if category is selected
-            } else if (type === 'country') {
-                newSearchParams.set('country', value);
-                newSearchParams.delete('category');
-                newSearchParams.delete('year');
-                newSearchParams.delete('keyword'); // Clear keyword if country is selected
-            } else if (type === 'year') {
-                newSearchParams.set('year', value);
-                newSearchParams.delete('category');
-                newSearchParams.delete('country');
-                newSearchParams.delete('keyword'); // Clear keyword if year is selected
-            }
-        } else { // If "Tất cả" is selected, clear only that filter
-            if (type === 'category') newSearchParams.delete('category');
-            if (type === 'country') newSearchParams.delete('country');
-            if (type === 'year') newSearchParams.delete('year');
+        // Preserve existing search params if they are not being actively changed/cleared by this filter
+        if (urlKeyword && type !== 'keyword') newSearchParams.set('keyword', urlKeyword);
+        if (urlCategorySlug && type !== 'category') newSearchParams.set('category', urlCategorySlug);
+        if (urlCountrySlug && type !== 'country') newSearchParams.set('country', urlCountrySlug);
+        if (urlYear && type !== 'year') newSearchParams.set('year', urlYear);
+
+
+        newSearchParams.set('page', '1'); // Always reset to page 1 on filter change
+
+        if (type === 'category') {
+            if (value) newSearchParams.set('category', value);
+            else newSearchParams.delete('category');
+            newSearchParams.delete('country');
+            newSearchParams.delete('year');
+            newSearchParams.delete('keyword'); // Clear keyword if category is selected
+        } else if (type === 'country') {
+            if (value) newSearchParams.set('country', value);
+            else newSearchParams.delete('country');
+            newSearchParams.delete('category');
+            newSearchParams.delete('year');
+            newSearchParams.delete('keyword'); // Clear keyword if country is selected
+        } else if (type === 'year') {
+            if (value) newSearchParams.set('year', value);
+            else newSearchParams.delete('year');
+            newSearchParams.delete('category');
+            newSearchParams.delete('country');
+            newSearchParams.delete('keyword'); // Clear keyword if year is selected
+        } else if (type === 'keyword') {
+            if (value) newSearchParams.set('keyword', value);
+            else newSearchParams.delete('keyword');
+            newSearchParams.delete('category');
+            newSearchParams.delete('country');
+            newSearchParams.delete('year');
         }
 
-        // Preserve keyword if it was the *only* active filter before this change
-        // This logic is tricky, better to explicitly clear other filters when one is set.
-        // For example, if you filter by category, it's implied you don't also want a keyword search.
 
         navigate(`/?${newSearchParams.toString()}`);
         onCloseFilterModal();
-    }, [navigate, onCloseFilterModal]); // Removed keyword from dependencies as it's not directly modified here
-
+    }, [navigate, onCloseFilterModal, urlKeyword, urlCategorySlug, urlCountrySlug, urlYear]); // Added url params to dependencies
 
     const handlePageChange = useCallback((newPage) => {
         if (newPage >= 1 && newPage <= totalPages) {
@@ -477,10 +473,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         return 'Danh sách phim';
     };
 
-    // Global spinner condition
-    // Spinner hiển thị khi:
-    // 1. Đang tải dữ liệu chính (tìm kiếm/lọc) VÀ đang ở chế độ hiển thị main grid
-    // 2. HOẶC đang tải các section trang chủ VÀ đang ở chế độ hiển thị sections (không phải main grid)
     const showGlobalSpinner = (loadingMain && showMainMovieGrid) || (loadingSections && !showMainMovieGrid);
 
     if (showGlobalSpinner) {
@@ -586,7 +578,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         </div>
                     )}
                 </>
-            ) : ( // Hiển thị các section khi không có bộ lọc / tìm kiếm
+            ) : (
                 <div className="home-sections-container">
                     <HomePageSection
                         title="Phim Mới Cập Nhật"
