@@ -3,9 +3,10 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useState } from 'react';
 import Header from './components/Header';
+import Footer from './components/Footer';
 import Home from './pages/Home';
 import MovieDetail from './pages/MovieDetail';
-import HistoryPage from './pages/HistoryPage'; // <--- Import HistoryPage
+import HistoryPage from './pages/HistoryPage';
 import './App.css';
 
 function App() {
@@ -38,6 +39,7 @@ function App() {
           <Route path="/movie/:slug/:episodeSlug" element={<MovieDetail />} />
           <Route path="/history" element={<HistoryPage />} /> {/* <--- Thêm Route này */}
         </Routes>
+        <Footer />
       </div>
     </BrowserRouter>
   );
