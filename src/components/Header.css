@@ -1,91 +1,65 @@
-/* src/components/Header.css */
+/* Header.css */
 
 .header {
-  background-color: #222;
+  background-color: #282c34; /* Màu nền của header */
   padding: 15px 20px;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: space-between; /* Adjusted to spread items */
-  position: sticky; /* Make header sticky */
-  top: 0;
-  z-index: 1000; /* Ensure header is on top */
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  color: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  position: relative; /* Đảm bảo header có vị trí tương đối cho phần tử con absolute */
+  padding-bottom: 60px; /* Tạo không gian cho phần thông tin người thiết kế */
+  flex-wrap: wrap; /* Cho phép các mục xuống dòng nếu không đủ chỗ */
 }
 
 .logo {
-  color: #fff;
-  font-size: 1.8rem; /* Adjusted for better visibility */
-  font-weight: bold; /* Added font-weight */
+  color: #61dafb; /* Màu của logo */
   text-decoration: none;
-  /* margin-right: 20px; */ /* Removed, flex handles spacing */
-  flex-shrink: 0; /* Prevent logo from shrinking */
+  font-size: 1.8rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+  flex-shrink: 0; /* Ngăn logo bị co lại */
 }
 
-/* NEW: Style for the search toggle button (kính lúp/X) */
+/* Search Toggle Button (New) */
 .search-toggle-button {
   background: none;
   border: none;
-  color: #fff;
-  font-size: 1.5rem; /* Consistent icon size */
+  color: white;
+  font-size: 1.5rem;
   cursor: pointer;
-  padding: 0.5rem;
-  display: flex; /* To center icon */
-  align-items: center;
-  justify-content: center;
-  margin-left: auto; /* Push to the right, next to hamburger if on smaller screens */
-  order: 2; /* Order in flex container */
-  flex-shrink: 0; /* Prevent button from shrinking */
+  margin-left: auto; /* Đẩy nút search sang phải */
+  order: 2; /* Đảm bảo nút search nằm sau logo nhưng trước hamburger */
 }
 
-.search-toggle-button:hover {
-  color: #007bff;
-}
-
-/* Base style for search-container - hidden by default */
+/* Search Container */
 .search-container {
-  position: absolute; /* Position absolutely to overlay content */
-  top: 100%; /* Position right below the header */
-  left: 0;
-  width: 100%; /* Take full width of the screen */
-  background-color: #2a2a2a; /* Slightly darker background than header */
-  padding: 1rem 20px; /* Padding for the search bar itself */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-  z-index: 999; /* Below header, above page content */
-  display: flex; /* Use flex for internal layout */
-  flex-direction: column; /* Stack input and suggestions vertically */
-  align-items: center; /* Center horizontally */
-
-  /* Initial hidden state with transition */
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-20px); /* Start slightly above */
-  transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
-}
-
-/* When search-container is active (shown) */
-.search-container.active {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0); /* Slide down into view */
+  display: flex; /* Mặc định ẩn, chỉ hiển thị khi `showSearchBar` là true */
+  justify-content: center;
+  align-items: center;
+  width: 100%; /* Chiếm toàn bộ chiều rộng dưới logo */
+  margin-top: 15px; /* Khoảng cách với các phần tử trên */
+  order: 3; /* Đảm bảo nó nằm sau logo và các nút */
 }
 
 .search-form {
   display: flex;
-  width: 100%; /* Take full width of its container */
-  max-width: 600px; /* Limit overall width for larger screens */
-  align-items: center;
+  width: 100%;
+  max-width: 500px; /* Giới hạn chiều rộng của form tìm kiếm */
+  position: relative;
 }
 
 .search-input {
-  flex-grow: 1; /* Allow input to fill available space */
-  padding: 10px 15px; /* Increased padding for better touch target */
-  border: 1px solid #555; /* Added border */
-  border-radius: 5px; /* Slightly rounded corners */
-  background-color: #444; /* Darker input background */
-  color: #fff;
+  flex-grow: 1;
+  padding: 10px 15px;
+  border: 1px solid #444;
+  border-radius: 25px;
+  background-color: #333;
+  color: white;
   font-size: 1rem;
   outline: none;
-  transition: border-color 0.3s;
+  transition: border-color 0.3s ease;
 }
 
 .search-input::placeholder {
@@ -93,55 +67,52 @@
 }
 
 .search-input:focus {
-  border-color: #007bff; /* Highlight on focus */
-}
-
-/* Removed the explicit "Tìm" button in JS, so hide if it's somehow rendered */
-.search-button {
-  display: none;
+  border-color: #61dafb;
+  box-shadow: 0 0 8px rgba(97, 218, 251, 0.4);
 }
 
 /* Suggestions List */
 .suggestions-list {
+  position: absolute;
+  top: 100%; /* Đặt ngay dưới input */
+  left: 0;
+  right: 0;
+  background-color: #333;
+  border: 1px solid #444;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
   list-style: none;
   padding: 0;
-  margin: 0.5rem 0 0; /* Space below input */
-  background-color: #333;
-  border: 1px solid #555;
-  border-radius: 5px;
-  width: 100%; /* Match input width */
-  max-width: 600px; /* Match input width */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-  overflow: hidden; /* For rounded corners */
-  overflow-y: auto; /* Enable scrolling if too many suggestions */
-  max-height: 250px; /* Limit height of suggestions list */
+  margin-top: 5px;
+  z-index: 1000; /* Đảm bảo nó nằm trên các nội dung khác */
+  max-height: 300px; /* Giới hạn chiều cao */
+  overflow-y: auto; /* Thêm cuộn nếu quá dài */
 }
 
 .suggestion-item {
   display: flex;
   align-items: center;
-  padding: 0.8rem 1rem; /* Adjusted padding */
+  padding: 10px 15px;
+  border-bottom: 1px solid #444;
   cursor: pointer;
-  color: #fff;
-  border-bottom: 1px solid #444; /* Separator */
-  transition: background-color 0.2s;
+  transition: background-color 0.2s ease;
 }
 
 .suggestion-item:last-child {
-  border-bottom: none; /* No border for the last item */
+  border-bottom: none;
 }
 
 .suggestion-item:hover {
-  background-color: #4a4a4a; /* Slightly lighter on hover */
+  background-color: #444;
 }
 
 .suggestion-thumb {
-  width: 40px;
-  height: 60px;
+  width: 50px;
+  height: 75px; /* Tỉ lệ 2:3 */
   object-fit: cover;
-  border-radius: 3px; /* Slightly smaller radius */
+  border-radius: 4px;
   margin-right: 10px;
-  flex-shrink: 0; /* Prevent shrinking */
+  flex-shrink: 0;
 }
 
 .suggestion-info {
@@ -151,105 +122,122 @@
 }
 
 .suggestion-title {
-  font-size: 1rem; /* Adjusted font size */
-  font-weight: bold; /* Bold title */
+  color: white;
+  font-weight: bold;
+  font-size: 1rem;
+  white-space: nowrap; /* Ngăn tiêu đề xuống dòng */
+  overflow: hidden; /* Ẩn phần bị tràn */
+  text-overflow: ellipsis; /* Hiển thị dấu ba chấm nếu tràn */
 }
 
 .suggestion-year {
-  font-size: 0.85rem; /* Adjusted font size */
-  color: #aaa;
+  color: #bbb;
+  font-size: 0.85rem;
 }
 
 .remove-history-button {
-  background: transparent;
+  background: none;
   border: none;
-  color: #ccc;
-  font-size: 0.9rem; /* Adjusted font size */
+  color: #ff6b6b;
+  font-size: 1rem;
   cursor: pointer;
-  padding: 0.2rem 0.5rem; /* Smaller padding */
-  margin-left: auto; /* Push to the right */
-  border-radius: 3px; /* Add slight border radius */
+  margin-left: 10px;
+  padding: 5px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
 }
 
 .remove-history-button:hover {
-  color: #fff;
-  background-color: #dc3545; /* Red background on hover */
+  background-color: rgba(255, 107, 107, 0.2);
 }
 
-/* Hamburger menu */
+/* Hamburger Menu Button */
 .hamburger-menu {
   background: none;
   border: none;
-  color: #fff;
-  font-size: 1.5rem; /* Consistent icon size */
+  color: white;
+  font-size: 1.5rem;
   cursor: pointer;
-  padding: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* margin-left: 20px; */ /* Removed, flex handles spacing */
-  order: 3; /* Order in flex container, ensures it's last */
-  flex-shrink: 0;
+  margin-left: 15px; /* Khoảng cách với search toggle */
+  order: 4; /* Đặt cuối cùng trong flex */
 }
 
-.hamburger-menu:hover {
-  color: #007bff;
+/* NEW: Style cho thông tin người thiết kế */
+.header-designer-info {
+  position: absolute; /* Định vị tuyệt đối để đặt nó ở cuối header */
+  bottom: 0; /* Đặt ở dưới cùng của header */
+  left: 0;
+  width: 100%;
+  background-color: #1a1a1a; /* Màu nền tối hơn một chút so với header chính */
+  color: #ccc;
+  text-align: center;
+  padding: 10px 0;
+  font-size: 0.85rem;
+  border-top: 1px solid #333; /* Đường kẻ phân cách */
+  z-index: 999; /* Đảm bảo nó nằm trên nội dung chính nhưng dưới search suggestions */
 }
 
-/* Responsive adjustments */
+.designer-text {
+  margin-bottom: 5px;
+  line-height: 1.4;
+  padding: 0 10px; /* Thêm padding ngang cho văn bản */
+}
+
+.designer-name {
+  margin-top: 5px;
+  font-weight: normal;
+  color: #fff; /* Làm nổi bật tên */
+}
+
+.designer-name strong {
+  font-weight: bold;
+}
+
+/* Media Queries for Responsiveness */
 @media (max-width: 768px) {
   .header {
-    padding: 10px 15px;
+    flex-wrap: wrap; /* Cho phép các item xuống dòng */
+    justify-content: flex-start; /* Căn trái các item trên hàng đầu */
+    padding-bottom: 80px; /* Tăng padding nếu cần trên di động cho phần designer info */
   }
 
   .logo {
     font-size: 1.5rem;
+    margin-right: auto; /* Đẩy logo sang trái */
   }
 
-  .search-toggle-button,
+  .search-toggle-button {
+    font-size: 1.3rem;
+    margin-left: 10px;
+  }
+
   .hamburger-menu {
-    font-size: 1.3rem; /* Slightly smaller icons */
-  }
-
-  /* Search container overlay for smaller screens */
-  .search-container {
-    padding: 0.8rem 15px; /* Adjusted padding */
-  }
-
-  .search-form {
-    max-width: 100%; /* Allow full width on smaller screens */
-  }
-
-  .suggestions-list {
-    max-width: 100%; /* Allow full width on smaller screens */
-  }
-}
-
-@media (max-width: 480px) {
-  .header {
-    padding: 10px;
-  }
-  .logo {
-    font-size: 1.2rem;
-  }
-
-  .search-toggle-button,
-  .hamburger-menu {
-    font-size: 1.2rem; /* Even smaller icons */
-    padding: 0.3rem;
+    font-size: 1.3rem;
+    margin-left: 10px;
   }
 
   .search-container {
-    padding: 0.5rem 10px;
+    margin-top: 10px;
+    order: 3; /* Giữ nguyên thứ tự để nó xuống dòng */
   }
 
   .search-input {
-    padding: 8px 10px;
     font-size: 0.9rem;
+    padding: 8px 12px;
+  }
+
+  .suggestions-list {
+    max-height: 250px;
   }
 
   .suggestion-item {
     padding: 8px 10px;
+  }
+
+  .suggestion-thumb {
+    width: 40px;
+    height: 60px;
+    margin-right: 8px;
   }
 
   .suggestion-title {
@@ -258,5 +246,18 @@
 
   .suggestion-year {
     font-size: 0.75rem;
+  }
+
+  .remove-history-button {
+    font-size: 0.9rem;
+  }
+
+  .header-designer-info {
+    font-size: 0.75rem;
+    padding: 8px 0;
+  }
+
+  .designer-text {
+    padding: 0 5px; /* Giảm padding ngang trên di động */
   }
 }
