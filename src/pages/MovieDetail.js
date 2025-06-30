@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom'; // REMOVED useLocation
 import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
@@ -15,11 +15,6 @@ const adBlockCSS = `
   }
 `;
 
-async function removeAds(playlistUrl) {
-  // Logic removeAds của bạn (nếu có Service Worker, phần này có thể không cần thiết hoặc chỉ là fallback)
-  return playlistUrl;
-}
-
 const PLAYBACK_SAVE_THRESHOLD_SECONDS = 5;
 const LAST_PLAYED_KEY_PREFIX = 'lastPlayedPosition-';
 const WATCH_HISTORY_KEY = 'watchHistory';
@@ -28,7 +23,6 @@ const SAVE_INTERVAL_SECONDS = 10; // NEW: Save playback position every 10 second
 function MovieDetail() {
   const { slug, episodeSlug } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const [movie, setMovie] = useState(null);
   const [episodes, setEpisodes] = useState([]);
   const [selectedServer, setSelectedServer] = useState(() => {
