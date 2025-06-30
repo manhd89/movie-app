@@ -237,6 +237,16 @@ function Header({ onOpenFilters }) {
       <button className="hamburger-menu" onClick={onOpenFilters}>
         <FaBars />
       </button>
+
+      {/* NEW: Thông tin người thiết kế và giới thiệu */}
+      <div className="header-designer-info">
+        <p className="designer-text">
+          Khám phá thế giới điện ảnh không giới hạn với PhimAPI. <br /> Cập nhật liên tục, trải nghiệm đỉnh cao.
+        </p>
+        <p className="designer-name">
+          Thiết kế bởi: <strong>Mạnh Dương</strong>
+        </p>
+      </div>
     </header>
   );
 }
