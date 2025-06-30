@@ -170,74 +170,87 @@ function Header({ onOpenFilters }) {
   }, [showSearchBar, clearSearchAndHideSearchBar]);
 
   return (
-    <header className="header">
-      <Link to="/" className="logo">
-        PhimAPI
-      </Link>
+    <>
+      <header className="header">
+        <Link to="/" className="logo">
+          PhimAPI
+        </Link>
+        {/* NEW: Designed by text */}
+        <span className="designed-by">
+          Thiết kế bởi <a href="https://github.com/luxysiv" target="_blank" rel="noopener noreferrer">Mạnh Dương</a>
+        </span>
 
-      {/* NEW: Search toggle button */}
-      <button className="search-toggle-button" onClick={toggleSearchBar}>
-        {showSearchBar ? <FaTimes /> : <FaSearch />} {/* Show X icon when search bar is open */}
-      </button>
+        {/* NEW: Search toggle button */}
+        <button className="search-toggle-button" onClick={toggleSearchBar}>
+          {showSearchBar ? <FaTimes /> : <FaSearch />} {/* Show X icon when search bar is open */}
+        </button>
 
-      {/* Search container, only render if showSearchBar is true */}
-      {showSearchBar && (
-        <div className="search-container active" ref={searchContainerRef}> {/* Add 'active' class */}
-          <form onSubmit={handleSearch} className="search-form">
-            <input
-              type="search"
-              inputMode="search"
-              ref={inputRef}
-              value={searchQuery}
-              onChange={handleInputChange}
-              onFocus={handleInputFocus}
-              onKeyDown={handleKeyDown}
-              placeholder="Tìm kiếm phim..."
-              className="search-input"
-              autoComplete="off"
-            />
-            {/* Removed the 'Tìm' button, as the toggle button now handles opening/closing and Enter key handles submission */}
-          </form>
-          {showSuggestions && suggestions.length > 0 && (
-            <ul className="suggestions-list">
-              {suggestions.map((item) => (
-                <li
-                  key={item._id}
-                  className="suggestion-item"
-                  onClick={() => handleSuggestionClick(item)}
-                >
-                  {item.slug && (
-                    <img
-                      src={`${CDN_IMAGE_URL}/${item.thumb_url}`} // Use CDN_IMAGE_URL here
-                      alt={item.name}
-                      className="suggestion-thumb"
-                      onError={(e) => (e.target.src = '/placeholder.jpg')}
-                    />
-                  )}
-                  <div className="suggestion-info">
-                    <span className="suggestion-title">{item.name}</span>
-                    <span className="suggestion-year">{item.year}</span>
-                  </div>
-                  {!item.slug && (
-                    <button
-                      className="remove-history-button"
-                      onClick={(e) => handleRemoveHistoryItem(item.name, e)}
-                    >
-                      X
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+        {/* Search container, only render if showSearchBar is true */}
+        {showSearchBar && (
+          <div className="search-container active" ref={searchContainerRef}> {/* Add 'active' class */}
+            <form onSubmit={handleSearch} className="search-form">
+              <input
+                type="search"
+                inputMode="search"
+                ref={inputRef}
+                value={searchQuery}
+                onChange={handleInputChange}
+                onFocus={handleInputFocus}
+                onKeyDown={handleKeyDown}
+                placeholder="Tìm kiếm phim..."
+                className="search-input"
+                autoComplete="off"
+              />
+              {/* Removed the 'Tìm' button, as the toggle button now handles opening/closing and Enter key handles submission */}
+            </form>
+            {showSuggestions && suggestions.length > 0 && (
+              <ul className="suggestions-list">
+                {suggestions.map((item) => (
+                  <li
+                    key={item._id}
+                    className="suggestion-item"
+                    onClick={() => handleSuggestionClick(item)}
+                  >
+                    {item.slug && (
+                      <img
+                        src={`${CDN_IMAGE_URL}/${item.thumb_url}`} // Use CDN_IMAGE_URL here
+                        alt={item.name}
+                        className="suggestion-thumb"
+                        onError={(e) => (e.target.src = '/placeholder.jpg')}
+                      />
+                    )}
+                    <div className="suggestion-info">
+                      <span className="suggestion-title">{item.name}</span>
+                      <span className="suggestion-year">{item.year}</span>
+                    </div>
+                    {!item.slug && (
+                      <button
+                        className="remove-history-button"
+                        onClick={(e) => handleRemoveHistoryItem(item.name, e)}
+                      >
+                        X
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
-      {/* Hamburger menu button */}
-      <button className="hamburger-menu" onClick={onOpenFilters}>
-        <FaBars />
-      </button>
-    </header>
+        {/* Hamburger menu button */}
+        <button className="hamburger-menu" onClick={onOpenFilters}>
+          <FaBars />
+        </button>
+      </header>
+      {/* NEW: About section - placed outside the header but within the same fragment */}
+      <section className="about-section">
+        <h3>Chào mừng đến với PhimAPI!</h3>
+        <p>Đây là một ứng dụng xem phim trực tuyến được phát triển nhằm mục đích học tập và giải trí. Chúng tôi cung cấp một kho phim đa dạng, được cập nhật liên tục từ các nguồn công khai.</p>
+        <p>Lưu ý: Ứng dụng này sử dụng API từ bên thứ ba và chỉ mang tính chất minh họa. Chúng tôi không lưu trữ bất kỳ nội dung phim nào trên máy chủ của mình.</p>
+        <p>Mọi thắc mắc hoặc góp ý, vui lòng liên hệ qua <a href="mailto:manhduong@example.com">email</a> hoặc ghé thăm trang <a href="https://github.com/luxysiv" target="_blank" rel="noopener noreferrer">GitHub</a> của nhà phát triển.</p>
+      </section>
+    </>
   );
 }
 
