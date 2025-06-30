@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom'; // REMOVED useLocation
+import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
@@ -18,7 +18,7 @@ const adBlockCSS = `
 const PLAYBACK_SAVE_THRESHOLD_SECONDS = 5;
 const LAST_PLAYED_KEY_PREFIX = 'lastPlayedPosition-';
 const WATCH_HISTORY_KEY = 'watchHistory';
-const SAVE_INTERVAL_SECONDS = 10; // NEW: Save playback position every 10 seconds
+const SAVE_INTERVAL_SECONDS = 10; // Save playback position every 10 seconds
 
 function MovieDetail() {
   const { slug, episodeSlug } = useParams();
@@ -37,7 +37,7 @@ function MovieDetail() {
   const currentPlaybackPositionRef = useRef(0);
   const [lastViewedPosition, setLastViewedPosition] = useState(0);
   const [lastViewedEpisodeInfo, setLastViewedEpisodeInfo] = useState(null);
-  const saveIntervalRef = useRef(null); // NEW: Ref for the interval timer
+  const saveIntervalRef = useRef(null); // Ref for the interval timer
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -188,7 +188,6 @@ function MovieDetail() {
 
     setVideoLoading(true);
 
-    // NEW: Clear any existing interval before loading new video
     if (saveIntervalRef.current) {
         clearInterval(saveIntervalRef.current);
         saveIntervalRef.current = null;
@@ -274,10 +273,9 @@ function MovieDetail() {
         setVideoLoading(false);
       }
 
-      // NEW: Start periodic save when video is successfully loaded (or attempted to load)
       if (video) {
         saveIntervalRef.current = setInterval(() => {
-          if (!video.paused) { // Only save if video is playing
+          if (!video.paused) {
             savePlaybackPosition();
           }
         }, SAVE_INTERVAL_SECONDS * 1000);
@@ -288,9 +286,12 @@ function MovieDetail() {
       console.error('Error loading video:', error);
       setVideoLoading(false);
     }
-  }, [currentEpisode, showMovieInfoPanel, getPlaybackPositionKey, savePlaybackPosition]); // Add savePlaybackPosition to dependencies
+  }, [currentEpisode, showMovieInfoPanel, getPlaybackPositionKey, savePlaybackPosition]);
 
   useEffect(() => {
+    // Capture the current value of the ref
+    const video = videoRef.current; 
+
     loadVideo();
     return () => {
       savePlaybackPosition();
@@ -298,12 +299,12 @@ function MovieDetail() {
         hlsInstanceRef.current.destroy();
         hlsInstanceRef.current = null;
       }
-      if (videoRef.current) {
-        videoRef.current.src = '';
-        videoRef.current.removeAttribute('src');
-        videoRef.current.load();
+      // Use the captured 'video' variable in the cleanup
+      if (video) { 
+        video.src = '';
+        video.removeAttribute('src');
+        video.load();
       }
-      // NEW: Clear the interval when component unmounts or currentEpisode changes
       if (saveIntervalRef.current) {
           clearInterval(saveIntervalRef.current);
           saveIntervalRef.current = null;
