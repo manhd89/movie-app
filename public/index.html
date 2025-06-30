@@ -1,10 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
     <title>PhimAPI</title>
+    <style>
+      /* Đảm bảo html, body, và #root chiếm toàn bộ chiều cao của viewport */
+      html, body, #root {
+        height: 100%;
+        margin: 0; /* Loại bỏ margin mặc định của body */
+        padding: 0; /* Loại bỏ padding mặc định */
+      }
+      /* Optional: setup global box-sizing for consistent layout */
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+    </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
