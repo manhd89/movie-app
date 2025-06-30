@@ -52,47 +52,272 @@
   color: #fff;
 }
 
-.video-player {
+/* NEW: Custom Video Player Styles */
+.video-player-container {
   position: relative;
-  padding-bottom: 56.25%; /* 16:9 aspect ratio */
+  width: 100%;
+  padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
   height: 0;
   overflow: hidden;
   background-color: #000;
-  width: 100%;
+  border-radius: 8px;
+  transition: all 0.3s ease-in-out; /* Smooth transition for full-screen */
 }
 
-.video-player video {
+/* Hide default video controls */
+.video-player-container video::-webkit-media-controls {
+  display: none !important;
+}
+.video-player-container video::-webkit-media-controls-enclosure {
+  display: none !important;
+}
+.video-player-container video::-webkit-media-controls-panel {
+  display: none !important;
+}
+.video-player-container video::--webkit-media-controls-overlay {
+  display: none !important;
+}
+.video-player-container video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+}
+
+.video-player-container video {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   border: none;
+  background-color: black; /* Ensure black background */
+  z-index: 1; /* Below controls */
 }
 
-/* NEW: Styles for video loading spinner */
 .video-overlay-spinner {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent black background */
+  background-color: rgba(0, 0, 0, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 10; /* Ensure it's above the video */
+  z-index: 10;
 }
 
 .video-overlay-spinner .spinner {
-  margin: 0; /* Override default margin */
+  margin: 0;
 }
 
 .hidden-video {
-  visibility: hidden; /* Hide the video element while loading */
+  visibility: hidden;
 }
-/* END NEW */
 
+.video-error-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-size: 1.2rem;
+    text-align: center;
+    padding: 20px;
+    background-color: rgba(0,0,0,0.7);
+    border-radius: 8px;
+    z-index: 5;
+}
+
+/* Custom Player Controls */
+.player-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
+  padding: 10px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 20; /* Above video */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+  box-sizing: border-box; /* Include padding in width calculation */
+}
+
+.player-controls.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.player-controls.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 10px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.progress-bar {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  cursor: pointer;
+  outline: none;
+}
+
+.progress-bar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #007bff;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 5px rgba(0,0,0,0.5);
+  margin-top: -5px; /* Adjust thumb position */
+}
+
+.progress-bar::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #007bff;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+.controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.control-button {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.control-button:hover {
+  color: #007bff;
+}
+
+.volume-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: auto; /* Push volume to the left */
+}
+
+.volume-slider {
+  width: 80px;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  cursor: pointer;
+  outline: none;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: #007bff;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 3px rgba(0,0,0,0.5);
+  margin-top: -4px; /* Adjust thumb position */
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: #007bff;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 3px rgba(0,0,0,0.5);
+}
+
+.time-display {
+  color: #fff;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums; /* Ensures consistent width for numbers */
+  min-width: 90px; /* Adjust as needed */
+  text-align: right;
+  margin-left: auto; /* Push time to the right, before fullscreen */
+}
+
+.fullscreen-button {
+  margin-left: 10px; /* Space from time display */
+}
+
+/* Double Tap Seek Overlays */
+.seek-overlay {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #fff;
+  font-size: 3rem;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 15px 25px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  pointer-events: none; /* Allow clicks to pass through */
+  z-index: 30; /* Above controls */
+}
+
+.seek-overlay.rewind-overlay {
+  left: 20%;
+  opacity: 1; /* Show on activation */
+}
+
+.seek-overlay.forward-overlay {
+  right: 20%;
+  opacity: 1; /* Show on activation */
+}
+
+/* Fullscreen Mode */
+.video-player-container.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  padding-bottom: 0; /* No padding-bottom needed in fullscreen */
+  border-radius: 0;
+  z-index: 9999;
+}
+
+.video-player-container.fullscreen video {
+  width: 100%;
+  height: 100%;
+}
+
+/* Back button outside of player container */
 .back-button {
   margin: 10px 0;
   padding: 10px 20px;
@@ -114,6 +339,7 @@
 .episode-list h3 {
   font-size: 1.5rem;
   margin-bottom: 10px;
+  color: #fff;
 }
 
 .episode-button {
@@ -126,6 +352,7 @@
   border-radius: 5px;
   border: none;
   cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
 .episode-button.active {
@@ -138,16 +365,23 @@
 
 .server-list {
   margin: 20px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .server-button {
-  margin: 5px;
+  margin: 0; /* Remove existing margin to be controlled by gap */
   padding: 10px 20px;
   border: 1px solid #ccc;
   background: #f9f9f9;
-  color: #333; /* Ensure text is visible on light background */
+  color: #333;
   cursor: pointer;
   border-radius: 5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .server-button.active {
@@ -155,6 +389,13 @@
   color: white;
   border-color: #007bff;
 }
+.server-button:hover {
+  background: #e0e0e0;
+}
+.server-button.active:hover {
+  background: #0056b3;
+}
+
 
 .episodes {
   display: flex;
@@ -173,18 +414,60 @@
   .movie-info {
     width: 100%;
   }
-  .video-player {
-    width: 100%;
+  /* Remove fixed padding-bottom for video on small screens, let height define */
+  .video-player-container:not(.fullscreen) {
+    padding-bottom: unset; /* Override 16:9 ratio */
+    height: 250px; /* Set a fixed height for mobile portrait view */
+  }
+
+  .video-player-container.fullscreen {
+    /* No change for fullscreen, it should always take full screen */
+  }
+
+  .controls-row {
+    flex-wrap: wrap; /* Allow controls to wrap on smaller screens */
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .volume-controls {
+    flex-basis: 100%; /* Take full width on small screens */
+    justify-content: center;
+    margin-right: 0;
+  }
+
+  .time-display {
+      text-align: center;
+      margin-left: 0;
+      min-width: unset;
+  }
+  .fullscreen-button {
+      margin-left: 0;
+  }
+  .seek-overlay {
+      font-size: 2rem;
+      padding: 10px 20px;
   }
 }
 
-/* NEW: Styles for "Continue Watching" button on MovieDetail page */
+/* Landscape orientation for mobile (when not in fullscreen, e.g., if rotation is unlocked) */
+@media screen and (orientation: landscape) and (max-width: 900px) {
+  .movie-detail {
+    flex-direction: column; /* Still column layout, but video will be wider */
+  }
+  .video-player-container:not(.fullscreen) {
+    padding-bottom: 56.25%; /* Re-apply 16:9 for wider aspect ratio in landscape */
+    height: unset; /* Let padding-bottom define height */
+  }
+}
+
+/* Styles for "Continue Watching" button on MovieDetail page */
 .continue-watching-detail-button {
-  display: block; /* Make it a block element to take full width */
-  width: fit-content; /* Adjust width to content */
-  margin: 20px 0 0; /* Margin from other elements */
+  display: block;
+  width: fit-content;
+  margin: 20px 0 0;
   padding: 12px 25px;
-  background-color: #28a745; /* Green color */
+  background-color: #28a745;
   color: #fff;
   border: none;
   border-radius: 5px;
@@ -193,10 +476,10 @@
   font-weight: bold;
   display: flex;
   align-items: center;
-  gap: 10px; /* Space between text and icon */
+  gap: 10px;
   transition: background-color 0.3s ease;
 }
 
 .continue-watching-detail-button:hover {
-  background-color: #218838; /* Darker green on hover */
+  background-color: #218838;
 }
