@@ -14,31 +14,12 @@ const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`;
 const DEFAULT_PAGE_LIMIT = 12;
 const WATCH_HISTORY_KEY = 'watchHistory';
 
-// Hàm getImageUrl được tối ưu để yêu cầu ảnh với kích thước và định dạng cụ thể từ CDN
-const getImageUrl = (url, width = null, height = null) => {
-    if (!url) return '/placeholder.jpg';
-    if (url.startsWith('https://') && !url.includes(process.env.REACT_APP_API_CDN_IMAGE)) {
-        // Nếu URL đã là HTTPS và không từ CDN của bạn, giả định nó đã tối ưu hoặc là ảnh bên ngoài
+const getImageUrl = (url) => {
+    if (url && url.startsWith('https://')) {
         return url;
     }
-
-    const cdnBase = process.env.REACT_APP_API_CDN_IMAGE;
-    let imageUrl = `${cdnBase}/${url.replace(/^\//, '')}`; // Đảm bảo không có dấu '/' kép nếu url đã có
-
-    const params = [];
-    if (width) params.push(`w=${width}`);
-    if (height) params.push(`h=${height}`);
-    params.push('f=webp'); // Yêu cầu định dạng WebP
-
-    if (params.length > 0) {
-        // Kiểm tra xem đã có tham số nào trong URL gốc chưa
-        const separator = imageUrl.includes('?') ? '&' : '?';
-        imageUrl = `${imageUrl}${separator}${params.join('&')}`;
-    }
-
-    return imageUrl;
+    return url ? `${process.env.REACT_APP_API_CDN_IMAGE}/${url}` : '/placeholder.jpg';
 };
-
 
 const movieApi = {
     fetchGenres: () => axios.get(`${BASE_API_URL}/the-loai`),
@@ -97,11 +78,10 @@ function HistorySection({ historyMovies, onDeleteHistoryItem }) {
                     <div key={movie.slug + (movie.episode?.slug || '')} className="history-movie-card">
                         <Link to={`/movie/${movie.slug}/${movie.episode?.slug || ''}`}>
                             <LazyLoadImage
-                                src={getImageUrl(movie.poster_url, 200, 280)} // Kích thước xấp xỉ cho history card (rộng 160-200, cao 240-280)
+                                src={getImageUrl(movie.poster_url)}
                                 alt={movie.name}
                                 className="movie-poster-horizontal"
                                 effect="blur"
-                                threshold={300} // Tải trước 300px
                                 onError={(e) => (e.target.src = '/placeholder.jpg')}
                             />
                             <h3>{movie.name}</h3>
@@ -164,11 +144,10 @@ function HomePageSection({ title, movies, linkToAll, isLoading }) {
                 {movies.map((movie) => (
                     <Link key={movie._id} to={`/movie/${movie.slug}`} className="movie-card-horizontal">
                         <LazyLoadImage
-                            src={getImageUrl(movie.poster_url, 200, 280)} // Kích thước xấp xỉ cho horizontal card
+                            src={getImageUrl(movie.poster_url)}
                             alt={movie.name}
                             className="movie-poster-horizontal"
                             effect="blur"
-                            threshold={300} // Tải trước 300px
                             onError={(e) => (e.target.src = '/placeholder.jpg')}
                         />
                         <h3>{movie.name}</h3>
@@ -181,6 +160,7 @@ function HomePageSection({ title, movies, linkToAll, isLoading }) {
 }
 
 function Home({ showFilterModal, onCloseFilterModal }) {
+    // REMOVED setSearchParams from destructuring
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
 
@@ -198,6 +178,8 @@ function Home({ showFilterModal, onCloseFilterModal }) {
     const [filterCountry, setFilterCountry] = useState(urlCountrySlug || '');
     const [filterYear, setFilterYear] = useState(urlYear || '');
     const [currentPage, setCurrentPage] = useState(urlPage);
+    // REMOVED keyword state as it was unused
+    // const [keyword, setKeyword] = useState(urlKeyword || '');
 
     const [genres, setGenres] = useState([]);
     const [countries, setCountries] = useState([]);
@@ -218,6 +200,8 @@ function Home({ showFilterModal, onCloseFilterModal }) {
 
     // Cập nhật state cục bộ khi URL params thay đổi
     useEffect(() => {
+        // Removed setKeyword as keyword state is removed
+        // setKeyword(urlKeyword || '');
         setFilterCategory(urlCategorySlug || '');
         setFilterCountry(urlCountrySlug || '');
         setFilterYear(urlYear || '');
@@ -464,7 +448,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
 
         navigate(`/?${newSearchParams.toString()}`);
         onCloseFilterModal();
-    }, [navigate, onCloseFilterModal, urlKeyword, urlCategorySlug, urlCountrySlug, urlYear]);
+    }, [navigate, onCloseFilterModal, urlKeyword, urlCategorySlug, urlCountrySlug, urlYear]); // Added url params to dependencies
 
     const handlePageChange = useCallback((newPage) => {
         if (newPage >= 1 && newPage <= totalPages) {
@@ -558,17 +542,16 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                             {movies.map((movie) => (
                                 <Link key={movie._id} to={`/movie/${movie.slug}`} className="movie-card">
                                     <LazyLoadImage
-                                        src={getImageUrl(movie.poster_url, 250, 350)} // Kích thước xấp xỉ cho main grid (max-width: 250px, height: 270px, nên yêu cầu cao hơn một chút cho tốt)
+                                        src={getImageUrl(movie.poster_url)}
                                         alt={movie.name}
                                         className="movie-poster"
                                         effect="blur"
-                                        threshold={300} // Tải trước 300px
                                         onError={(e) => (e.target.src = '/placeholder.jpg')}
                                     />
-                                    {movie.quality && <span className="movie-quality">{movie.quality}</span>}
-                                    {movie.episode_current && <span className="movie-status">{movie.episode_current}</span>}
                                     <h3>{movie.name}</h3>
                                     <p>{movie.year}</p>
+                                    {movie.quality && <span className="movie-quality">{movie.quality}</span>}
+                                    {movie.episode_current && <span className="movie-status">{movie.episode_current}</span>}
                                 </Link>
                             ))}
                         </div>
