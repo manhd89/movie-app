@@ -254,7 +254,6 @@
 
 /* Individual Movie Card in horizontal scroll */
 .movie-card-horizontal {
-    /* Removed flex: 0 0 auto; - Grid handles sizing now */
     width: 100%; /* Take full width of its grid column */
     background-color: #2a2a2a;
     border-radius: 8px;
@@ -318,7 +317,7 @@
     }
     /* Horizontal cards are now controlled by grid-template-columns in .movie-horizontal-scroll */
     .movie-poster-horizontal {
-        height: 210px;
+        height: 210px; /* Điều chỉnh chiều cao hình ảnh cho màn hình nhỏ hơn */
     }
     .homepage-section h2 {
         font-size: 1.8rem;
@@ -334,7 +333,7 @@
     }
     /* Horizontal cards are now controlled by grid-template-columns in .movie-horizontal-scroll */
     .movie-poster-horizontal {
-        height: 180px;
+        height: 180px; /* Điều chỉnh chiều cao hình ảnh cho màn hình rất nhỏ */
     }
     .homepage-section h2 {
         font-size: 1.5rem;
@@ -489,7 +488,7 @@
         grid-template-columns: repeat(2, minmax(140px, 1fr));
     }
     .history-movie-card img {
-        height: 210px;
+        height: 210px; /* Điều chỉnh chiều cao hình ảnh cho màn hình nhỏ hơn */
     }
 }
 
@@ -501,7 +500,6 @@
         grid-template-columns: repeat(2, minmax(120px, 1fr));
     }
     .history-movie-card img {
-        height: 180px;
+        height: 180px; /* Điều chỉnh chiều cao hình ảnh cho màn hình rất nhỏ */
     }
 }
-
