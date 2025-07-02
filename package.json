@@ -1,6 +1,6 @@
 {
-  "name": "my-movie-app",
-  "version": "1.0.0",
+  "name": "hdonline",
+  "version": "1.1.0",
   "private": true,
   "dependencies": {
     "axios": "^1.10.0",
@@ -13,10 +13,7 @@
     "react-lazy-load-image-component": "^1.6.3",
     "react-router-dom": "^7.6.3",
     "react-scripts": "^5.0.1",
-    "react-select": "^5.10.1",
-    "video.js": "^7.21.1",
-    "@videojs/http-streaming": "^3.15.0",
-    "videojs-seek-buttons": "^3.0.1"
+    "react-select": "^5.10.1"
   },
   "scripts": {
     "start": "react-scripts start",
