@@ -52,17 +52,22 @@
   color: #fff;
 }
 
-/* Video.js will handle its own sizing. We just need a container. */
 .video-player {
   position: relative;
-  width: 100%;
+  padding-bottom: 56.25%; /* 16:9 aspect ratio */
+  height: 0;
+  overflow: hidden;
   background-color: #000;
+  width: 100%;
 }
 
-/* Make sure Video.js player takes full width */
-.video-js {
-  width: 100% !important;
-  height: auto !important; /* Allow video.js to determine height based on aspect ratio */
+.video-player video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
 }
 
 /* NEW: Styles for video loading spinner */
@@ -194,20 +199,4 @@
 
 .continue-watching-detail-button:hover {
   background-color: #218838; /* Darker green on hover */
-}
-
-/* Video.js custom styles */
-/* Import Video.js base CSS (usually done in index.js or App.js) */
-/* @import '~video.js/dist/video-js.css'; */
-/* @import '~videojs-seek-buttons/dist/videojs-seek-buttons.css'; */
-
-/* Optional: Make the seek buttons slightly larger and more prominent */
-.video-js .vjs-seek-button.skip-back,
-.video-js .vjs-seek-button.skip-forward {
-  font-size: 1.8em; /* Adjust icon size */
-  line-height: 1.5; /* Center icon vertically */
-}
-
-.video-js .vjs-button > .vjs-icon-placeholder:before {
-  vertical-align: middle;
 }
