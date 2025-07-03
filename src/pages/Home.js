@@ -8,7 +8,7 @@ import { FaAngleRight, FaTimes, FaHistory, FaTrashAlt } from 'react-icons/fa';
 
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './Home.css';
-import useIntersectionObserver from '../hooks/useIntersectionObserver'; // Import the new hook
+import useIntersectionObserver from '../hooks/useIntersectionObserver'; // Import the hook
 
 const BASE_API_URL = process.env.REACT_APP_API_URL;
 const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`;
@@ -115,20 +115,7 @@ function HistorySection({ historyMovies, onDeleteHistoryItem }) {
     );
 }
 
-// Thêm một component Placeholder cho các phần chưa tải
-function SectionPlaceholder({ title, sectionRef, isLoading }) {
-    if (!isLoading) return null; // Không hiển thị placeholder nếu đã tải
-    return (
-        <div className="homepage-section" ref={sectionRef}>
-            <h2>{title}</h2>
-            <div className="section-loading-spinner">
-                <div className="spinner"></div>
-            </div>
-        </div>
-    );
-}
-
-
+// Giữ nguyên HomePageSection
 function HomePageSection({ title, movies, linkToAll, isLoading }) {
     if (isLoading) {
         return (
@@ -201,6 +188,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         descriptionHead: 'Xem phim mới cập nhật nhanh nhất, tổng hợp phim bộ, phim lẻ, TV Shows.'
     });
 
+    // Cập nhật homeSectionsData để mỗi phần có thể là null (chưa tải) hoặc array (đã tải)
     const [homeSectionsData, setHomeSectionsData] = useState({
         recentMovies: null, seriesMovies: null, singleMovies: null, tvShows: null,
         dubbedMovies: null, cartoonMovies: null, longTiengMovies: null,
@@ -211,12 +199,16 @@ function Home({ showFilterModal, onCloseFilterModal }) {
 
     const [watchHistory, setWatchHistory] = useState([]);
 
-    // Định nghĩa các ngưỡng để tải
-    // Initial sections (e.g., recentMovies, seriesMovies, singleMovies, history) will always load
-    // We'll use refs for sections further down the page to trigger loading
-    const tvShowsAndDubbedRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 }); // Load TV Shows and Dubbed when this ref enters view
-    const cartoonLongTiengRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 }); // Load Cartoon and Long Tieng when this ref enters view
-    const countryMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 }); // Load all Country movies when this ref enters view
+    // Định nghĩa refs riêng cho từng section cần lazy load
+    const tvShowsRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
+    const dubbedMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
+    const cartoonMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
+    const longTiengMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
+    const vietnamMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
+    const chinaMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
+    const usEuMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
+    const japanMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
+    const koreaMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
 
 
     // Cập nhật state cục bộ khi URL params thay đổi
@@ -302,6 +294,21 @@ function Home({ showFilterModal, onCloseFilterModal }) {
     // Determine if main movie grid should be shown based on URL params
     const showMainMovieGrid = !!urlKeyword || !!urlCategorySlug || !!urlCountrySlug || !!urlYear;
 
+    // Helper function to fetch a specific section
+    const fetchSection = useCallback(async (key, fetchFunc) => {
+        if (homeSectionsData[key] === null && !requestedSections.has(key)) {
+            setRequestedSections(prev => new Set(prev).add(key)); // Mark as requested
+            try {
+                const res = await fetchFunc();
+                setHomeSectionsData(prev => ({ ...prev, [key]: res.data.items || res.data.data?.items || [] }));
+            } catch (error) {
+                console.error(`Failed to fetch section ${key}:`, error);
+                setHomeSectionsData(prev => ({ ...prev, [key]: [] })); // Set to empty array on error
+            }
+        }
+    }, [homeSectionsData, requestedSections]);
+
+
     // Unified useEffect for fetching data
     useEffect(() => {
         const fetchData = async () => {
@@ -311,7 +318,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                 let url = '';
                 let params = { page: currentPage, limit: DEFAULT_PAGE_LIMIT };
                 let newSeoData = {
-                    titleHead: 'PhimAPI - Trang Chủ',
+                    titleHead: 'Phim Online - Trang Chủ',
                     descriptionHead: 'Xem phim mới cập nhật nhanh nhất, tổng hợp phim bộ, phim lẻ, TV Shows.'
                 };
 
@@ -384,53 +391,50 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                 }
             } else {
                 // Logic for home page sections (lazy loading)
-                const fetchSection = async (key, fetchFunc) => {
-                    if (homeSectionsData[key] === null && !requestedSections.has(key)) {
-                        setRequestedSections(prev => new Set(prev).add(key)); // Mark as requested
-                        try {
-                            const res = await fetchFunc();
-                            setHomeSectionsData(prev => ({ ...prev, [key]: res.data.items || res.data.data?.items || [] }));
-                        } catch (error) {
-                            console.error(`Failed to fetch section ${key}:`, error);
-                            setHomeSectionsData(prev => ({ ...prev, [key]: [] })); // Set to empty array on error
-                        }
-                    }
-                };
-
                 // Fetch initial "above-the-fold" sections immediately
                 fetchSection('recentMovies', movieApi.fetchRecentUpdates);
                 fetchSection('seriesMovies', () => movieApi.fetchMoviesBySlug('category', 'phim-bo'));
                 fetchSection('singleMovies', () => movieApi.fetchMoviesBySlug('category', 'phim-le'));
 
-                // Fetch TV Shows and Dubbed Movies when tvShowsAndDubbedRef enters view
-                if (tvShowsAndDubbedRef[1]?.isIntersecting) {
+                // Fetch other sections when their respective refs enter view
+                if (tvShowsRef[1]?.isIntersecting) {
                     fetchSection('tvShows', () => movieApi.fetchMoviesBySlug('category', 'tv-shows'));
+                }
+                if (dubbedMoviesRef[1]?.isIntersecting) {
                     fetchSection('dubbedMovies', () => movieApi.fetchMoviesBySlug('category', 'phim-thuyet-minh'));
                 }
-
-                // Fetch Cartoon and Long Tieng Movies when cartoonLongTiengRef enters view
-                if (cartoonLongTiengRef[1]?.isIntersecting) {
+                if (cartoonMoviesRef[1]?.isIntersecting) {
                     fetchSection('cartoonMovies', () => movieApi.fetchMoviesBySlug('category', 'hoat-hinh'));
+                }
+                if (longTiengMoviesRef[1]?.isIntersecting) {
                     fetchSection('longTiengMovies', () => movieApi.fetchMoviesBySlug('category', 'phim-long-tieng'));
                 }
-
-                // Fetch all Country Movies when countryMoviesRef enters view
-                if (countryMoviesRef[1]?.isIntersecting) {
+                if (vietnamMoviesRef[1]?.isIntersecting) {
                     fetchSection('vietnamMovies', () => movieApi.fetchMoviesBySlug('country', 'viet-nam'));
+                }
+                if (chinaMoviesRef[1]?.isIntersecting) {
                     fetchSection('chinaMovies', () => movieApi.fetchMoviesBySlug('country', 'trung-quoc'));
+                }
+                if (usEuMoviesRef[1]?.isIntersecting) {
                     fetchSection('usEuMovies', () => movieApi.fetchMoviesBySlug('country', 'au-my'));
+                }
+                if (japanMoviesRef[1]?.isIntersecting) {
                     fetchSection('japanMovies', () => movieApi.fetchMoviesBySlug('country', 'nhat-ban'));
+                }
+                if (koreaMoviesRef[1]?.isIntersecting) {
                     fetchSection('koreaMovies', () => movieApi.fetchMoviesBySlug('country', 'han-quoc'));
                 }
             }
         };
 
         fetchData();
-        // Dependencies for fetchData:
-        // Include intersection observer entries to trigger re-run when visibility changes.
-        // Also include `genres` and `countries` in case they load later than the initial render.
-    }, [currentPage, urlKeyword, urlCategorySlug, urlCountrySlug, urlYear, showMainMovieGrid, genres, countries,
-        tvShowsAndDubbedRef[1], cartoonLongTiengRef[1], countryMoviesRef[1], requestedSections, homeSectionsData]);
+    }, [
+        currentPage, urlKeyword, urlCategorySlug, urlCountrySlug, urlYear, showMainMovieGrid,
+        genres, countries, fetchSection, // Add fetchSection to dependencies
+        // Add all individual refs' isIntersecting properties as dependencies
+        tvShowsRef[1], dubbedMoviesRef[1], cartoonMoviesRef[1], longTiengMoviesRef[1],
+        vietnamMoviesRef[1], chinaMoviesRef[1], usEuMoviesRef[1], japanMoviesRef[1], koreaMoviesRef[1]
+    ]);
 
 
     const handleFilterChange = useCallback((type, selectedValue) => {
@@ -605,6 +609,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                 </>
             ) : (
                 <div className="home-sections-container">
+                    {/* Always load these initial sections */}
                     <HomePageSection
                         title="Phim Mới Cập Nhật"
                         movies={homeSectionsData.recentMovies}
@@ -631,104 +636,96 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         />
                     )}
 
-                    {/* Placeholder and conditional rendering for TV Shows and Dubbed */}
-                    {(homeSectionsData.tvShows === null || homeSectionsData.dubbedMovies === null) && (
-                        <SectionPlaceholder
-                            title="Đang tải thêm..."
-                            sectionRef={tvShowsAndDubbedRef[0]}
-                            isLoading={!tvShowsAndDubbedRef[1]?.isIntersecting || (homeSectionsData.tvShows === null && requestedSections.has('tvShows')) || (homeSectionsData.dubbedMovies === null && requestedSections.has('dubbedMovies'))}
-                        />
-                    )}
-                    {homeSectionsData.tvShows !== null && (
+                    {/* Lazy loaded sections - each with its own ref */}
+                    {/* TV Shows */}
+                    <div ref={tvShowsRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="TV Shows"
                             movies={homeSectionsData.tvShows}
                             linkToAll="/?category=tv-shows&page=1"
-                            isLoading={false}
+                            isLoading={homeSectionsData.tvShows === null && tvShowsRef[1]?.isIntersecting}
                         />
-                    )}
-                    {homeSectionsData.dubbedMovies !== null && (
+                    </div>
+
+                    {/* Phim Thuyết Minh */}
+                    <div ref={dubbedMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Phim Thuyết Minh"
                             movies={homeSectionsData.dubbedMovies}
                             linkToAll="/?category=phim-thuyet-minh&page=1"
-                            isLoading={false}
+                            isLoading={homeSectionsData.dubbedMovies === null && dubbedMoviesRef[1]?.isIntersecting}
                         />
-                    )}
+                    </div>
 
-                    {/* Placeholder and conditional rendering for Cartoon and Long Tieng */}
-                    {(homeSectionsData.cartoonMovies === null || homeSectionsData.longTiengMovies === null) && (
-                        <SectionPlaceholder
-                            title="Đang tải thêm..."
-                            sectionRef={cartoonLongTiengRef[0]}
-                            isLoading={!cartoonLongTiengRef[1]?.isIntersecting || (homeSectionsData.cartoonMovies === null && requestedSections.has('cartoonMovies')) || (homeSectionsData.longTiengMovies === null && requestedSections.has('longTiengMovies'))}
-                        />
-                    )}
-                    {homeSectionsData.cartoonMovies !== null && (
+                    {/* Hoạt Hình */}
+                    <div ref={cartoonMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Hoạt Hình"
                             movies={homeSectionsData.cartoonMovies}
                             linkToAll="/?category=hoat-hinh&page=1"
-                            isLoading={false}
+                            isLoading={homeSectionsData.cartoonMovies === null && cartoonMoviesRef[1]?.isIntersecting}
                         />
-                    )}
-                    {homeSectionsData.longTiengMovies !== null && (
+                    </div>
+
+                    {/* Phim Lồng Tiếng */}
+                    <div ref={longTiengMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Phim Lồng Tiếng"
                             movies={homeSectionsData.longTiengMovies}
                             linkToAll="/?category=phim-long-tieng&page=1"
-                            isLoading={false}
+                            isLoading={homeSectionsData.longTiengMovies === null && longTiengMoviesRef[1]?.isIntersecting}
                         />
-                    )}
+                    </div>
 
-                    {/* Placeholder and conditional rendering for Country Movies */}
-                    {(homeSectionsData.vietnamMovies === null || homeSectionsData.chinaMovies === null || homeSectionsData.usEuMovies === null || homeSectionsData.japanMovies === null || homeSectionsData.koreaMovies === null) && (
-                        <SectionPlaceholder
-                            title="Đang tải thêm..."
-                            sectionRef={countryMoviesRef[0]}
-                            isLoading={!countryMoviesRef[1]?.isIntersecting || (homeSectionsData.vietnamMovies === null && requestedSections.has('vietnamMovies'))}
-                        />
-                    )}
-                    {homeSectionsData.vietnamMovies !== null && (
+                    {/* Phim Việt Nam */}
+                    <div ref={vietnamMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Phim Việt Nam"
                             movies={homeSectionsData.vietnamMovies}
                             linkToAll="/?country=viet-nam&page=1"
-                            isLoading={false}
+                            isLoading={homeSectionsData.vietnamMovies === null && vietnamMoviesRef[1]?.isIntersecting}
                         />
-                    )}
-                    {homeSectionsData.chinaMovies !== null && (
+                    </div>
+
+                    {/* Phim Trung Quốc */}
+                    <div ref={chinaMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Phim Trung Quốc"
                             movies={homeSectionsData.chinaMovies}
                             linkToAll="/?country=trung-quoc&page=1"
-                            isLoading={false}
+                            isLoading={homeSectionsData.chinaMovies === null && chinaMoviesRef[1]?.isIntersecting}
                         />
-                    )}
-                    {homeSectionsData.usEuMovies !== null && (
+                    </div>
+
+                    {/* Phim Âu Mỹ */}
+                    <div ref={usEuMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Phim Âu Mỹ"
                             movies={homeSectionsData.usEuMovies}
                             linkToAll="/?country=au-my&page=1"
-                            isLoading={false}
+                            isLoading={homeSectionsData.usEuMovies === null && usEuMoviesRef[1]?.isIntersecting}
                         />
-                    )}
-                    {homeSectionsData.japanMovies !== null && (
+                    </div>
+
+                    {/* Phim Nhật Bản */}
+                    <div ref={japanMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Phim Nhật Bản"
                             movies={homeSectionsData.japanMovies}
                             linkToAll="/?country=nhat-ban&page=1"
-                            isLoading={false}
+                            isLoading={homeSectionsData.japanMovies === null && japanMoviesRef[1]?.isIntersecting}
                         />
-                    )}
-                    {homeSectionsData.koreaMovies !== null && (
+                    </div>
+
+                    {/* Phim Hàn Quốc */}
+                    <div ref={koreaMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Phim Hàn Quốc"
                             movies={homeSectionsData.koreaMovies}
                             linkToAll="/?country=han-quoc&page=1"
-                            isLoading={false}
+                            isLoading={homeSectionsData.koreaMovies === null && koreaMoviesRef[1]?.isIntersecting}
                         />
-                    )}
+                    </div>
                 </div>
             )}
         </div>
