@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
-import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import { FaArrowLeft, FaRegPlayCircle, FaHistory } from 'react-icons/fa';
 import 'react-lazy-load-image-component/src/effects/blur.css';
@@ -33,9 +32,9 @@ function MovieDetail() {
   const [showMovieInfoPanel, setShowMovieInfoPanel] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
   const [videoLoading, setVideoLoading] = useState(false);
-  const artRef = useRef(null); // Ref for the Artplayer instance
-  const artContainerRef = useRef(null); // Ref for the Artplayer container div
-  const currentPlaybackPositionRef = useRef(0); // This ref is not directly used with Artplayer as Artplayer manages its own time
+  const videoRef = useRef(null);
+  const hlsInstanceRef = useRef(null);
+  const currentPlaybackPositionRef = useRef(0);
   const [lastViewedPosition, setLastViewedPosition] = useState(0);
   const [lastViewedEpisodeInfo, setLastViewedEpisodeInfo] = useState(null);
   const saveIntervalRef = useRef(null); // Ref for the interval timer
@@ -159,26 +158,27 @@ function MovieDetail() {
 
 
   const savePlaybackPosition = useCallback(() => {
-    const art = artRef.current;
-    // Ensure art is an Artplayer instance and its video element exists
-    if (art && art.video && art.video.currentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+    const video = videoRef.current;
+    if (video && currentEpisode && video.currentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
       const key = getPlaybackPositionKey(currentEpisode.slug);
-      localStorage.setItem(key, art.video.currentTime.toString()); // Use art.video.currentTime
-      console.log(`Saved playback position for ${currentEpisode.name}: ${art.video.currentTime}s`);
+      localStorage.setItem(key, video.currentTime.toString());
+      console.log(`Saved playback position for ${currentEpisode.name}: ${video.currentTime}s`);
 
       if (movie) {
-        saveMovieToHistory(movie, currentEpisode, art.video.currentTime);
+        saveMovieToHistory(movie, currentEpisode, video.currentTime);
       }
     }
   }, [currentEpisode, getPlaybackPositionKey, movie, saveMovieToHistory]);
 
 
-  const loadVideo = useCallback(() => {
-    if (showMovieInfoPanel || !currentEpisode?.link_m3u8 || !artContainerRef.current) {
+  const loadVideo = useCallback(async () => {
+    const video = videoRef.current;
+    if (showMovieInfoPanel || !currentEpisode?.link_m3u8 || !video) {
         setVideoLoading(false);
-        if (artRef.current) {
-          artRef.current.destroy();
-          artRef.current = null;
+        if (video) {
+            video.src = '';
+            video.removeAttribute('src');
+            video.load();
         }
         if (!showMovieInfoPanel && currentEpisode && !isValidUrl(currentEpisode.link_m3u8)) {
             console.error('Video không khả dụng cho tập này.');
@@ -193,97 +193,117 @@ function MovieDetail() {
         saveIntervalRef.current = null;
     }
 
-    if (artRef.current) {
-      artRef.current.destroy(); // Destroy previous instance if it exists
-      artRef.current = null;
+    if (hlsInstanceRef.current) {
+      hlsInstanceRef.current.destroy();
+      hlsInstanceRef.current = null;
     }
 
-    const savedTime = parseFloat(localStorage.getItem(getPlaybackPositionKey(currentEpisode.slug)));
-
     try {
-      artRef.current = new Artplayer({
-        container: artContainerRef.current,
-        url: currentEpisode.link_m3u8,
-        autoplay: true, // Will attempt to autoplay
-        flip: true,
-        playbackRate: true,
-        aspectRatio: true,
-        setting: true,
-        pip: true,
-        quality: [
-          {
-            default: true,
-            html: 'Auto',
-            url: currentEpisode.link_m3u8,
-          },
-        ],
-        type: 'm3u8',
-        customType: {
-          m3u8: (video, url) => {
-            if (Hls.isSupported()) {
-              const hls = new Hls();
-              hls.loadSource(url);
-              hls.attachMedia(video);
-            } else {
-              video.src = url;
-            }
-          },
-        },
-        // Remove or adjust the `hidden-video` class. It's better to manage loading overlay.
-        // Artplayer typically manages its own display.
-        // This makes sure Artplayer has dimensions to initialize properly
-        // without being hidden by parent elements' styles.
-        // Add more Artplayer options as needed
-      });
+      const originalM3u8Url = currentEpisode.link_m3u8;
 
-      // It's safer to seek after the 'play' event or when the video metadata is loaded,
-      // as 'ready' might mean the player UI is ready but not necessarily the video element itself.
-      // Artplayer usually handles seeking automatically if you provide a `startTime` option,
-      // but if you need to do it manually, this is a common approach.
-      artRef.current.on('play', () => { // Or 'playing' or 'loadeddata'
-        if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
-          if (artRef.current && artRef.current.video) { // Check if video element exists
-            artRef.current.seek(savedTime);
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+            maxBufferLength: 60,
+            maxMaxBufferLength: 120,
+            maxBufferSize: 100 * 1000 * 1000,
+            startFragPrefetch: true,
+            enableWorker: true,
+        });
+        hlsInstanceRef.current = hls;
+        hls.loadSource(originalM3u8Url);
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          setVideoLoading(false);
+
+          const savedPositionKey = getPlaybackPositionKey(currentEpisode.slug);
+          const savedTime = parseFloat(localStorage.getItem(savedPositionKey));
+
+          if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+            video.currentTime = savedTime;
             console.log(`Restored playback position for ${currentEpisode.name}: ${savedTime}s`);
+          } else {
+            video.currentTime = 0;
           }
-        }
-        setVideoLoading(false); // Hide loading spinner once video starts playing
-      });
 
-      artRef.current.on('error', (error) => {
-        console.error('Artplayer error:', error);
-        setVideoLoading(false);
-      });
+          video.play().catch(error => {
+            console.warn("Autoplay was prevented:", error);
+          });
+        });
 
-      artRef.current.on('playing', () => {
-        // Start saving interval only when the video is actually playing
-        if (!saveIntervalRef.current) {
-          saveIntervalRef.current = setInterval(() => {
-            if (artRef.current && !artRef.current.paused) {
-              savePlaybackPosition();
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          console.error('HLS.js error:', data);
+          setVideoLoading(false);
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                console.error('Lỗi mạng khi tải video. Vui lòng kiểm tra kết nối.');
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                console.error('Lỗi phát video. Có thể do định dạng không hỗ trợ.');
+                hls.recoverMediaError();
+                break;
+              default:
+                console.error('Lỗi video nghiêm trọng. Vui lòng thử tập khác.');
+                hls.destroy();
+                break;
             }
-          }, SAVE_INTERVAL_SECONDS * 1000);
-          console.log(`Started periodic save every ${SAVE_INTERVAL_SECONDS} seconds.`);
-        }
-      });
+          }
+        });
 
-      artRef.current.on('pause', savePlaybackPosition);
-      artRef.current.on('seeked', savePlaybackPosition);
-      artRef.current.on('ended', savePlaybackPosition);
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = originalM3u8Url;
+
+        const savedPositionKey = getPlaybackPositionKey(currentEpisode.slug);
+        const savedTime = parseFloat(localStorage.getItem(savedPositionKey));
+
+        video.onloadedmetadata = () => {
+            if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+                video.currentTime = savedTime;
+                console.log(`Restored playback position (native) for ${currentEpisode.name}: ${savedTime}s`);
+            } else {
+                video.currentTime = 0;
+            }
+            setVideoLoading(false);
+            video.play().catch(error => console.warn("Autoplay was prevented (native):", error));
+        };
+      } else {
+        console.error('Trình duyệt không hỗ trợ phát HLS. Vui lòng cập nhật.');
+        setVideoLoading(false);
+      }
+
+      if (video) {
+        saveIntervalRef.current = setInterval(() => {
+          if (!video.paused) {
+            savePlaybackPosition();
+          }
+        }, SAVE_INTERVAL_SECONDS * 1000);
+        console.log(`Started periodic save every ${SAVE_INTERVAL_SECONDS} seconds.`);
+      }
 
     } catch (error) {
-      console.error('Error initializing Artplayer:', error);
+      console.error('Error loading video:', error);
       setVideoLoading(false);
     }
   }, [currentEpisode, showMovieInfoPanel, getPlaybackPositionKey, savePlaybackPosition]);
 
   useEffect(() => {
+    // Capture the current value of the ref
+    const video = videoRef.current; 
+
     loadVideo();
     return () => {
       savePlaybackPosition();
-      if (artRef.current) {
-        artRef.current.destroy();
-        artRef.current = null;
+      if (hlsInstanceRef.current) {
+        hlsInstanceRef.current.destroy();
+        hlsInstanceRef.current = null;
+      }
+      // Use the captured 'video' variable in the cleanup
+      if (video) { 
+        video.src = '';
+        video.removeAttribute('src');
+        video.load();
       }
       if (saveIntervalRef.current) {
           clearInterval(saveIntervalRef.current);
@@ -294,25 +314,39 @@ function MovieDetail() {
   }, [currentEpisode, loadVideo, savePlaybackPosition]);
 
   useEffect(() => {
-    const art = artRef.current;
-    if (!art) return;
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleVideoPause = () => {
+        savePlaybackPosition();
+    };
+
+    const handleTimeUpdate = () => {
+        currentPlaybackPositionRef.current = video.currentTime;
+    };
+
+    video.addEventListener('pause', handleVideoPause);
+    video.addEventListener('timeupdate', handleTimeUpdate);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        if (!art.paused) {
-          art.pause();
+        if (!video.paused) {
+          video.pause();
           console.log("Video paused due to tab going into background.");
         }
         savePlaybackPosition();
       } else {
-        if (currentEpisode && !showMovieInfoPanel) {
-            // Attempt to play only if there's a current episode and info panel is hidden
-            if (art.video && art.video.readyState >= 3) { // Check if enough data is available
-              art.play().catch(error => {
-                  console.warn("Autoplay was prevented on visibility change:", error);
-              });
-              console.log("Video attempted to play due to tab coming into foreground.");
+        if (video.src && !showMovieInfoPanel) {
+            if (hlsInstanceRef.current && hlsInstanceRef.current.media && hlsInstanceRef.current.media.readyState < 4) {
+                console.log("Attempting to recover HLS.js media error on foreground.");
+                hlsInstanceRef.current.recoverMediaError();
+                hlsInstanceRef.current.startLoad();
             }
+
+            video.play().catch(error => {
+                console.warn("Autoplay was prevented on visibility change:", error);
+            });
+            console.log("Video attempted to play due to tab coming into foreground.");
         }
       }
     };
@@ -321,8 +355,10 @@ function MovieDetail() {
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      video.removeEventListener('pause', handleVideoPause);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
     };
-  }, [showMovieInfoPanel, currentEpisode, savePlaybackPosition]);
+  }, [showMovieInfoPanel, savePlaybackPosition]);
 
 
   const handleServerChange = useCallback((index) => {
@@ -505,11 +541,13 @@ function MovieDetail() {
                 </div>
               )}
               {currentEpisode && isValidUrl(currentEpisode.link_m3u8) ? (
-                // Changed the class to be just the container, removed `hidden-video`
-                // as the spinner overlay should handle loading state visually.
-                <div
-                  ref={artContainerRef}
-                  style={{ width: '100%', height: '100%' }}
+                <video
+                  ref={videoRef}
+                  controls
+                  width="100%"
+                  height="100%"
+                  aria-label={`Video player for ${currentEpisode.name || 'Tập phim'}`}
+                  className={videoLoading ? 'hidden-video' : ''}
                 />
               ) : (
                 <div className="video-error-message" style={{
