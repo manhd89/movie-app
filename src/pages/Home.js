@@ -115,7 +115,6 @@ function HistorySection({ historyMovies, onDeleteHistoryItem }) {
     );
 }
 
-// Giữ nguyên HomePageSection
 function HomePageSection({ title, movies, linkToAll, isLoading }) {
     if (isLoading) {
         return (
@@ -188,28 +187,25 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         descriptionHead: 'Xem phim mới cập nhật nhanh nhất, tổng hợp phim bộ, phim lẻ, TV Shows.'
     });
 
-    // Cập nhật homeSectionsData để mỗi phần có thể là null (chưa tải) hoặc array (đã tải)
     const [homeSectionsData, setHomeSectionsData] = useState({
         recentMovies: null, seriesMovies: null, singleMovies: null, tvShows: null,
         dubbedMovies: null, cartoonMovies: null, longTiengMovies: null,
         vietnamMovies: null, chinaMovies: null, usEuMovies: null, japanMovies: null, koreaMovies: null,
     });
-    // Trạng thái để theo dõi các phần đã được yêu cầu tải (dù chưa tải xong)
-    const [requestedSections, setRequestedSections] = useState(new Set());
+    const [requestedSections, setRequestedSections] = useState(new Set()); // Theo dõi các phần đã được yêu cầu tải
 
     const [watchHistory, setWatchHistory] = useState([]);
 
     // Định nghĩa refs riêng cho từng section cần lazy load
-    const tvShowsRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
-    const dubbedMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
-    const cartoonMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
-    const longTiengMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
-    const vietnamMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
-    const chinaMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
-    const usEuMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
-    const japanMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
-    const koreaMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 });
-
+    const tvShowsRef = useIntersectionObserver();
+    const dubbedMoviesRef = useIntersectionObserver();
+    const cartoonMoviesRef = useIntersectionObserver();
+    const longTiengMoviesRef = useIntersectionObserver();
+    const vietnamMoviesRef = useIntersectionObserver();
+    const chinaMoviesRef = useIntersectionObserver();
+    const usEuMoviesRef = useIntersectionObserver();
+    const japanMoviesRef = useIntersectionObserver();
+    const koreaMoviesRef = useIntersectionObserver();
 
     // Cập nhật state cục bộ khi URL params thay đổi
     useEffect(() => {
@@ -297,13 +293,13 @@ function Home({ showFilterModal, onCloseFilterModal }) {
     // Helper function to fetch a specific section
     const fetchSection = useCallback(async (key, fetchFunc) => {
         if (homeSectionsData[key] === null && !requestedSections.has(key)) {
-            setRequestedSections(prev => new Set(prev).add(key)); // Mark as requested
+            setRequestedSections(prev => new Set(prev).add(key)); // Đánh dấu là đã yêu cầu tải
             try {
                 const res = await fetchFunc();
                 setHomeSectionsData(prev => ({ ...prev, [key]: res.data.items || res.data.data?.items || [] }));
             } catch (error) {
                 console.error(`Failed to fetch section ${key}:`, error);
-                setHomeSectionsData(prev => ({ ...prev, [key]: [] })); // Set to empty array on error
+                setHomeSectionsData(prev => ({ ...prev, [key]: [] })); // Đặt về mảng rỗng nếu có lỗi
             }
         }
     }, [homeSectionsData, requestedSections]);
@@ -313,7 +309,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
     useEffect(() => {
         const fetchData = async () => {
             if (showMainMovieGrid) {
-                // Logic for search/filter results
+                // Logic cho trang tìm kiếm/filter
                 setLoadingMain(true);
                 let url = '';
                 let params = { page: currentPage, limit: DEFAULT_PAGE_LIMIT };
@@ -390,13 +386,13 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                     setLoadingMain(false);
                 }
             } else {
-                // Logic for home page sections (lazy loading)
-                // Fetch initial "above-the-fold" sections immediately
+                // Logic cho các phần trên trang chủ (lazy loading)
+                // Luôn tải 3 phần đầu tiên ngay lập tức
                 fetchSection('recentMovies', movieApi.fetchRecentUpdates);
                 fetchSection('seriesMovies', () => movieApi.fetchMoviesBySlug('category', 'phim-bo'));
                 fetchSection('singleMovies', () => movieApi.fetchMoviesBySlug('category', 'phim-le'));
 
-                // Fetch other sections when their respective refs enter view
+                // Tải các phần khác khi ref tương ứng đi vào tầm nhìn
                 if (tvShowsRef[1]?.isIntersecting) {
                     fetchSection('tvShows', () => movieApi.fetchMoviesBySlug('category', 'tv-shows'));
                 }
@@ -430,8 +426,8 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         fetchData();
     }, [
         currentPage, urlKeyword, urlCategorySlug, urlCountrySlug, urlYear, showMainMovieGrid,
-        genres, countries, fetchSection, // Add fetchSection to dependencies
-        // Add all individual refs' isIntersecting properties as dependencies
+        genres, countries, fetchSection, // useCallback memoizes fetchSection, nhưng vẫn cần đưa vào dep nếu nó phụ thuộc vào các state/props khác
+        // Thêm tất cả các ref's isIntersecting để kích hoạt lại useEffect khi tầm nhìn thay đổi
         tvShowsRef[1], dubbedMoviesRef[1], cartoonMoviesRef[1], longTiengMoviesRef[1],
         vietnamMoviesRef[1], chinaMoviesRef[1], usEuMoviesRef[1], japanMoviesRef[1], koreaMoviesRef[1]
     ]);
@@ -501,7 +497,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         return 'Danh sách phim';
     };
 
-    // Global spinner only for main grid, or if initial sections are still loading
+    // Spinner chung chỉ hiển thị khi đang tải trang chính hoặc các kết quả tìm kiếm/lọc
     const showGlobalSpinner = (loadingMain && showMainMovieGrid);
 
     if (showGlobalSpinner) {
@@ -609,7 +605,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                 </>
             ) : (
                 <div className="home-sections-container">
-                    {/* Always load these initial sections */}
+                    {/* Luôn tải các phần ban đầu này */}
                     <HomePageSection
                         title="Phim Mới Cập Nhật"
                         movies={homeSectionsData.recentMovies}
@@ -636,13 +632,14 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         />
                     )}
 
-                    {/* Lazy loaded sections - each with its own ref */}
+                    {/* Các phần được tải lười biếng - mỗi phần với ref riêng */}
                     {/* TV Shows */}
                     <div ref={tvShowsRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="TV Shows"
                             movies={homeSectionsData.tvShows}
                             linkToAll="/?category=tv-shows&page=1"
+                            // isLoading chỉ true khi dữ liệu chưa tải VÀ div này đang trong tầm nhìn
                             isLoading={homeSectionsData.tvShows === null && tvShowsRef[1]?.isIntersecting}
                         />
                     </div>
