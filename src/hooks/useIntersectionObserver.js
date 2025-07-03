@@ -1,28 +1,32 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 
-function useIntersectionObserver(options) {
+const useIntersectionObserver = (options) => {
+    const ref = useRef(null);
     const [entry, setEntry] = useState(null);
-    const observerRef = useRef(null);
-    const elementRef = useRef(null);
 
     useEffect(() => {
-        if (elementRef.current) {
-            const observer = new IntersectionObserver(([ent]) => {
-                setEntry(ent);
-            }, options);
+        const observer = new IntersectionObserver(([ent]) => {
+            setEntry(ent);
+        }, {
+            // Đặt rootMargin mặc định là '0px' để chỉ kích hoạt khi phần tử thực sự vào viewport
+            // threshold mặc định là 0 để kích hoạt ngay khi 1 pixel của phần tử xuất hiện
+            root: options?.root || null,
+            rootMargin: options?.rootMargin || '0px',
+            threshold: options?.threshold || 0,
+        });
 
-            observer.observe(elementRef.current);
-            observerRef.current = observer;
-
-            return () => {
-                if (observerRef.current) {
-                    observerRef.current.disconnect();
-                }
-            };
+        if (ref.current) {
+            observer.observe(ref.current);
         }
+
+        return () => {
+            if (ref.current) {
+                observer.unobserve(ref.current);
+            }
+        };
     }, [options]);
 
-    return [elementRef, entry];
-}
+    return [ref, entry];
+};
 
 export default useIntersectionObserver;
