@@ -115,10 +115,24 @@ function HistorySection({ historyMovies, onDeleteHistoryItem }) {
     );
 }
 
-function HomePageSection({ title, movies, linkToAll, isLoading, sectionRef, isLazyLoaded }) {
+// Thêm một component Placeholder cho các phần chưa tải
+function SectionPlaceholder({ title, sectionRef, isLoading }) {
+    if (!isLoading) return null; // Không hiển thị placeholder nếu đã tải
+    return (
+        <div className="homepage-section" ref={sectionRef}>
+            <h2>{title}</h2>
+            <div className="section-loading-spinner">
+                <div className="spinner"></div>
+            </div>
+        </div>
+    );
+}
+
+
+function HomePageSection({ title, movies, linkToAll, isLoading }) {
     if (isLoading) {
         return (
-            <div className="homepage-section" ref={sectionRef}>
+            <div className="homepage-section">
                 <h2>{title}</h2>
                 <div className="section-loading-spinner">
                     <div className="spinner"></div>
@@ -132,7 +146,7 @@ function HomePageSection({ title, movies, linkToAll, isLoading, sectionRef, isLa
     }
 
     return (
-        <div className="homepage-section" ref={sectionRef}>
+        <div className="homepage-section">
             <div className="section-header">
                 <h2>{title}</h2>
                 {linkToAll && (
@@ -187,43 +201,22 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         descriptionHead: 'Xem phim mới cập nhật nhanh nhất, tổng hợp phim bộ, phim lẻ, TV Shows.'
     });
 
-    // Initialize all section data as null, so we know it hasn't been fetched yet.
     const [homeSectionsData, setHomeSectionsData] = useState({
         recentMovies: null, seriesMovies: null, singleMovies: null, tvShows: null,
         dubbedMovies: null, cartoonMovies: null, longTiengMovies: null,
         vietnamMovies: null, chinaMovies: null, usEuMovies: null, japanMovies: null, koreaMovies: null,
     });
-    const [loadingSections, setLoadingSections] = useState(true); // Still true for initial sections
-
-    // State to keep track of which sections have been triggered to load
-    const [sectionsToLoad, setSectionsToLoad] = useState(new Set());
+    // Trạng thái để theo dõi các phần đã được yêu cầu tải (dù chưa tải xong)
+    const [requestedSections, setRequestedSections] = useState(new Set());
 
     const [watchHistory, setWatchHistory] = useState([]);
 
-    // Refs for lazy loaded sections
-    const tvShowsRef = useIntersectionObserver({ rootMargin: '0px', threshold: 0.1 });
-    const dubbedMoviesRef = useIntersectionObserver({ rootMargin: '0px', threshold: 0.1 });
-    const cartoonMoviesRef = useIntersectionObserver({ rootMargin: '0px', threshold: 0.1 });
-    const longTiengMoviesRef = useIntersectionObserver({ rootMargin: '0px', threshold: 0.1 });
-    const vietnamMoviesRef = useIntersectionObserver({ rootMargin: '0px', threshold: 0.1 });
-    const chinaMoviesRef = useIntersectionObserver({ rootMargin: '0px', threshold: 0.1 });
-    const usEuMoviesRef = useIntersectionObserver({ rootMargin: '0px', threshold: 0.1 });
-    const japanMoviesRef = useIntersectionObserver({ rootMargin: '0px', threshold: 0.1 });
-    const koreaMoviesRef = useIntersectionObserver({ rootMargin: '0px', threshold: 0.1 });
-
-    // Helper to add sections to the sectionsToLoad set when they become visible
-    useEffect(() => {
-        if (tvShowsRef[1]?.isIntersecting) setSectionsToLoad(prev => new Set(prev).add('tvShows'));
-        if (dubbedMoviesRef[1]?.isIntersecting) setSectionsToLoad(prev => new Set(prev).add('dubbedMovies'));
-        if (cartoonMoviesRef[1]?.isIntersecting) setSectionsToLoad(prev => new Set(prev).add('cartoonMovies'));
-        if (longTiengMoviesRef[1]?.isIntersecting) setSectionsToLoad(prev => new Set(prev).add('longTiengMovies'));
-        if (vietnamMoviesRef[1]?.isIntersecting) setSectionsToLoad(prev => new Set(prev).add('vietnamMovies'));
-        if (chinaMoviesRef[1]?.isIntersecting) setSectionsToLoad(prev => new Set(prev).add('chinaMovies'));
-        if (usEuMoviesRef[1]?.isIntersecting) setSectionsToLoad(prev => new Set(prev).add('usEuMovies'));
-        if (japanMoviesRef[1]?.isIntersecting) setSectionsToLoad(prev => new Set(prev).add('japanMovies'));
-        if (koreaMoviesRef[1]?.isIntersecting) setSectionsToLoad(prev => new Set(prev).add('koreaMovies'));
-    }, [tvShowsRef[1], dubbedMoviesRef[1], cartoonMoviesRef[1], longTiengMoviesRef[1],
-        vietnamMoviesRef[1], chinaMoviesRef[1], usEuMoviesRef[1], japanMoviesRef[1], koreaMoviesRef[1]]);
+    // Định nghĩa các ngưỡng để tải
+    // Initial sections (e.g., recentMovies, seriesMovies, singleMovies, history) will always load
+    // We'll use refs for sections further down the page to trigger loading
+    const tvShowsAndDubbedRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 }); // Load TV Shows and Dubbed when this ref enters view
+    const cartoonLongTiengRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 }); // Load Cartoon and Long Tieng when this ref enters view
+    const countryMoviesRef = useIntersectionObserver({ rootMargin: '200px', threshold: 0.1 }); // Load all Country movies when this ref enters view
 
 
     // Cập nhật state cục bộ khi URL params thay đổi
@@ -315,7 +308,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
             if (showMainMovieGrid) {
                 // Logic for search/filter results
                 setLoadingMain(true);
-                setLoadingSections(false); // Don't load sections when showing main grid
                 let url = '';
                 let params = { page: currentPage, limit: DEFAULT_PAGE_LIMIT };
                 let newSeoData = {
@@ -392,89 +384,53 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                 }
             } else {
                 // Logic for home page sections (lazy loading)
-                // Fetch initial sections immediately
-                const initialSectionPromises = [];
-                if (homeSectionsData.recentMovies === null) {
-                    initialSectionPromises.push(movieApi.fetchRecentUpdates().then(res => ({ key: 'recentMovies', data: res.data.items || [] })));
-                }
-                if (homeSectionsData.seriesMovies === null) {
-                    initialSectionPromises.push(movieApi.fetchMoviesBySlug('category', 'phim-bo').then(res => ({ key: 'seriesMovies', data: res.data.data?.items || [] })));
-                }
-                if (homeSectionsData.singleMovies === null) {
-                    initialSectionPromises.push(movieApi.fetchMoviesBySlug('category', 'phim-le').then(res => ({ key: 'singleMovies', data: res.data.data?.items || [] })));
+                const fetchSection = async (key, fetchFunc) => {
+                    if (homeSectionsData[key] === null && !requestedSections.has(key)) {
+                        setRequestedSections(prev => new Set(prev).add(key)); // Mark as requested
+                        try {
+                            const res = await fetchFunc();
+                            setHomeSectionsData(prev => ({ ...prev, [key]: res.data.items || res.data.data?.items || [] }));
+                        } catch (error) {
+                            console.error(`Failed to fetch section ${key}:`, error);
+                            setHomeSectionsData(prev => ({ ...prev, [key]: [] })); // Set to empty array on error
+                        }
+                    }
+                };
+
+                // Fetch initial "above-the-fold" sections immediately
+                fetchSection('recentMovies', movieApi.fetchRecentUpdates);
+                fetchSection('seriesMovies', () => movieApi.fetchMoviesBySlug('category', 'phim-bo'));
+                fetchSection('singleMovies', () => movieApi.fetchMoviesBySlug('category', 'phim-le'));
+
+                // Fetch TV Shows and Dubbed Movies when tvShowsAndDubbedRef enters view
+                if (tvShowsAndDubbedRef[1]?.isIntersecting) {
+                    fetchSection('tvShows', () => movieApi.fetchMoviesBySlug('category', 'tv-shows'));
+                    fetchSection('dubbedMovies', () => movieApi.fetchMoviesBySlug('category', 'phim-thuyet-minh'));
                 }
 
-                if (initialSectionPromises.length > 0) {
-                    setLoadingSections(true); // Only set true if there's initial fetching
-                    Promise.allSettled(initialSectionPromises)
-                        .then(results => {
-                            const newSectionsData = {};
-                            results.forEach(result => {
-                                if (result.status === 'fulfilled') {
-                                    newSectionsData[result.value.key] = result.value.data?.items || result.value.data;
-                                } else {
-                                    console.error(`Failed to fetch initial section ${result.reason?.config?.url || ''}:`, result.reason);
-                                }
-                            });
-                            setHomeSectionsData(prev => ({ ...prev, ...newSectionsData }));
-                        })
-                        .finally(() => {
-                            setLoadingSections(false); // Done with initial loading
-                        });
-                } else {
-                    setLoadingSections(false);
+                // Fetch Cartoon and Long Tieng Movies when cartoonLongTiengRef enters view
+                if (cartoonLongTiengRef[1]?.isIntersecting) {
+                    fetchSection('cartoonMovies', () => movieApi.fetchMoviesBySlug('category', 'hoat-hinh'));
+                    fetchSection('longTiengMovies', () => movieApi.fetchMoviesBySlug('category', 'phim-long-tieng'));
                 }
 
-                // Fetch other sections only when they are added to `sectionsToLoad`
-                const lazyLoadPromises = [];
-                if (sectionsToLoad.has('tvShows') && homeSectionsData.tvShows === null) {
-                    lazyLoadPromises.push(movieApi.fetchMoviesBySlug('category', 'tv-shows').then(res => ({ key: 'tvShows', data: res.data.data?.items || [] })));
-                }
-                if (sectionsToLoad.has('dubbedMovies') && homeSectionsData.dubbedMovies === null) {
-                    lazyLoadPromises.push(movieApi.fetchMoviesBySlug('category', 'phim-thuyet-minh').then(res => ({ key: 'dubbedMovies', data: res.data.data?.items || [] })));
-                }
-                if (sectionsToLoad.has('cartoonMovies') && homeSectionsData.cartoonMovies === null) {
-                    lazyLoadPromises.push(movieApi.fetchMoviesBySlug('category', 'hoat-hinh').then(res => ({ key: 'cartoonMovies', data: res.data.data?.items || [] })));
-                }
-                if (sectionsToLoad.has('longTiengMovies') && homeSectionsData.longTiengMovies === null) {
-                    lazyLoadPromises.push(movieApi.fetchMoviesBySlug('category', 'phim-long-tieng').then(res => ({ key: 'longTiengMovies', data: res.data.data?.items || [] })));
-                }
-                if (sectionsToLoad.has('vietnamMovies') && homeSectionsData.vietnamMovies === null) {
-                    lazyLoadPromises.push(movieApi.fetchMoviesBySlug('country', 'viet-nam').then(res => ({ key: 'vietnamMovies', data: res.data.data?.items || [] })));
-                }
-                if (sectionsToLoad.has('chinaMovies') && homeSectionsData.chinaMovies === null) {
-                    lazyLoadPromises.push(movieApi.fetchMoviesBySlug('country', 'trung-quoc').then(res => ({ key: 'chinaMovies', data: res.data.data?.items || [] })));
-                }
-                if (sectionsToLoad.has('usEuMovies') && homeSectionsData.usEuMovies === null) {
-                    lazyLoadPromises.push(movieApi.fetchMoviesBySlug('country', 'au-my').then(res => ({ key: 'usEuMovies', data: res.data.data?.items || [] })));
-                }
-                if (sectionsToLoad.has('japanMovies') && homeSectionsData.japanMovies === null) {
-                    lazyLoadPromises.push(movieApi.fetchMoviesBySlug('country', 'nhat-ban').then(res => ({ key: 'japanMovies', data: res.data.data?.items || [] })));
-                }
-                if (sectionsToLoad.has('koreaMovies') && homeSectionsData.koreaMovies === null) {
-                    lazyLoadPromises.push(movieApi.fetchMoviesBySlug('country', 'han-quoc').then(res => ({ key: 'koreaMovies', data: res.data.data?.items || [] })));
-                }
-
-                if (lazyLoadPromises.length > 0) {
-                    Promise.allSettled(lazyLoadPromises)
-                        .then(results => {
-                            const newSectionsData = {};
-                            results.forEach(result => {
-                                if (result.status === 'fulfilled') {
-                                    newSectionsData[result.value.key] = result.value.data?.items || result.value.data;
-                                } else {
-                                    console.error(`Failed to fetch lazy-loaded section ${result.reason?.config?.url || ''}:`, result.reason);
-                                }
-                            });
-                            setHomeSectionsData(prev => ({ ...prev, ...newSectionsData }));
-                        });
+                // Fetch all Country Movies when countryMoviesRef enters view
+                if (countryMoviesRef[1]?.isIntersecting) {
+                    fetchSection('vietnamMovies', () => movieApi.fetchMoviesBySlug('country', 'viet-nam'));
+                    fetchSection('chinaMovies', () => movieApi.fetchMoviesBySlug('country', 'trung-quoc'));
+                    fetchSection('usEuMovies', () => movieApi.fetchMoviesBySlug('country', 'au-my'));
+                    fetchSection('japanMovies', () => movieApi.fetchMoviesBySlug('country', 'nhat-ban'));
+                    fetchSection('koreaMovies', () => movieApi.fetchMoviesBySlug('country', 'han-quoc'));
                 }
             }
         };
 
         fetchData();
-        // Add sectionsToLoad as a dependency to trigger fetches when new sections become visible
-    }, [currentPage, urlKeyword, urlCategorySlug, urlCountrySlug, urlYear, showMainMovieGrid, genres, countries, sectionsToLoad, homeSectionsData]);
+        // Dependencies for fetchData:
+        // Include intersection observer entries to trigger re-run when visibility changes.
+        // Also include `genres` and `countries` in case they load later than the initial render.
+    }, [currentPage, urlKeyword, urlCategorySlug, urlCountrySlug, urlYear, showMainMovieGrid, genres, countries,
+        tvShowsAndDubbedRef[1], cartoonLongTiengRef[1], countryMoviesRef[1], requestedSections, homeSectionsData]);
 
 
     const handleFilterChange = useCallback((type, selectedValue) => {
@@ -541,7 +497,8 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         return 'Danh sách phim';
     };
 
-    const showGlobalSpinner = (loadingMain && showMainMovieGrid) || (loadingSections && !showMainMovieGrid);
+    // Global spinner only for main grid, or if initial sections are still loading
+    const showGlobalSpinner = (loadingMain && showMainMovieGrid);
 
     if (showGlobalSpinner) {
         return <div className="container"><div className="spinner"></div></div>;
@@ -652,20 +609,20 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         title="Phim Mới Cập Nhật"
                         movies={homeSectionsData.recentMovies}
                         linkToAll="/?category=phim-moi-cap-nhat&page=1"
-                        isLoading={homeSectionsData.recentMovies === null && loadingSections} // Check if this specific section is still loading
+                        isLoading={homeSectionsData.recentMovies === null}
                     />
 
                     <HomePageSection
                         title="Phim Bộ"
                         movies={homeSectionsData.seriesMovies}
                         linkToAll="/?category=phim-bo&page=1"
-                        isLoading={homeSectionsData.seriesMovies === null && loadingSections}
+                        isLoading={homeSectionsData.seriesMovies === null}
                     />
                     <HomePageSection
                         title="Phim Lẻ"
                         movies={homeSectionsData.singleMovies}
                         linkToAll="/?category=phim-le&page=1"
-                        isLoading={homeSectionsData.singleMovies === null && loadingSections}
+                        isLoading={homeSectionsData.singleMovies === null}
                     />
                     {watchHistory.length > 0 && (
                         <HistorySection
@@ -673,79 +630,105 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                             onDeleteHistoryItem={handleDeleteHistoryItem}
                         />
                     )}
-                    {/* Lazy-loaded sections start here */}
-                    <HomePageSection
-                        title="TV Shows"
-                        movies={homeSectionsData.tvShows}
-                        linkToAll="/?category=tv-shows&page=1"
-                        isLoading={homeSectionsData.tvShows === null && sectionsToLoad.has('tvShows')}
-                        sectionRef={tvShowsRef[0]} // Attach the ref
-                        isLazyLoaded={true} // Indicate it's lazy-loaded
-                    />
-                    <HomePageSection
-                        title="Phim Thuyết Minh"
-                        movies={homeSectionsData.dubbedMovies}
-                        linkToAll="/?category=phim-thuyet-minh&page=1"
-                        isLoading={homeSectionsData.dubbedMovies === null && sectionsToLoad.has('dubbedMovies')}
-                        sectionRef={dubbedMoviesRef[0]}
-                        isLazyLoaded={true}
-                    />
-                    <HomePageSection
-                        title="Hoạt Hình"
-                        movies={homeSectionsData.cartoonMovies}
-                        linkToAll="/?category=hoat-hinh&page=1"
-                        isLoading={homeSectionsData.cartoonMovies === null && sectionsToLoad.has('cartoonMovies')}
-                        sectionRef={cartoonMoviesRef[0]}
-                        isLazyLoaded={true}
-                    />
-                    <HomePageSection
-                        title="Phim Lồng Tiếng"
-                        movies={homeSectionsData.longTiengMovies}
-                        linkToAll="/?category=phim-long-tieng&page=1"
-                        isLoading={homeSectionsData.longTiengMovies === null && sectionsToLoad.has('longTiengMovies')}
-                        sectionRef={longTiengMoviesRef[0]}
-                        isLazyLoaded={true}
-                    />
-                    <HomePageSection
-                        title="Phim Việt Nam"
-                        movies={homeSectionsData.vietnamMovies}
-                        linkToAll="/?country=viet-nam&page=1"
-                        isLoading={homeSectionsData.vietnamMovies === null && sectionsToLoad.has('vietnamMovies')}
-                        sectionRef={vietnamMoviesRef[0]}
-                        isLazyLoaded={true}
-                    />
-                    <HomePageSection
-                        title="Phim Trung Quốc"
-                        movies={homeSectionsData.chinaMovies}
-                        linkToAll="/?country=trung-quoc&page=1"
-                        isLoading={homeSectionsData.chinaMovies === null && sectionsToLoad.has('chinaMovies')}
-                        sectionRef={chinaMoviesRef[0]}
-                        isLazyLoaded={true}
-                    />
-                    <HomePageSection
-                        title="Phim Âu Mỹ"
-                        movies={homeSectionsData.usEuMovies}
-                        linkToAll="/?country=au-my&page=1"
-                        isLoading={homeSectionsData.usEuMovies === null && sectionsToLoad.has('usEuMovies')}
-                        sectionRef={usEuMoviesRef[0]}
-                        isLazyLoaded={true}
-                    />
-                    <HomePageSection
-                        title="Phim Nhật Bản"
-                        movies={homeSectionsData.japanMovies}
-                        linkToAll="/?country=nhat-ban&page=1"
-                        isLoading={homeSectionsData.japanMovies === null && sectionsToLoad.has('japanMovies')}
-                        sectionRef={japanMoviesRef[0]}
-                        isLazyLoaded={true}
-                    />
-                    <HomePageSection
-                        title="Phim Hàn Quốc"
-                        movies={homeSectionsData.koreaMovies}
-                        linkToAll="/?country=han-quoc&page=1"
-                        isLoading={homeSectionsData.koreaMovies === null && sectionsToLoad.has('koreaMovies')}
-                        sectionRef={koreaMoviesRef[0]}
-                        isLazyLoaded={true}
-                    />
+
+                    {/* Placeholder and conditional rendering for TV Shows and Dubbed */}
+                    {(homeSectionsData.tvShows === null || homeSectionsData.dubbedMovies === null) && (
+                        <SectionPlaceholder
+                            title="Đang tải thêm..."
+                            sectionRef={tvShowsAndDubbedRef[0]}
+                            isLoading={!tvShowsAndDubbedRef[1]?.isIntersecting || (homeSectionsData.tvShows === null && requestedSections.has('tvShows')) || (homeSectionsData.dubbedMovies === null && requestedSections.has('dubbedMovies'))}
+                        />
+                    )}
+                    {homeSectionsData.tvShows !== null && (
+                        <HomePageSection
+                            title="TV Shows"
+                            movies={homeSectionsData.tvShows}
+                            linkToAll="/?category=tv-shows&page=1"
+                            isLoading={false}
+                        />
+                    )}
+                    {homeSectionsData.dubbedMovies !== null && (
+                        <HomePageSection
+                            title="Phim Thuyết Minh"
+                            movies={homeSectionsData.dubbedMovies}
+                            linkToAll="/?category=phim-thuyet-minh&page=1"
+                            isLoading={false}
+                        />
+                    )}
+
+                    {/* Placeholder and conditional rendering for Cartoon and Long Tieng */}
+                    {(homeSectionsData.cartoonMovies === null || homeSectionsData.longTiengMovies === null) && (
+                        <SectionPlaceholder
+                            title="Đang tải thêm..."
+                            sectionRef={cartoonLongTiengRef[0]}
+                            isLoading={!cartoonLongTiengRef[1]?.isIntersecting || (homeSectionsData.cartoonMovies === null && requestedSections.has('cartoonMovies')) || (homeSectionsData.longTiengMovies === null && requestedSections.has('longTiengMovies'))}
+                        />
+                    )}
+                    {homeSectionsData.cartoonMovies !== null && (
+                        <HomePageSection
+                            title="Hoạt Hình"
+                            movies={homeSectionsData.cartoonMovies}
+                            linkToAll="/?category=hoat-hinh&page=1"
+                            isLoading={false}
+                        />
+                    )}
+                    {homeSectionsData.longTiengMovies !== null && (
+                        <HomePageSection
+                            title="Phim Lồng Tiếng"
+                            movies={homeSectionsData.longTiengMovies}
+                            linkToAll="/?category=phim-long-tieng&page=1"
+                            isLoading={false}
+                        />
+                    )}
+
+                    {/* Placeholder and conditional rendering for Country Movies */}
+                    {(homeSectionsData.vietnamMovies === null || homeSectionsData.chinaMovies === null || homeSectionsData.usEuMovies === null || homeSectionsData.japanMovies === null || homeSectionsData.koreaMovies === null) && (
+                        <SectionPlaceholder
+                            title="Đang tải thêm..."
+                            sectionRef={countryMoviesRef[0]}
+                            isLoading={!countryMoviesRef[1]?.isIntersecting || (homeSectionsData.vietnamMovies === null && requestedSections.has('vietnamMovies'))}
+                        />
+                    )}
+                    {homeSectionsData.vietnamMovies !== null && (
+                        <HomePageSection
+                            title="Phim Việt Nam"
+                            movies={homeSectionsData.vietnamMovies}
+                            linkToAll="/?country=viet-nam&page=1"
+                            isLoading={false}
+                        />
+                    )}
+                    {homeSectionsData.chinaMovies !== null && (
+                        <HomePageSection
+                            title="Phim Trung Quốc"
+                            movies={homeSectionsData.chinaMovies}
+                            linkToAll="/?country=trung-quoc&page=1"
+                            isLoading={false}
+                        />
+                    )}
+                    {homeSectionsData.usEuMovies !== null && (
+                        <HomePageSection
+                            title="Phim Âu Mỹ"
+                            movies={homeSectionsData.usEuMovies}
+                            linkToAll="/?country=au-my&page=1"
+                            isLoading={false}
+                        />
+                    )}
+                    {homeSectionsData.japanMovies !== null && (
+                        <HomePageSection
+                            title="Phim Nhật Bản"
+                            movies={homeSectionsData.japanMovies}
+                            linkToAll="/?country=nhat-ban&page=1"
+                            isLoading={false}
+                        />
+                    )}
+                    {homeSectionsData.koreaMovies !== null && (
+                        <HomePageSection
+                            title="Phim Hàn Quốc"
+                            movies={homeSectionsData.koreaMovies}
+                            linkToAll="/?country=han-quoc&page=1"
+                            isLoading={false}
+                        />
+                    )}
                 </div>
             )}
         </div>
