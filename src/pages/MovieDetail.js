@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
-import Artplayer from 'artplayer'; // Import Artplayer
-import Hls from 'hls.js'; // Still needed if Artplayer uses HLS under the hood or for fallback
+import Artplayer from 'artplayer';
+import Hls from 'hls.js';
 import { FaArrowLeft, FaRegPlayCircle, FaHistory } from 'react-icons/fa';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
@@ -35,7 +35,7 @@ function MovieDetail() {
   const [videoLoading, setVideoLoading] = useState(false);
   const artRef = useRef(null); // Ref for the Artplayer instance
   const artContainerRef = useRef(null); // Ref for the Artplayer container div
-  const currentPlaybackPositionRef = useRef(0);
+  const currentPlaybackPositionRef = useRef(0); // This ref is not directly used with Artplayer as Artplayer manages its own time
   const [lastViewedPosition, setLastViewedPosition] = useState(0);
   const [lastViewedEpisodeInfo, setLastViewedEpisodeInfo] = useState(null);
   const saveIntervalRef = useRef(null); // Ref for the interval timer
@@ -160,13 +160,14 @@ function MovieDetail() {
 
   const savePlaybackPosition = useCallback(() => {
     const art = artRef.current;
-    if (art && currentEpisode && art.currentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+    // Ensure art is an Artplayer instance and its video element exists
+    if (art && art.video && art.video.currentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
       const key = getPlaybackPositionKey(currentEpisode.slug);
-      localStorage.setItem(key, art.currentTime.toString());
-      console.log(`Saved playback position for ${currentEpisode.name}: ${art.currentTime}s`);
+      localStorage.setItem(key, art.video.currentTime.toString()); // Use art.video.currentTime
+      console.log(`Saved playback position for ${currentEpisode.name}: ${art.video.currentTime}s`);
 
       if (movie) {
-        saveMovieToHistory(movie, currentEpisode, art.currentTime);
+        saveMovieToHistory(movie, currentEpisode, art.video.currentTime);
       }
     }
   }, [currentEpisode, getPlaybackPositionKey, movie, saveMovieToHistory]);
@@ -197,14 +198,13 @@ function MovieDetail() {
       artRef.current = null;
     }
 
-    const savedPositionKey = getPlaybackPositionKey(currentEpisode.slug);
-    const savedTime = parseFloat(localStorage.getItem(savedPositionKey));
+    const savedTime = parseFloat(localStorage.getItem(getPlaybackPositionKey(currentEpisode.slug)));
 
     try {
       artRef.current = new Artplayer({
         container: artContainerRef.current,
         url: currentEpisode.link_m3u8,
-        autoplay: true,
+        autoplay: true, // Will attempt to autoplay
         flip: true,
         playbackRate: true,
         aspectRatio: true,
@@ -229,18 +229,25 @@ function MovieDetail() {
             }
           },
         },
+        // Remove or adjust the `hidden-video` class. It's better to manage loading overlay.
+        // Artplayer typically manages its own display.
+        // This makes sure Artplayer has dimensions to initialize properly
+        // without being hidden by parent elements' styles.
         // Add more Artplayer options as needed
       });
 
-      artRef.current.on('ready', () => {
-        setVideoLoading(false);
+      // It's safer to seek after the 'play' event or when the video metadata is loaded,
+      // as 'ready' might mean the player UI is ready but not necessarily the video element itself.
+      // Artplayer usually handles seeking automatically if you provide a `startTime` option,
+      // but if you need to do it manually, this is a common approach.
+      artRef.current.on('play', () => { // Or 'playing' or 'loadeddata'
         if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
-          artRef.current.seek(savedTime);
-          console.log(`Restored playback position for ${currentEpisode.name}: ${savedTime}s`);
-        } else {
-          artRef.current.seek(0);
+          if (artRef.current && artRef.current.video) { // Check if video element exists
+            artRef.current.seek(savedTime);
+            console.log(`Restored playback position for ${currentEpisode.name}: ${savedTime}s`);
+          }
         }
-        artRef.current.play(); // Ensure play after seeking
+        setVideoLoading(false); // Hide loading spinner once video starts playing
       });
 
       artRef.current.on('error', (error) => {
@@ -249,9 +256,10 @@ function MovieDetail() {
       });
 
       artRef.current.on('playing', () => {
+        // Start saving interval only when the video is actually playing
         if (!saveIntervalRef.current) {
           saveIntervalRef.current = setInterval(() => {
-            if (!artRef.current.paused) {
+            if (artRef.current && !artRef.current.paused) {
               savePlaybackPosition();
             }
           }, SAVE_INTERVAL_SECONDS * 1000);
@@ -298,10 +306,13 @@ function MovieDetail() {
         savePlaybackPosition();
       } else {
         if (currentEpisode && !showMovieInfoPanel) {
-            art.play().catch(error => {
-                console.warn("Autoplay was prevented on visibility change:", error);
-            });
-            console.log("Video attempted to play due to tab coming into foreground.");
+            // Attempt to play only if there's a current episode and info panel is hidden
+            if (art.video && art.video.readyState >= 3) { // Check if enough data is available
+              art.play().catch(error => {
+                  console.warn("Autoplay was prevented on visibility change:", error);
+              });
+              console.log("Video attempted to play due to tab coming into foreground.");
+            }
         }
       }
     };
@@ -493,12 +504,12 @@ function MovieDetail() {
                   <div className="spinner"></div>
                 </div>
               )}
-              {/* Artplayer will be initialized in this div */}
               {currentEpisode && isValidUrl(currentEpisode.link_m3u8) ? (
+                // Changed the class to be just the container, removed `hidden-video`
+                // as the spinner overlay should handle loading state visually.
                 <div
-                  ref={artContainerRef} // Assign ref to the div for Artplayer
-                  className={videoLoading ? 'hidden-video' : ''}
-                  style={{ width: '100%', height: '100%' }} // Artplayer needs dimensions
+                  ref={artContainerRef}
+                  style={{ width: '100%', height: '100%' }}
                 />
               ) : (
                 <div className="video-error-message" style={{
