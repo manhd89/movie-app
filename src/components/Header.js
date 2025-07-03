@@ -172,7 +172,7 @@ function Header({ onOpenFilters }) {
   return (
     <header className="header">
       <Link to="/" className="logo">
-        PhimAPI
+        Phim Online
       </Link>
 
       {/* NEW: Search toggle button */}
