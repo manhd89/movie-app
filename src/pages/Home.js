@@ -185,7 +185,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
     const [countries, setCountries] = useState([]);
 
     const [seoData, setSeoData] = useState({
-        titleHead: 'PhimAPI - Trang Chủ',
+        titleHead: 'Phim Online - Trang Chủ',
         descriptionHead: 'Xem phim mới cập nhật nhanh nhất, tổng hợp phim bộ, phim lẻ, TV Shows.'
     });
 
