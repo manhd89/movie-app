@@ -1,12 +1,15 @@
+// src/pages/MovieDetail.js
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
-import Hls from 'hls.js';
 import { FaArrowLeft, FaRegPlayCircle, FaHistory } from 'react-icons/fa';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
+
+// Import the new VideoPlayer component
+import VideoPlayer from '../components/VideoPlayer'; // Adjust the path if VideoPlayer.js is in a different directory
 
 // Ad-blocking CSS (giữ nguyên)
 const adBlockCSS = `
@@ -31,13 +34,13 @@ function MovieDetail() {
   const [currentEpisode, setCurrentEpisode] = useState(null);
   const [showMovieInfoPanel, setShowMovieInfoPanel] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [videoLoading, setVideoLoading] = useState(false);
-  const videoRef = useRef(null);
-  const hlsInstanceRef = useRef(null);
-  const currentPlaybackPositionRef = useRef(0);
+  const currentPlaybackPositionRef = useRef(0); // This will still be updated by the VideoPlayer if needed for saving
   const [lastViewedPosition, setLastViewedPosition] = useState(0);
   const [lastViewedEpisodeInfo, setLastViewedEpisodeInfo] = useState(null);
   const saveIntervalRef = useRef(null); // Ref for the interval timer
+
+  // State to pass to VideoPlayer
+  const [videoPlayerOptions, setVideoPlayerOptions] = useState(null);
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -57,12 +60,12 @@ function MovieDetail() {
           setMovie(response.data.movie);
           setEpisodes(response.data.episodes || []);
         } else if (response.data && response.data.item) {
-            setMovie(response.data.item);
-            setEpisodes(response.data.item.episodes || []);
+          setMovie(response.data.item);
+          setEpisodes(response.data.item.episodes || []);
         } else {
-            console.error("Dữ liệu API không đúng định dạng:", response.data);
-            setMovie(null);
-            setEpisodes([]);
+          console.error("Dữ liệu API không đúng định dạng:", response.data);
+          setMovie(null);
+          setEpisodes([]);
         }
 
         setInitialLoading(false);
@@ -70,11 +73,11 @@ function MovieDetail() {
         const history = JSON.parse(localStorage.getItem(WATCH_HISTORY_KEY) || '[]');
         const currentMovieHistory = history.find(item => item.slug === slug);
         if (currentMovieHistory) {
-            setLastViewedPosition(currentMovieHistory.position);
-            setLastViewedEpisodeInfo(currentMovieHistory.episode || null);
+          setLastViewedPosition(currentMovieHistory.position);
+          setLastViewedEpisodeInfo(currentMovieHistory.episode || null);
         } else {
-            setLastViewedPosition(0);
-            setLastViewedEpisodeInfo(null);
+          setLastViewedPosition(0);
+          setLastViewedEpisodeInfo(null);
         }
 
       } catch (error) {
@@ -95,26 +98,45 @@ function MovieDetail() {
       if (!episodeSlug) {
         setShowMovieInfoPanel(true);
         setCurrentEpisode(null);
+        setVideoPlayerOptions(null); // Clear video options if showing info panel
       } else {
         if (serverData && serverData.length > 0) {
           const episodeToLoad = serverData.find((ep) => ep.slug === episodeSlug);
           if (episodeToLoad) {
             setCurrentEpisode(episodeToLoad);
             setShowMovieInfoPanel(false);
+            setVideoPlayerOptions({
+              sources: [{ src: episodeToLoad.link_m3u8, type: 'application/x-mpegURL' }],
+              poster: getImageUrl(movie.poster_url), // Pass movie poster as video poster
+              slug: slug, // Pass slug and episode slug for playback saving
+              episodeSlug: episodeToLoad.slug,
+              playbackPosition: parseFloat(localStorage.getItem(getPlaybackPositionKey(episodeToLoad.slug))),
+              savePlaybackPosition: (position) => {
+                // Callback to save position from VideoPlayer
+                currentPlaybackPositionRef.current = position;
+                if (movie && episodeToLoad && position > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+                  localStorage.setItem(getPlaybackPositionKey(episodeToLoad.slug), position.toString());
+                  saveMovieToHistory(movie, episodeToLoad, position);
+                }
+              }
+            });
           } else {
             setCurrentEpisode(null);
             setShowMovieInfoPanel(true);
+            setVideoPlayerOptions(null);
             navigate(`/movie/${slug}`, { replace: true });
           }
         } else {
           setCurrentEpisode(null);
           setShowMovieInfoPanel(true);
+          setVideoPlayerOptions(null);
           navigate(`/movie/${slug}`, { replace: true });
         }
       }
     } else if (movie && episodes.length === 0) {
       setCurrentEpisode(null);
       setShowMovieInfoPanel(true);
+      setVideoPlayerOptions(null);
       if (episodeSlug) {
         navigate(`/movie/${slug}`, { replace: true });
       }
@@ -156,215 +178,23 @@ function MovieDetail() {
     console.log(`Saved movie to history: ${movieData.name} - ${episodeData.name} at ${position}s`);
   }, [episodes, selectedServer]);
 
+  // Remove the old loadVideo and associated HLS.js logic.
+  // The VideoPlayer component will handle this internally.
 
-  const savePlaybackPosition = useCallback(() => {
-    const video = videoRef.current;
-    if (video && currentEpisode && video.currentTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
-      const key = getPlaybackPositionKey(currentEpisode.slug);
-      localStorage.setItem(key, video.currentTime.toString());
-      console.log(`Saved playback position for ${currentEpisode.name}: ${video.currentTime}s`);
+  // The interval for saving playback position will now be managed by the VideoPlayer
+  // and it will call the savePlaybackPosition prop.
 
-      if (movie) {
-        saveMovieToHistory(movie, currentEpisode, video.currentTime);
-      }
-    }
-  }, [currentEpisode, getPlaybackPositionKey, movie, saveMovieToHistory]);
-
-
-  const loadVideo = useCallback(async () => {
-    const video = videoRef.current;
-    if (showMovieInfoPanel || !currentEpisode?.link_m3u8 || !video) {
-        setVideoLoading(false);
-        if (video) {
-            video.src = '';
-            video.removeAttribute('src');
-            video.load();
-        }
-        if (!showMovieInfoPanel && currentEpisode && !isValidUrl(currentEpisode.link_m3u8)) {
-            console.error('Video không khả dụng cho tập này.');
-        }
-        return;
-    }
-
-    setVideoLoading(true);
-
-    if (saveIntervalRef.current) {
-        clearInterval(saveIntervalRef.current);
-        saveIntervalRef.current = null;
-    }
-
-    if (hlsInstanceRef.current) {
-      hlsInstanceRef.current.destroy();
-      hlsInstanceRef.current = null;
-    }
-
-    try {
-      const originalM3u8Url = currentEpisode.link_m3u8;
-
-      if (Hls.isSupported()) {
-        const hls = new Hls({
-            maxBufferLength: 60,
-            maxMaxBufferLength: 120,
-            maxBufferSize: 100 * 1000 * 1000,
-            startFragPrefetch: true,
-            enableWorker: true,
-        });
-        hlsInstanceRef.current = hls;
-        hls.loadSource(originalM3u8Url);
-        hls.attachMedia(video);
-
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          setVideoLoading(false);
-
-          const savedPositionKey = getPlaybackPositionKey(currentEpisode.slug);
-          const savedTime = parseFloat(localStorage.getItem(savedPositionKey));
-
-          if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
-            video.currentTime = savedTime;
-            console.log(`Restored playback position for ${currentEpisode.name}: ${savedTime}s`);
-          } else {
-            video.currentTime = 0;
-          }
-
-          video.play().catch(error => {
-            console.warn("Autoplay was prevented:", error);
-          });
-        });
-
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          console.error('HLS.js error:', data);
-          setVideoLoading(false);
-          if (data.fatal) {
-            switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                console.error('Lỗi mạng khi tải video. Vui lòng kiểm tra kết nối.');
-                hls.startLoad();
-                break;
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                console.error('Lỗi phát video. Có thể do định dạng không hỗ trợ.');
-                hls.recoverMediaError();
-                break;
-              default:
-                console.error('Lỗi video nghiêm trọng. Vui lòng thử tập khác.');
-                hls.destroy();
-                break;
-            }
-          }
-        });
-
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = originalM3u8Url;
-
-        const savedPositionKey = getPlaybackPositionKey(currentEpisode.slug);
-        const savedTime = parseFloat(localStorage.getItem(savedPositionKey));
-
-        video.onloadedmetadata = () => {
-            if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
-                video.currentTime = savedTime;
-                console.log(`Restored playback position (native) for ${currentEpisode.name}: ${savedTime}s`);
-            } else {
-                video.currentTime = 0;
-            }
-            setVideoLoading(false);
-            video.play().catch(error => console.warn("Autoplay was prevented (native):", error));
-        };
-      } else {
-        console.error('Trình duyệt không hỗ trợ phát HLS. Vui lòng cập nhật.');
-        setVideoLoading(false);
-      }
-
-      if (video) {
-        saveIntervalRef.current = setInterval(() => {
-          if (!video.paused) {
-            savePlaybackPosition();
-          }
-        }, SAVE_INTERVAL_SECONDS * 1000);
-        console.log(`Started periodic save every ${SAVE_INTERVAL_SECONDS} seconds.`);
-      }
-
-    } catch (error) {
-      console.error('Error loading video:', error);
-      setVideoLoading(false);
-    }
-  }, [currentEpisode, showMovieInfoPanel, getPlaybackPositionKey, savePlaybackPosition]);
-
-  useEffect(() => {
-    // Capture the current value of the ref
-    const video = videoRef.current; 
-
-    loadVideo();
-    return () => {
-      savePlaybackPosition();
-      if (hlsInstanceRef.current) {
-        hlsInstanceRef.current.destroy();
-        hlsInstanceRef.current = null;
-      }
-      // Use the captured 'video' variable in the cleanup
-      if (video) { 
-        video.src = '';
-        video.removeAttribute('src');
-        video.load();
-      }
-      if (saveIntervalRef.current) {
-          clearInterval(saveIntervalRef.current);
-          saveIntervalRef.current = null;
-          console.log("Cleared periodic save interval.");
-      }
-    };
-  }, [currentEpisode, loadVideo, savePlaybackPosition]);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleVideoPause = () => {
-        savePlaybackPosition();
-    };
-
-    const handleTimeUpdate = () => {
-        currentPlaybackPositionRef.current = video.currentTime;
-    };
-
-    video.addEventListener('pause', handleVideoPause);
-    video.addEventListener('timeupdate', handleTimeUpdate);
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        if (!video.paused) {
-          video.pause();
-          console.log("Video paused due to tab going into background.");
-        }
-        savePlaybackPosition();
-      } else {
-        if (video.src && !showMovieInfoPanel) {
-            if (hlsInstanceRef.current && hlsInstanceRef.current.media && hlsInstanceRef.current.media.readyState < 4) {
-                console.log("Attempting to recover HLS.js media error on foreground.");
-                hlsInstanceRef.current.recoverMediaError();
-                hlsInstanceRef.current.startLoad();
-            }
-
-            video.play().catch(error => {
-                console.warn("Autoplay was prevented on visibility change:", error);
-            });
-            console.log("Video attempted to play due to tab coming into foreground.");
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      video.removeEventListener('pause', handleVideoPause);
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-    };
-  }, [showMovieInfoPanel, savePlaybackPosition]);
-
+  // Remove the useEffect that manages the video element directly for HLS and native.
+  // The VideoPlayer component will manage its own internal video element and HLS instance.
 
   const handleServerChange = useCallback((index) => {
     if (episodes.length === 0) return;
 
-    savePlaybackPosition();
+    // Save current playback position before changing server/episode
+    if (currentEpisode && currentPlaybackPositionRef.current > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+        localStorage.setItem(getPlaybackPositionKey(currentEpisode.slug), currentPlaybackPositionRef.current.toString());
+        saveMovieToHistory(movie, currentEpisode, currentPlaybackPositionRef.current);
+    }
 
     setSelectedServer(index);
     setShowMovieInfoPanel(false);
@@ -383,59 +213,63 @@ function MovieDetail() {
       setCurrentEpisode(null);
       navigate(`/movie/${slug}`, { replace: true });
     }
-  }, [slug, navigate, episodes, currentEpisode, savePlaybackPosition]);
+  }, [slug, navigate, episodes, currentEpisode, getPlaybackPositionKey, saveMovieToHistory, movie]);
 
 
   const handleEpisodeSelect = useCallback((episode) => {
-    savePlaybackPosition();
+    // Save current playback position before changing server/episode
+    if (currentEpisode && currentPlaybackPositionRef.current > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+        localStorage.setItem(getPlaybackPositionKey(currentEpisode.slug), currentPlaybackPositionRef.current.toString());
+        saveMovieToHistory(movie, currentEpisode, currentPlaybackPositionRef.current);
+    }
 
     setCurrentEpisode(episode);
     setShowMovieInfoPanel(false);
     navigate(`/movie/${slug}/${episode.slug}`);
-  }, [slug, navigate, savePlaybackPosition]);
+  }, [slug, navigate, currentEpisode, getPlaybackPositionKey, saveMovieToHistory, movie]);
 
   const handleContinueWatching = useCallback(() => {
     if (lastViewedEpisodeInfo && movie) {
-        const serverIndex = episodes.findIndex(server => server.server_name === lastViewedEpisodeInfo.server_name);
+      const serverIndex = episodes.findIndex(server => server.server_name === lastViewedEpisodeInfo.server_name);
 
-        if (serverIndex !== -1) {
-            setSelectedServer(serverIndex);
-            const targetEpisode = episodes[serverIndex].server_data.find(ep => ep.slug === lastViewedEpisodeInfo.slug);
-            if (targetEpisode) {
-                setCurrentEpisode(targetEpisode);
-                setShowMovieInfoPanel(false);
-                navigate(`/movie/${movie.slug}/${targetEpisode.slug}`);
-            } else {
-                let foundOnOtherServer = false;
-                for (let i = 0; i < episodes.length; i++) {
-                    const ep = episodes[i].server_data.find(epData => epData.slug === lastViewedEpisodeInfo.slug);
-                    if (ep) {
-                        setSelectedServer(i);
-                        setCurrentEpisode(ep);
-                        setShowMovieInfoPanel(false);
-                        navigate(`/movie/${movie.slug}/${ep.slug}`);
-                        foundOnOtherServer = true;
-                        break;
-                    }
-                }
-                if (!foundOnOtherServer) {
-                    console.warn("Episode not found on any server, showing movie info.");
-                    setCurrentEpisode(null);
-                    setShowMovieInfoPanel(true);
-                    navigate(`/movie/${movie.slug}`, { replace: true });
-                }
-            }
+      if (serverIndex !== -1) {
+        setSelectedServer(serverIndex);
+        const targetEpisode = episodes[serverIndex].server_data.find(ep => ep.slug === lastViewedEpisodeInfo.slug);
+        if (targetEpisode) {
+          setCurrentEpisode(targetEpisode);
+          setShowMovieInfoPanel(false);
+          navigate(`/movie/${movie.slug}/${targetEpisode.slug}`);
         } else {
-            console.warn("Server not found, showing movie info.");
+          let foundOnOtherServer = false;
+          for (let i = 0; i < episodes.length; i++) {
+            const ep = episodes[i].server_data.find(epData => epData.slug === lastViewedEpisodeInfo.slug);
+            if (ep) {
+              setSelectedServer(i);
+              setCurrentEpisode(ep);
+              setShowMovieInfoPanel(false);
+              navigate(`/movie/${movie.slug}/${ep.slug}`);
+              foundOnOtherServer = true;
+              break;
+            }
+          }
+          if (!foundOnOtherServer) {
+            console.warn("Episode not found on any server, showing movie info.");
             setCurrentEpisode(null);
             setShowMovieInfoPanel(true);
             navigate(`/movie/${movie.slug}`, { replace: true });
+          }
         }
-    } else {
-        console.warn("No last viewed episode info, showing movie info.");
+      } else {
+        console.warn("Server not found, showing movie info.");
         setCurrentEpisode(null);
         setShowMovieInfoPanel(true);
         navigate(`/movie/${movie.slug}`, { replace: true });
+      }
+    } else {
+      console.warn("No last viewed episode info, showing movie info.");
+      setCurrentEpisode(null);
+      setShowMovieInfoPanel(true);
+      navigate(`/movie/${movie.slug}`, { replace: true });
     }
   }, [episodes, lastViewedEpisodeInfo, navigate, movie]);
 
@@ -453,6 +287,8 @@ function MovieDetail() {
     return stripped.length > maxLength ? stripped.substring(0, maxLength) + '...' : stripped;
   };
 
+  // isValidUrl is no longer directly used for video loading in MovieDetail,
+  // but can be kept for other purposes if needed.
   const isValidUrl = (url) => {
     try {
       new URL(url);
@@ -535,43 +371,38 @@ function MovieDetail() {
         ) : (
           <>
             <div className="video-player">
-              {videoLoading && (
-                <div className="video-overlay-spinner">
-                  <div className="spinner"></div>
-                </div>
-              )}
-              {currentEpisode && isValidUrl(currentEpisode.link_m3u8) ? (
-                <video
-                  ref={videoRef}
-                  controls
-                  width="100%"
-                  height="100%"
-                  aria-label={`Video player for ${currentEpisode.name || 'Tập phim'}`}
-                  className={videoLoading ? 'hidden-video' : ''}
-                />
+              {/* Use the VideoPlayer component here */}
+              {videoPlayerOptions ? (
+                <VideoPlayer options={videoPlayerOptions} />
               ) : (
                 <div className="video-error-message" style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    color: '#fff',
-                    fontSize: '1.2rem',
-                    textAlign: 'center',
-                    padding: '20px',
-                    backgroundColor: 'rgba(0,0,0,0.7)',
-                    borderRadius: '8px',
-                    zIndex: 5
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  color: '#fff',
+                  fontSize: '1.2rem',
+                  textAlign: 'center',
+                  padding: '20px',
+                  backgroundColor: 'rgba(0,0,0,0.7)',
+                  borderRadius: '8px',
+                  zIndex: 5
                 }}>
-                    <p>Video không khả dụng cho tập này.</p>
-                    <FaRegPlayCircle style={{ fontSize: '3rem', marginTop: '10px' }} />
+                  <p>Không có nguồn video hoặc tập phim không khả dụng.</p>
+                  <FaRegPlayCircle style={{ fontSize: '3rem', marginTop: '10px' }} />
                 </div>
               )}
             </div>
             <button
               onClick={() => {
+                // Save current playback position before going back to info panel
+                if (currentEpisode && currentPlaybackPositionRef.current > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+                    localStorage.setItem(getPlaybackPositionKey(currentEpisode.slug), currentPlaybackPositionRef.current.toString());
+                    saveMovieToHistory(movie, currentEpisode, currentPlaybackPositionRef.current);
+                }
                 setShowMovieInfoPanel(true);
                 setCurrentEpisode(null);
+                setVideoPlayerOptions(null); // Clear video options when returning to info panel
                 navigate(`/movie/${slug}`, { replace: true });
               }}
               className="back-button"
