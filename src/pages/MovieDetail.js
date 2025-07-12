@@ -6,6 +6,7 @@ import { LazyLoadImage } from 'react-lazy-load-image-component';
 import Hls from 'hls.js';
 import { FaArrowLeft, FaRegPlayCircle, FaHistory } from 'react-icons/fa';
 import 'react-lazy-load-image-component/src/effects/blur.css';
+import { processPlaylistForAds } from '../utils/playlistProcessor';
 import './MovieDetail.css';
 
 // --- Start: Ad-blocking CSS ---
@@ -15,9 +16,6 @@ const adBlockCSS = `
   }
 `;
 // --- End: Ad-blocking CSS ---
-
-// Import các hàm xử lý playlist từ tệp dùng chung
-import { processPlaylistForAds } from '../utils/playlistProcessor';
 
 const PLAYBACK_SAVE_THRESHOLD_SECONDS = 5;
 const LAST_PLAYED_KEY_PREFIX = 'lastPlayedPosition-';
