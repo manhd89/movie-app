@@ -76,8 +76,8 @@ async function removeAds(playlistUrl) {
 function VideoPlayer({ options }) {
   const videoRef = useRef(null);
   const hlsRef = useRef(null); // Ref for HLS.js instance
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Removed error state as it's no longer used for UI
+  // const [error, setError] = useState(null);
 
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -120,44 +120,26 @@ function VideoPlayer({ options }) {
           hls.attachMedia(videoElement);
           hls.on(Hls.Events.MANIFEST_PARSED, function () {
             videoElement.play();
-            setIsLoading(false);
           });
           hls.on(Hls.Events.ERROR, function (event, data) {
-            let errorMessage = "Lỗi phát video không xác định.";
-            if (data.fatal) {
-              switch (data.type) {
-                case Hls.ErrorTypes.NETWORK_ERROR:
-                  errorMessage = "Lỗi mạng khi tải video. Vui lòng kiểm tra kết nối của bạn.";
-                  break;
-                case Hls.ErrorTypes.MEDIA_ERROR:
-                  errorMessage = "Lỗi phương tiện. Có thể do định dạng không được hỗ trợ.";
-                  break;
-                default:
-                  errorMessage = `Lỗi nghiêm trọng: ${data.details}`;
-                  break;
-              }
-              setError(errorMessage);
-              setIsLoading(false);
-            }
+            // Error handling logic, but no UI update
+            console.error("HLS.js Error:", data);
           });
           hlsRef.current = hls; // Store Hls instance
         } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
           // If native HLS is supported (Safari, iOS), use it
           videoElement.src = finalSource;
           videoElement.play();
-          setIsLoading(false);
         } else {
-          setError(
+          console.error(
             "Trình duyệt của bạn không hỗ trợ phát video này. Vui lòng thử trình duyệt khác."
           );
-          setIsLoading(false);
         }
 
-        setError(null); // Clear previous errors
+        // setError(null); // No longer needed
       } catch (err) {
         console.error("Error loading video:", err);
-        setError("Không thể tải video do lỗi. Vui lòng thử lại sau.");
-        setIsLoading(false);
+        // setError("Không thể tải video do lỗi. Vui lòng thử lại sau."); // No longer needed
       }
     };
 
@@ -207,41 +189,7 @@ function VideoPlayer({ options }) {
         }}
         autoPlay
       />
-      {isLoading && (
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            color: "#fff",
-            background: "rgba(0, 0, 0, 0.8)",
-            padding: "16px",
-            borderRadius: "8px",
-            textAlign: "center",
-          }}
-        >
-          Đang tải...
-        </div>
-      )}
-      {error && (
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            color: "#ff4d4f",
-            background: "rgba(0, 0, 0, 0.8)",
-            padding: "16px",
-            borderRadius: "8px",
-            textAlign: "center",
-            maxWidth: "90%",
-          }}
-        >
-          {error}
-        </div>
-      )}
+      {/* Removed the custom loading and error UI */}
     </div>
   );
 }
