@@ -1,3 +1,4 @@
+// src/pages/Home.js
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
@@ -5,13 +6,15 @@ import axios from 'axios';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import { FaAngleRight, FaTimes, FaHistory, FaTrashAlt } from 'react-icons/fa';
 
-import MovieCard from '../components/MovieCard';
+// Import các component mới
+import MovieCard from '../components/MovieCard'; // Giữ lại MovieCard
 import YearFilter from '../components/YearFilter';
 import TypeFilter from '../components/TypeFilter';
 import GenreFilter from '../components/GenreFilter';
 import DubbedFilter from '../components/DubbedFilter';
 import CountryFilter from '../components/CountryFilter';
 
+// Import dữ liệu tĩnh từ các filter component để hiển thị tên trong getMainListTitle
 import { years as staticYears } from '../components/YearFilter';
 import { types as staticTypes } from '../components/TypeFilter';
 import { genres as staticGenres } from '../components/GenreFilter';
@@ -28,8 +31,7 @@ const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`;
 const DEFAULT_PAGE_LIMIT = 12;
 const WATCH_HISTORY_KEY = 'watchHistory';
 
-// getImageUrl giờ có thể được đơn giản hóa hoặc loại bỏ nếu MovieCard handle tất cả
-// Hoặc giữ lại nếu cần cho các chỗ khác ngoài MovieCard
+// getImageUrl chỉ dùng cho HistorySection vì MovieCard tự xử lý ảnh
 const getImageUrl = (url) => {
     if (url && url.startsWith('https://')) {
         return url;
@@ -38,12 +40,10 @@ const getImageUrl = (url) => {
 };
 
 const movieApi = {
-    // Không fetch genres và countries ở đây nữa nếu dùng dữ liệu tĩnh từ filter components
     fetchRecentUpdates: (page = 1) => axios.get(`${BASE_API_URL}/danh-sach/phim-moi-cap-nhat?page=${page}`),
     fetchMoviesBySlug: (type, slug, page = 1, limit = DEFAULT_PAGE_LIMIT, filters = {}) => {
         let url;
-        // Logic này cần được kiểm tra lại để phù hợp với tham số mới
-        if (type === 'category') url = `${V1_API_URL}/danh-sach/${slug}`; // Ví dụ: phim-bo, tv-shows
+        if (type === 'category') url = `${V1_API_URL}/danh-sach/${slug}`;
         else if (type === 'genre') url = `${V1_API_URL}/the-loai/${slug}`;
         else if (type === 'country') url = `${V1_API_URL}/quoc-gia/${slug}`;
         else if (type === 'year') url = `${V1_API_URL}/nam/${slug}`;
@@ -60,7 +60,7 @@ const CATEGORIES_MAPPING = [
     { slug: 'phim-le', name: 'Phim Lẻ' },
     { slug: 'tv-shows', name: 'TV Shows' },
     { slug: 'hoat-hinh', name: 'Hoạt Hình' },
-    { slug: 'phim-vietsub', name: 'Phim Vietsub' }, // Kiểm tra lại nếu có API cho vietsub riêng
+    { slug: 'phim-vietsub', name: 'Phim Vietsub' },
     { slug: 'phim-thuyet-minh', name: 'Phim Thuyết Minh' },
     { slug: 'phim-long-tieng', name: 'Phim Lồng Tiếng' },
 ];
@@ -94,7 +94,7 @@ function HistorySection({ historyMovies, onDeleteHistoryItem }) {
                     <div key={movie.slug + (movie.episode?.slug || '')} className="history-movie-card">
                         <Link to={`/movie/${movie.slug}/${movie.episode?.slug || ''}`}>
                             <LazyLoadImage
-                                src={getImageUrl(movie.poster_url)} // Vẫn dùng getImageUrl ở đây
+                                src={getImageUrl(movie.poster_url)}
                                 alt={movie.name}
                                 className="movie-poster-horizontal"
                                 effect="blur"
@@ -159,7 +159,7 @@ function HomePageSection({ title, movies, linkToAll, isLoading }) {
             <div className="movie-horizontal-scroll">
                 {movies.map((movie) => (
                     <Link key={movie._id} to={`/movie/${movie.slug}`} className="movie-card-horizontal">
-                        {/* Sử dụng MovieCard ở đây */}
+                        {/* Dùng MovieCard ở đây */}
                         <MovieCard movie={movie} />
                     </Link>
                 ))}
@@ -176,23 +176,17 @@ function Home({ showFilterModal, onCloseFilterModal }) {
     const [loadingMain, setLoadingMain] = useState(false);
     const [totalPages, setTotalPages] = useState(1);
 
-    // Lấy tham số từ URL với tên mới
     const urlKeyword = searchParams.get('keyword');
-    const urlCategorySlug = searchParams.get('category'); // Vẫn giữ category cho các danh mục cố định
-    const urlGenreSlug = searchParams.get('the-loai'); // Thể loại
-    const urlCountrySlug = searchParams.get('quoc-gia'); // Quốc gia
-    const urlYear = searchParams.get('nam'); // Năm
-    const urlTypeSlug = searchParams.get('type'); // Loại phim (Phim bộ, phim lẻ, ...)
-    const urlDubbedSlug = searchParams.get('dubbed'); // Lồng tiếng/Thuyết minh
+    const urlCategorySlug = searchParams.get('category');
+    const urlGenreSlug = searchParams.get('the-loai');
+    const urlCountrySlug = searchParams.get('quoc-gia');
+    const urlYear = searchParams.get('nam');
+    const urlTypeSlug = searchParams.get('type');
+    const urlDubbedSlug = searchParams.get('dubbed');
 
     const urlPage = parseInt(searchParams.get('page')) || 1;
 
-    // Không cần các state filter riêng nữa, vì các component filter tự quản lý
     const [currentPage, setCurrentPage] = useState(urlPage);
-
-    // Không cần state genres và countries nữa, dùng dữ liệu tĩnh từ components
-    // const [genres, setGenres] = useState([]);
-    // const [countries, setCountries] = useState([]);
 
     const [seoData, setSeoData] = useState({
         titleHead: 'HDonline - Trang Chủ',
@@ -218,7 +212,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
     const japanMoviesRef = useIntersectionObserver();
     const koreaMoviesRef = useIntersectionObserver();
 
-    // Cập nhật currentPage khi URL params thay đổi
     useEffect(() => {
         setCurrentPage(urlPage);
     }, [urlKeyword, urlCategorySlug, urlGenreSlug, urlCountrySlug, urlYear, urlTypeSlug, urlDubbedSlug, urlPage]);
@@ -237,7 +230,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         });
     }, []);
 
-    // Xác định xem có nên hiển thị lưới phim chính dựa trên các tham số URL mới
     const showMainMovieGrid = !!urlKeyword || !!urlCategorySlug || !!urlGenreSlug || !!urlCountrySlug || !!urlYear || !!urlTypeSlug || !!urlDubbedSlug;
 
     const fetchSection = useCallback(async (key, fetchFunc) => {
@@ -271,12 +263,12 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         params.keyword = urlKeyword;
                         newSeoData.titleHead = `Tìm kiếm: ${urlKeyword} - HDonline`;
                         newSeoData.descriptionHead = `Kết quả tìm kiếm phim cho từ khóa "${urlKeyword}"`;
-                    } else if (urlCategorySlug) { // Cho các danh mục cố định như phim-moi-cap-nhat
+                    } else if (urlCategorySlug) {
                         if (urlCategorySlug === 'phim-moi-cap-nhat') {
                             url = `${BASE_API_URL}/danh-sach/phim-moi-cap-nhat`;
                             newSeoData.titleHead = 'Phim Mới Cập Nhật - HDonline';
                             newSeoData.descriptionHead = 'Xem phim mới cập nhật nhanh nhất';
-                        } else { // Vẫn giữ để catch các trường hợp category cũ hoặc khác
+                        } else {
                             const isPredefinedListType = CATEGORIES_MAPPING.some(cat => cat.slug === urlCategorySlug);
                             if (isPredefinedListType) {
                                 url = `${V1_API_URL}/danh-sach/${urlCategorySlug}`;
@@ -284,28 +276,27 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                                 newSeoData.titleHead = `${typeName} - HDonline`;
                                 newSeoData.descriptionHead = `Danh sách ${typeName} mới nhất.`;
                             }
-                            // else { Fallback nếu có category không khớp, nhưng các bộ lọc mới đã xử lý }
                         }
-                    } else if (urlGenreSlug) { // Thể loại
+                    } else if (urlGenreSlug) {
                         url = `${V1_API_URL}/the-loai/${urlGenreSlug}`;
                         const genreName = staticGenres.find(g => g.slug === urlGenreSlug)?.name || urlGenreSlug;
                         newSeoData.titleHead = `${genreName} - HDonline`;
                         newSeoData.descriptionHead = `Danh sách phim thể loại ${genreName} mới nhất.`;
-                    } else if (urlCountrySlug) { // Quốc gia
+                    } else if (urlCountrySlug) {
                         url = `${V1_API_URL}/quoc-gia/${urlCountrySlug}`;
                         const countryName = staticCountries.find(c => c.slug === urlCountrySlug)?.name || urlCountrySlug;
                         newSeoData.titleHead = `Phim ${countryName} - HDonline`;
                         newSeoData.descriptionHead = `Danh sách phim quốc gia ${countryName} mới nhất.`;
-                    } else if (urlYear) { // Năm
+                    } else if (urlYear) {
                         url = `${V1_API_URL}/nam/${urlYear}`;
                         newSeoData.titleHead = `Phim năm ${urlYear} - HDonline`;
                         newSeoData.descriptionHead = `Danh sách phim phát hành năm ${urlYear} mới nhất.`;
-                    } else if (urlTypeSlug) { // Loại phim (phim bộ, phim lẻ...)
+                    } else if (urlTypeSlug) {
                         url = `${V1_API_URL}/danh-sach/${urlTypeSlug}`;
                         const typeName = staticTypes.find(t => t.slug === urlTypeSlug)?.name || urlTypeSlug;
                         newSeoData.titleHead = `${typeName} - HDonline`;
                         newSeoData.descriptionHead = `Danh sách ${typeName} mới nhất.`;
-                    } else if (urlDubbedSlug) { // Lồng tiếng/Thuyết minh
+                    } else if (urlDubbedSlug) {
                         url = `${V1_API_URL}/danh-sach/${urlDubbedSlug}`;
                         const dubbedName = staticDubbedOptions.find(d => d.slug === urlDubbedSlug)?.name || urlDubbedSlug;
                         newSeoData.titleHead = `${dubbedName} - HDonline`;
@@ -388,9 +379,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
     ]);
 
 
-    // handleFilterChange không còn cần thiết vì các component filter tự xử lý
-    // const handleFilterChange = useCallback(...)
-
     const handlePageChange = useCallback((newPage) => {
         if (newPage >= 1 && newPage <= totalPages) {
             const newSearchParams = new URLSearchParams(searchParams);
@@ -399,7 +387,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         }
     }, [totalPages, searchParams, navigate]);
 
-    // Cập nhật getMainListTitle để dùng các slug mới và dữ liệu tĩnh
     const getMainListTitle = () => {
         if (urlKeyword) return `Kết quả tìm kiếm cho: "${urlKeyword}"`;
         if (urlGenreSlug) return staticGenres.find(g => g.slug === urlGenreSlug)?.name || urlGenreSlug;
@@ -407,7 +394,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         if (urlCountrySlug) return staticCountries.find(c => c.slug === urlCountrySlug)?.name || urlCountrySlug;
         if (urlYear) return `Phim năm ${urlYear}`;
         if (urlDubbedSlug) return staticDubbedOptions.find(d => d.slug === urlDubbedSlug)?.name || urlDubbedSlug;
-        if (urlCategorySlug) { // Giữ lại cho các danh mục cố định như "phim-moi-cap-nhat"
+        if (urlCategorySlug) {
             const predefined = CATEGORIES_MAPPING.find(cat => cat.slug === urlCategorySlug);
             if (predefined) return predefined.name;
         }
@@ -435,7 +422,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                             <FaTimes />
                         </button>
                         <h2 className="modal-title">Bộ Lọc Phim</h2>
-                        <div className="filter-container-modal">
+                        <div className="filter-container-modal"> {/* Giữ nguyên tên class này để styling chung cho modal */}
                             {/* Render các component filter mới ở đây */}
                             <GenreFilter />
                             <CountryFilter />
@@ -505,13 +492,13 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                     <HomePageSection
                         title="Phim Bộ"
                         movies={homeSectionsData.seriesMovies}
-                        linkToAll="/?type=phim-bo&page=1" // Đã thay đổi category thành type
+                        linkToAll="/?type=phim-bo&page=1"
                         isLoading={homeSectionsData.seriesMovies === null}
                     />
                     <HomePageSection
                         title="Phim Lẻ"
                         movies={homeSectionsData.singleMovies}
-                        linkToAll="/?type=phim-le&page=1" // Đã thay đổi category thành type
+                        linkToAll="/?type=phim-le&page=1"
                         isLoading={homeSectionsData.singleMovies === null}
                     />
                     {watchHistory.length > 0 && (
@@ -525,7 +512,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         <HomePageSection
                             title="TV Shows"
                             movies={homeSectionsData.tvShows}
-                            linkToAll="/?type=tv-shows&page=1" // Đã thay đổi category thành type
+                            linkToAll="/?type=tv-shows&page=1"
                             isLoading={homeSectionsData.tvShows === null && tvShowsRef[1]?.isIntersecting}
                         />
                     </div>
@@ -534,7 +521,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         <HomePageSection
                             title="Phim Thuyết Minh"
                             movies={homeSectionsData.dubbedMovies}
-                            linkToAll="/?dubbed=phim-thuyet-minh&page=1" // Đã thay đổi category thành dubbed
+                            linkToAll="/?dubbed=phim-thuyet-minh&page=1"
                             isLoading={homeSectionsData.dubbedMovies === null && dubbedMoviesRef[1]?.isIntersecting}
                         />
                     </div>
@@ -543,7 +530,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         <HomePageSection
                             title="Hoạt Hình"
                             movies={homeSectionsData.cartoonMovies}
-                            linkToAll="/?type=hoat-hinh&page=1" // Đã thay đổi category thành type
+                            linkToAll="/?type=hoat-hinh&page=1"
                             isLoading={homeSectionsData.cartoonMovies === null && cartoonMoviesRef[1]?.isIntersecting}
                         />
                     </div>
@@ -552,7 +539,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         <HomePageSection
                             title="Phim Lồng Tiếng"
                             movies={homeSectionsData.longTiengMovies}
-                            linkToAll="/?dubbed=phim-long-tieng&page=1" // Đã thay đổi category thành dubbed
+                            linkToAll="/?dubbed=phim-long-tieng&page=1"
                             isLoading={homeSectionsData.longTiengMovies === null && longTiengMoviesRef[1]?.isIntersecting}
                         />
                     </div>
@@ -561,7 +548,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         <HomePageSection
                             title="Phim Việt Nam"
                             movies={homeSectionsData.vietnamMovies}
-                            linkToAll="/?quoc-gia=viet-nam&page=1" // Đã thay đổi country thành quoc-gia
+                            linkToAll="/?quoc-gia=viet-nam&page=1"
                             isLoading={homeSectionsData.vietnamMovies === null && vietnamMoviesRef[1]?.isIntersecting}
                         />
                     </div>
@@ -570,7 +557,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         <HomePageSection
                             title="Phim Trung Quốc"
                             movies={homeSectionsData.chinaMovies}
-                            linkToAll="/?quoc-gia=trung-quoc&page=1" // Đã thay đổi country thành quoc-gia
+                            linkToAll="/?quoc-gia=trung-quoc&page=1"
                             isLoading={homeSectionsData.chinaMovies === null && chinaMoviesRef[1]?.isIntersecting}
                         />
                     </div>
@@ -579,7 +566,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         <HomePageSection
                             title="Phim Âu Mỹ"
                             movies={homeSectionsData.usEuMovies}
-                            linkToAll="/?quoc-gia=au-my&page=1" // Đã thay đổi country thành quoc-gia
+                            linkToAll="/?quoc-gia=au-my&page=1"
                             isLoading={homeSectionsData.usEuMovies === null && usEuMoviesRef[1]?.isIntersecting}
                         />
                     </div>
@@ -588,7 +575,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         <HomePageSection
                             title="Phim Nhật Bản"
                             movies={homeSectionsData.japanMovies}
-                            linkToAll="/?quoc-gia=nhat-ban&page=1" // Đã thay đổi country thành quoc-gia
+                            linkToAll="/?quoc-gia=nhat-ban&page=1"
                             isLoading={homeSectionsData.japanMovies === null && japanMoviesRef[1]?.isIntersecting}
                         />
                     </div>
@@ -597,7 +584,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
                         <HomePageSection
                             title="Phim Hàn Quốc"
                             movies={homeSectionsData.koreaMovies}
-                            linkToAll="/?quoc-gia=han-quoc&page=1" // Đã thay đổi country thành quoc-gia
+                            linkToAll="/?quoc-gia=han-quoc&page=1"
                             isLoading={homeSectionsData.koreaMovies === null && koreaMoviesRef[1]?.isIntersecting}
                         />
                     </div>
