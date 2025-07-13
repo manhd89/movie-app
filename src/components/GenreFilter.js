@@ -1,3 +1,4 @@
+// src/components/GenreFilter.js
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -58,15 +59,15 @@ function GenreFilter() {
   };
 
   return (
-    <div className="mb-6">
-      <label htmlFor="genre" className="text-lg font-semibold mr-2">
+    <div className="filter-item">
+      <label htmlFor="genre" className="filter-label">
         Thể loại:
       </label>
       <select
         id="genre"
         value={selectedGenreState}
         onChange={handleGenreChange}
-        className="p-2 bg-gray-800 text-white rounded-md border-none focus:outline-none"
+        className="filter-select-element"
       >
         <option value="">Tất cả</option>
         {genres.map((genre) => (
