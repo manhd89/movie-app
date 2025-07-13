@@ -1,3 +1,4 @@
+// src/components/DubbedFilter.js
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -35,15 +36,15 @@ function DubbedFilter() {
   };
 
   return (
-    <div className="mb-6">
-      <label htmlFor="dubbed" className="text-lg font-semibold mr-2">
+    <div className="filter-item">
+      <label htmlFor="dubbed" className="filter-label">
         Lồng Tiếng:
       </label>
       <select
         id="dubbed"
         value={selectedDubbedState}
         onChange={handleDubbedChange}
-        className="p-2 bg-gray-800 text-white rounded-md border-none focus:outline-none"
+        className="filter-select-element"
       >
         <option value="">Tất cả</option>
         {dubbedOptions.map((option) => (
