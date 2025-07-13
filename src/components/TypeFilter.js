@@ -1,3 +1,4 @@
+// src/components/TypeFilter.js
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -37,15 +38,15 @@ function TypeFilter() {
   };
 
   return (
-    <div className="mb-6">
-      <label htmlFor="type" className="text-lg font-semibold mr-2">
+    <div className="filter-item">
+      <label htmlFor="type" className="filter-label">
         Loại:
       </label>
       <select
         id="type"
         value={selectedTypeState}
         onChange={handleTypeChange}
-        className="p-2 bg-gray-800 text-white rounded-md border-none focus:outline-none"
+        className="filter-select-element"
       >
         <option value="">Tất cả</option>
         {types.map((type) => (
