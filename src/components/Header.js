@@ -1,3 +1,5 @@
+// src/components/Header.js
+
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
@@ -5,7 +7,6 @@ import './Header.css';
 import { FaBars, FaSearch, FaTimes } from 'react-icons/fa';
 
 // --- Constants ---
-// Use environment variables for API URLs
 const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`;
 const CDN_IMAGE_URL = process.env.REACT_APP_API_CDN_IMAGE;
 
@@ -13,7 +14,7 @@ function Header({ onOpenFilters }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showSearchBar, setShowSearchBar] = useState(false); // NEW: State to control visibility of the search bar
+  const [showSearchBar, setShowSearchBar] = useState(false);
   const navigate = useNavigate();
   const searchContainerRef = useRef(null);
   const inputRef = useRef(null);
@@ -23,19 +24,18 @@ function Header({ onOpenFilters }) {
     setSearchQuery('');
     setSuggestions([]);
     setShowSuggestions(false);
-    setShowSearchBar(false); // NEW: Hide the search bar itself
+    setShowSearchBar(false);
     if (inputRef.current) {
-      inputRef.current.blur(); // Đảm bảo ẩn bàn phím ảo
+      inputRef.current.blur();
     }
-  }, []); // Không có dependencies vì nó chỉ reset trạng thái
+  }, []);
 
   // Toggle search bar visibility
   const toggleSearchBar = () => {
     if (showSearchBar) {
-      clearSearchAndHideSearchBar(); // Hide and clear if currently visible
+      clearSearchAndHideSearchBar();
     } else {
-      setShowSearchBar(true); // Show the search bar
-      // Optional: Focus the input field after showing
+      setShowSearchBar(true);
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
@@ -52,7 +52,6 @@ function Header({ onOpenFilters }) {
       return;
     }
     try {
-      // Use V1_API_URL for search
       const response = await axios.get(
         `${V1_API_URL}/tim-kiem?keyword=${encodeURIComponent(value)}`
       );
@@ -87,7 +86,6 @@ function Header({ onOpenFilters }) {
     } else {
       navigate('/');
     }
-    // Sau khi tìm kiếm hoặc navigate, đóng và làm sạch search bar
     clearSearchAndHideSearchBar();
   };
 
@@ -103,7 +101,6 @@ function Header({ onOpenFilters }) {
       }
       navigate(`/?keyword=${encodeURIComponent(item.name)}&page=1`);
     }
-    // Sau khi chọn gợi ý, đóng và làm sạch search bar
     clearSearchAndHideSearchBar();
   };
 
@@ -153,7 +150,6 @@ function Header({ onOpenFilters }) {
   // Ẩn search bar và gợi ý khi nhấp ra ngoài search container
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // If the search bar is shown and the click is outside the search container AND not on the search toggle button
       if (
         showSearchBar &&
         searchContainerRef.current &&
@@ -175,14 +171,12 @@ function Header({ onOpenFilters }) {
         Phim Online
       </Link>
 
-      {/* NEW: Search toggle button */}
       <button className="search-toggle-button" onClick={toggleSearchBar}>
-        {showSearchBar ? <FaTimes /> : <FaSearch />} {/* Show X icon when search bar is open */}
+        {showSearchBar ? <FaTimes /> : <FaSearch />}
       </button>
 
-      {/* Search container, only render if showSearchBar is true */}
       {showSearchBar && (
-        <div className="search-container active" ref={searchContainerRef}> {/* Add 'active' class */}
+        <div className="search-container active" ref={searchContainerRef}>
           <form onSubmit={handleSearch} className="search-form">
             <input
               type="search"
@@ -196,7 +190,6 @@ function Header({ onOpenFilters }) {
               className="search-input"
               autoComplete="off"
             />
-            {/* Removed the 'Tìm' button, as the toggle button now handles opening/closing and Enter key handles submission */}
           </form>
           {showSuggestions && suggestions.length > 0 && (
             <ul className="suggestions-list">
@@ -208,7 +201,7 @@ function Header({ onOpenFilters }) {
                 >
                   {item.slug && (
                     <img
-                      src={`${CDN_IMAGE_URL}/${item.thumb_url}`} // Use CDN_IMAGE_URL here
+                      src={`${CDN_IMAGE_URL}/${item.thumb_url}`}
                       alt={item.name}
                       className="suggestion-thumb"
                       onError={(e) => (e.target.src = '/placeholder.jpg')}
@@ -218,7 +211,7 @@ function Header({ onOpenFilters }) {
                     <span className="suggestion-title">{item.name}</span>
                     <span className="suggestion-year">{item.year}</span>
                   </div>
-                  {!item.slug && (
+                  {!item.slug && ( // Chỉ hiển thị nút xóa cho lịch sử tìm kiếm
                     <button
                       className="remove-history-button"
                       onClick={(e) => handleRemoveHistoryItem(item.name, e)}
@@ -233,7 +226,6 @@ function Header({ onOpenFilters }) {
         </div>
       )}
 
-      {/* Hamburger menu button */}
       <button className="hamburger-menu" onClick={onOpenFilters}>
         <FaBars />
       </button>
