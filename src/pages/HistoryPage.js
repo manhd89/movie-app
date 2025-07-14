@@ -1,129 +1,105 @@
 // src/pages/HistoryPage.js
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
+import { FaArrowLeft, FaTrashAlt } from 'react-icons/fa';
 import 'react-lazy-load-image-component/src/effects/blur.css';
-import { FaTrashAlt, FaPlayCircle } from 'react-icons/fa';
-import './HistoryPage.css'; // Tạo file HistoryPage.css
+import './HistoryPage.css'; // Sẽ tạo file CSS này
 
 const WATCH_HISTORY_KEY = 'watchHistory';
-const CDN_IMAGE_URL = process.env.REACT_APP_API_CDN_IMAGE;
+
+const getImageUrl = (url) => {
+    if (url && url.startsWith('https://')) {
+        return url;
+    }
+    return url ? `${process.env.REACT_APP_API_CDN_IMAGE}/${url}` : '/placeholder.jpg';
+};
 
 function HistoryPage() {
-  const [history, setHistory] = useState([]);
-  const navigate = useNavigate();
+    const [historyMovies, setHistoryMovies] = useState([]);
 
-  useEffect(() => {
-    const storedHistory = JSON.parse(localStorage.getItem(WATCH_HISTORY_KEY) || '[]');
-    setHistory(storedHistory);
-  }, []);
+    useEffect(() => {
+        const history = JSON.parse(localStorage.getItem(WATCH_HISTORY_KEY) || '[]');
+        // Sắp xếp lịch sử theo thời gian mới nhất trước
+        setHistoryMovies(history.sort((a, b) => b.timestamp - a.timestamp));
+    }, []);
 
-  const handleClearHistory = useCallback(() => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử xem?')) {
-      localStorage.removeItem(WATCH_HISTORY_KEY);
-      setHistory([]);
-    }
-  }, []);
+    const handleDeleteHistoryItem = useCallback((slugToRemove) => {
+        setHistoryMovies(prevHistory => {
+            const updatedHistory = prevHistory.filter(item => item.slug !== slugToRemove);
+            localStorage.setItem(WATCH_HISTORY_KEY, JSON.stringify(updatedHistory));
+            return updatedHistory;
+        });
+    }, []);
 
-  const handleRemoveItem = useCallback((slugToRemove, e) => {
-    e.stopPropagation(); // Ngăn chặn sự kiện click lan ra movie card
-    if (window.confirm('Bạn có chắc chắn muốn xóa mục này khỏi lịch sử?')) {
-      const updatedHistory = history.filter(item => item.slug !== slugToRemove);
-      localStorage.setItem(WATCH_HISTORY_KEY, JSON.stringify(updatedHistory));
-      setHistory(updatedHistory);
-    }
-  }, [history]);
+    const handleClearAllHistory = useCallback(() => {
+        if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử đã xem?')) {
+            localStorage.removeItem(WATCH_HISTORY_KEY);
+            setHistoryMovies([]);
+        }
+    }, []);
 
-  const handleMovieClick = useCallback((item) => {
-    // Điều hướng đến trang chi tiết phim hoặc tập phim cụ thể nếu có episodeSlug
-    if (item.episode && item.episode.slug) {
-      navigate(`/movie/${item.slug}/${item.episode.slug}`);
-    } else {
-      navigate(`/movie/${item.slug}`);
-    }
-  }, [navigate]);
+    return (
+        <div className="container history-page-container">
+            <Helmet>
+                <title>Lịch Sử Đã Xem - PhimAPI</title>
+                <meta name="description" content="Xem lại toàn bộ lịch sử xem phim của bạn." />
+            </Helmet>
 
-  const formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+            <Link to="/" className="back-to-home-button">
+                <FaArrowLeft className="icon" /> Quay lại Trang chủ
+            </Link>
 
-  const getImageUrl = (url) => {
-    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-      return url;
-    }
-    return url ? `${CDN_IMAGE_URL}/${url}` : '/placeholder.jpg';
-  };
-
-  return (
-    <div className="history-page container">
-      <Helmet>
-        <title>Lịch Sử Xem Phim - Phim Online</title>
-        <meta name="description" content="Xem lại lịch sử các bộ phim và tập phim bạn đã xem gần đây." />
-      </Helmet>
-
-      <div className="history-header">
-        <h1 className="history-title">Lịch Sử Xem</h1>
-        {history.length > 0 && (
-          <button className="clear-history-button" onClick={handleClearHistory}>
-            <FaTrashAlt /> Xóa Tất Cả
-          </button>
-        )}
-      </div>
-
-      {history.length === 0 ? (
-        <p className="no-history-message">Bạn chưa xem phim nào gần đây.</p>
-      ) : (
-        <div className="history-list">
-          {history.map((item) => (
-            <div key={`${item.slug}-${item.episode?.slug || ''}-${item.timestamp}`} className="history-item-card" onClick={() => handleMovieClick(item)}>
-              <LazyLoadImage
-                src={getImageUrl(item.poster_url)}
-                alt={item.name}
-                effect="blur"
-                className="history-item-thumbnail"
-                width="150"
-                height="225"
-              />
-              <div className="history-item-info">
-                <h3 className="history-item-title">{item.name}</h3>
-                <p className="history-item-origin-name">{item.origin_name}</p>
-                <p className="history-item-episode">
-                  {item.episode ? `Tập: ${item.episode.name} (${item.episode.server_name})` : 'Thông tin tập không khả dụng'}
-                </p>
-                <p className="history-item-position">
-                  Đã xem: {Math.floor(item.position / 60)} phút {Math.floor(item.position % 60)} giây
-                </p>
-                <p className="history-item-timestamp">Xem lúc: {formatTimestamp(item.timestamp)}</p>
-                <div className="history-item-actions">
-                  <button
-                    className="history-play-button"
-                    onClick={(e) => { e.stopPropagation(); handleMovieClick(item); }}
-                  >
-                    <FaPlayCircle /> Xem tiếp
-                  </button>
-                  <button
-                    className="history-remove-button"
-                    onClick={(e) => handleRemoveItem(item.slug, e)}
-                  >
-                    <FaTrashAlt /> Xóa
-                  </button>
-                </div>
-              </div>
+            <div className="history-page-header">
+                <h1 className="history-page-title">Lịch Sử Đã Xem</h1>
+                {historyMovies.length > 0 && (
+                    <button onClick={handleClearAllHistory} className="clear-all-history-button">
+                        <FaTrashAlt /> Xóa Tất Cả
+                    </button>
+                )}
             </div>
-          ))}
+
+            {historyMovies.length === 0 ? (
+                <p className="no-history-message">Bạn chưa xem bộ phim nào.</p>
+            ) : (
+                <div className="history-grid">
+                    {historyMovies.map((movie) => (
+                        <div key={`${movie.slug}-${movie.episode?.slug || 'no-episode'}`} className="history-movie-card-full">
+                            <Link to={`/movie/${movie.slug}${movie.episode?.slug ? `/${movie.episode.slug}` : ''}`} className="history-card-link">
+                                <LazyLoadImage
+                                    src={getImageUrl(movie.poster_url)}
+                                    alt={movie.name}
+                                    className="history-movie-poster"
+                                    effect="blur"
+                                    onError={(e) => (e.target.src = '/placeholder.jpg')}
+                                />
+                                <div className="history-card-info">
+                                    <h3>{movie.name}</h3>
+                                    {movie.episode?.name && (
+                                        <p>Tập: {movie.episode.name} ({movie.episode.server_name || 'N/A'})</p>
+                                    )}
+                                    {movie.year && <p>Năm: {movie.year}</p>}
+                                    {movie.episode_current && <p>Tình trạng: {movie.episode_current}</p>}
+                                    {movie.position && (
+                                        <p>Xem đến: {Math.floor(movie.position / 60)} phút {Math.floor(movie.position % 60)} giây</p>
+                                    )}
+                                    <p className="last-watched-time">Lần cuối xem: {new Date(movie.timestamp).toLocaleString()}</p>
+                                </div>
+                            </Link>
+                            <button
+                                onClick={() => handleDeleteHistoryItem(movie.slug)}
+                                className="delete-history-item-button-full"
+                                title="Xóa khỏi lịch sử"
+                            >
+                                <FaTrashAlt />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 }
 
 export default HistoryPage;
