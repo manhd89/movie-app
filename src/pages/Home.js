@@ -1,14 +1,14 @@
 // src/pages/Home.js
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'; // Đã thêm Link ở đây
 import axios from 'axios';
 import { Helmet } from 'react-helmet';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import { FaFilter, FaTimes, FaHistory } from 'react-icons/fa';
 import './Home.css';
-import Spinner from '../components/Spinner'; // Import Spinner component
+import Spinner from '../components/Spinner';
 
 // --- Constants ---
 const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`;
@@ -68,7 +68,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
       if (typeParam) params.append('type', typeParam);
       if (dubbedParam) params.append('dubbed', dubbedParam);
     }
-    
+
     params.append('page', page);
 
     // Endpoint dựa trên việc có keyword hay không
@@ -85,7 +85,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
       try {
         const url = buildApiUrl();
         const response = await axios.get(url, {
-          timeout: 10000, // Tăng timeout
+          timeout: 10000,
         });
 
         if (response.data && response.data.data) {
@@ -120,7 +120,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         const [genreRes, countryRes, typeRes] = await Promise.all([
           axios.get(`${V1_API_URL}/the-loai`),
           axios.get(`${V1_API_URL}/quoc-gia`),
-          axios.get(`${V1_API_URL}/the-loai-phim-le-phim-bo`), // Endpoint cho loại phim
+          axios.get(`${V1_API_URL}/the-loai-phim-le-phim-bo`),
         ]);
 
         setGenres(genreRes.data.data || []);
@@ -141,7 +141,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
   // Sync internal filter states with URL params on initial load or URL change
   useEffect(() => {
     if (initialLoadRef.current) {
-      // Sync on initial load
       setSelectedGenre(searchParams.get('genre') || '');
       setSelectedCountry(searchParams.get('country') || '');
       setSelectedYear(searchParams.get('year') || '');
@@ -149,14 +148,14 @@ function Home({ showFilterModal, onCloseFilterModal }) {
       setSelectedDubbed(searchParams.get('dubbed') || '');
       initialLoadRef.current = false;
     }
-  }, [searchParams]); // Depend on searchParams to resync if URL changes externally
+  }, [searchParams]);
 
 
   const handleFilterChange = useCallback((filterName, value) => {
     setSearchParams((prevParams) => {
       const newParams = new URLSearchParams(prevParams);
-      newParams.delete('keyword'); // Xóa keyword khi áp dụng bộ lọc
-      newParams.delete('page'); // Reset về trang 1 khi thay đổi bộ lọc
+      newParams.delete('keyword');
+      newParams.delete('page');
 
       if (value) {
         newParams.set(filterName, value);
@@ -173,7 +172,7 @@ function Home({ showFilterModal, onCloseFilterModal }) {
     else if (filterName === 'type') setSelectedType(value);
     else if (filterName === 'dubbed') setSelectedDubbed(value);
 
-    onCloseFilterModal(); // Đóng modal sau khi chọn bộ lọc
+    onCloseFilterModal();
   }, [setSearchParams, onCloseFilterModal]);
 
   const handlePageChange = useCallback((page) => {
@@ -186,17 +185,15 @@ function Home({ showFilterModal, onCloseFilterModal }) {
   }, [setSearchParams]);
 
   const getImageUrl = (url) => {
-    if (!url) return '/placeholder.jpg'; // Fallback image
-    // Kiểm tra nếu URL đã là full URL
+    if (!url) return '/placeholder.jpg';
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
-    // Ngược lại, thêm CDN_IMAGE_URL vào trước
     return `${CDN_IMAGE_URL}/${url}`;
   };
 
   const clearAllFilters = useCallback(() => {
-    setSearchParams(new URLSearchParams(), { replace: true }); // Xóa tất cả params
+    setSearchParams(new URLSearchParams(), { replace: true });
     setSelectedGenre('');
     setSelectedCountry('');
     setSelectedYear('');
@@ -288,7 +285,6 @@ function Home({ showFilterModal, onCloseFilterModal }) {
         />
       </Helmet>
 
-      {/* Filter Modal */}
       {showFilterModal && (
         <div className="filter-modal-overlay" onClick={onCloseFilterModal}>
           <div className="filter-modal-content" onClick={(e) => e.stopPropagation()}>
