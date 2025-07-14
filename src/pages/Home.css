@@ -1,21 +1,21 @@
 /* General Container and Loading */
 .container {
-    max-width: 1200px;
-    margin: 20px auto;
-    padding: 0 15px;
-    color: #f0f0f0;
-    font-family: 'Arial', sans-serif;
+    max-width: 1200px; /* Max width for content */
+    margin: 20px auto; /* Center the container with margin */
+    padding: 0 15px; /* Add some padding on the sides */
+    color: #f0f0f0; /* Light text color for readability */
+    font-family: 'Arial', sans-serif; /* A clear, common font */
 }
 
 /* Spinner for loading states */
 .spinner {
-    border: 4px solid rgba(255, 255, 255, 0.3);
-    border-top: 4px solid #007bff;
-    border-radius: 50%;
+    border: 4px solid rgba(255, 255, 255, 0.3); /* Light border */
+    border-top: 4px solid #007bff; /* Blue top border for animation */
+    border-radius: 50%; /* Make it circular */
     width: 40px;
     height: 40px;
-    animation: spin 1s linear infinite;
-    margin: 50px auto;
+    animation: spin 1s linear infinite; /* Spin animation */
+    margin: 50px auto; /* Center the spinner */
 }
 
 /* Keyframe for spin animation */
@@ -29,148 +29,122 @@
     color: #f0f0f0;
     text-align: center;
     margin-bottom: 30px;
-    font-size: 2.5rem;
+    font-size: 2.5rem; /* Larger font size */
     font-weight: bold;
 }
 
-/* Filter Container (for filter modal) */
-/* Cần styling cho filter-modal-content và filter-container-modal trong Home.js */
-.filter-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
+/* Filter Container (for list pages) */
+.filter-container {
     display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
+    flex-wrap: wrap; /* Allow items to wrap to the next line */
+    gap: 10px; /* Space between filter elements */
+    margin-bottom: 30px;
+    justify-content: center; /* Center filters horizontally */
 }
 
-.filter-modal-content {
-    background-color: #1a1a1a; /* Nền tối cho modal */
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-    max-width: 500px;
-    width: 90%;
-    position: relative;
-    color: #f0f0f0;
+/* Styling for react-select components */
+.filter-select {
+    flex: 1; /* Allow select boxes to grow and shrink */
+    min-width: 180px; /* Minimum width for select boxes */
+    max-width: 250px; /* Maximum width for select boxes */
 }
-
-.close-modal-button {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background: none;
-    border: none;
-    color: #f0f0f0;
-    font-size: 1.5rem;
-    cursor: pointer;
-}
-
-.modal-title {
-    font-size: 2rem;
-    text-align: center;
-    margin-bottom: 25px;
-    color: #007bff;
-}
-
-/* Style cho container của các filter bên trong modal */
-.filter-container-modal {
-    display: flex;
-    flex-direction: column; /* Xếp các filter theo chiều dọc */
-    gap: 20px; /* Khoảng cách giữa các filter */
-}
-
-/* --- NEW: Styles for individual filter components (YearFilter, TypeFilter, etc.) --- */
-.filter-item {
-    margin-bottom: 15px; /* Khoảng cách dưới mỗi item filter */
-    display: flex;
-    align-items: center;
-    gap: 10px; /* Khoảng cách giữa label và select */
-}
-
-.filter-label {
-    font-size: 1.1rem; /* Kích thước chữ cho label */
-    font-weight: bold;
-    color: #f0f0f0;
-    min-width: 90px; /* Đảm bảo label có độ rộng tối thiểu */
-}
-
-.filter-select-element {
-    flex-grow: 1; /* Cho phép select box mở rộng */
-    padding: 10px; /* Padding bên trong */
-    background-color: #333; /* Nền tối cho select box */
-    color: #f0f0f0; /* Màu chữ */
-    border: 1px solid #555; /* Viền nhẹ */
-    border-radius: 5px; /* Bo góc */
-    font-size: 1rem;
-    cursor: pointer;
-    outline: none; /* Bỏ viền outline khi focus */
-    appearance: none; /* Bỏ style mặc định của trình duyệt cho select */
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23f0f0f0%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%00-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%000%2082.2c0%204.4%201.8%208.7%205.4%2012.3l128.6%20127.9c3.6%203.6%207.8%205.4%2012.3%205.4s8.7-1.8%2012.3-5.4L287%2094.5c3.6-3.6%205.4-7.8%205.4-12.3c0-4.4-1.8-8.7-5.4-12.3z%22%2F%3E%3C%2Fsvg%3E'); /* Custom arrow down */
-    background-repeat: no-repeat;
-    background-position: right 10px top 50%;
-    background-size: 12px auto;
-    padding-right: 30px; /* Đảm bảo không bị che mũi tên */
-}
-
-.filter-select-element:focus {
-    border-color: #007bff; /* Viền xanh khi focus */
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.4); /* Shadow xanh khi focus */
-}
-
-/* Các option bên trong select */
-.filter-select-element option {
-    background-color: #333; /* Nền tối cho option */
-    color: #f0f0f0; /* Màu chữ */
-}
-
 
 /* Reset button styling */
 .reset-button {
-    background-color: #dc3545;
+    background-color: #dc3545; /* Red color for reset */
     color: white;
     border: none;
     padding: 10px 15px;
     border-radius: 5px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s ease; /* Smooth hover effect */
 }
 
 .reset-button:hover {
-    background-color: #c82333;
+    background-color: #c82333; /* Darker red on hover */
 }
 
 /* Main Movie Grid (for list pages - 12 movies per page) */
 .movie-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 20px;
-    justify-content: center;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* Responsive grid columns */
+    gap: 20px; /* Space between movie cards */
+    justify-content: center; /* Center items in the grid */
     padding: 20px 0;
 }
 
-/* Individual Movie Card styling (handled by MovieCard.js's internal styling for now) */
-/* If you want Home.css to style MovieCard, you'd need to remove Tailwind from MovieCard.js */
-/* .movie-card {} is the Link wrapper in Home.js */
+/* Individual Movie Card styling */
+.movie-card {
+    background-color: #2a2a2a; /* Dark background for cards */
+    border-radius: 8px; /* Rounded corners */
+    overflow: hidden; /* Hide overflowing content */
+    text-decoration: none; /* Remove underline from links */
+    color: inherit; /* Inherit text color */
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; /* Smooth hover effects */
+    display: flex;
+    flex-direction: column; /* Stack content vertically */
+    height: 100%; /* Ensure cards take full height in grid row */
+    position: relative; /* For absolute positioning of quality/status tags */
+}
+
+.movie-card:hover {
+    transform: translateY(-5px); /* Lift effect on hover */
+    box-shadow: 0 8px 16px rgba(0, 123, 255, 0.4); /* Blue shadow on hover */
+}
+
+.movie-poster {
+    width: 100%;
+    height: 270px; /* Fixed height for consistent poster display */
+    object-fit: cover; /* Crop image to fit */
+    display: block; /* Remove extra space below image */
+}
+
+.movie-card h3 {
+    font-size: 1.1rem;
+    margin: 10px 10px 5px;
+    white-space: nowrap; /* Prevent title from wrapping */
+    overflow: hidden; /* Hide overflowing text */
+    text-overflow: ellipsis; /* Add ellipsis for hidden text */
+    color: #f0f0f0;
+}
+
+.movie-card p {
+    font-size: 0.9rem;
+    color: #bbb; /* Lighter grey for year */
+    margin: 0 10px 10px;
+}
+
+/* Movie Quality and Episode Status tags */
+.movie-quality, .movie-status {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black background */
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    z-index: 10; /* Ensure it's above the poster */
+}
+.movie-status {
+    top: 38px; /* Position below quality tag if both exist */
+    background-color: rgba(0, 123, 255, 0.8); /* Blue background for status */
+}
+
 
 /* Pagination */
 .pagination {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 15px;
+    gap: 15px; /* Space between pagination elements */
     margin-top: 30px;
     margin-bottom: 50px;
 }
 
 .pagination-button {
-    background-color: #007bff;
+    background-color: #007bff; /* Blue background */
     color: white;
     border: none;
     padding: 10px 20px;
@@ -180,12 +154,12 @@
 }
 
 .pagination-button:disabled {
-    background-color: #555;
+    background-color: #555; /* Grey out when disabled */
     cursor: not-allowed;
 }
 
 .pagination-button:hover:not(:disabled) {
-    background-color: #0056b3;
+    background-color: #0056b3; /* Darker blue on hover */
 }
 
 .pagination-info {
@@ -199,12 +173,12 @@
 }
 
 .homepage-section {
-    margin-bottom: 40px;
+    margin-bottom: 40px; /* Space between sections */
 }
 
 .section-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-between; /* Align title and "Xem tất cả" link */
     align-items: center;
     margin-bottom: 20px;
 }
@@ -221,7 +195,7 @@
     font-weight: bold;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 5px; /* Space between text and icon */
     transition: color 0.3s ease;
 }
 
@@ -231,58 +205,57 @@
 
 /* Horizontal scrolling container for movies */
 .movie-horizontal-scroll {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(160px, 1fr);
-    gap: 15px;
-    overflow-x: auto;
-    padding-bottom: 15px;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    scrollbar-color: #007bff #2a2a2a;
+    display: grid; /* **Updated: Use CSS Grid for better control over initial display** */
+    grid-auto-flow: column; /* Arrange items in columns, allowing overflow */
+    grid-auto-columns: minmax(160px, 1fr); /* **Updated: Auto-size columns, min 160px** */
+    gap: 15px; /* Space between horizontal movie cards */
+    overflow-x: auto; /* Enable horizontal scrolling */
+    padding-bottom: 15px; /* Add space for the scrollbar */
+    -webkit-overflow-scrolling: touch; /* Enhance scrolling performance on iOS */
+    scrollbar-width: thin; /* Firefox scrollbar width */
+    scrollbar-color: #007bff #2a2a2a; /* Firefox scrollbar color */
 }
 
-/* Define how many columns are visible at a given screen size */
+/* **New:** Define how many columns are visible at a given screen size */
 @media (min-width: 992px) {
     .movie-horizontal-scroll {
-        grid-template-columns: repeat(3, minmax(160px, 1fr));
+        grid-template-columns: repeat(3, minmax(160px, 1fr)); /* **Show 3 columns on large screens** */
     }
 }
 
 @media (min-width: 768px) and (max-width: 991px) {
     .movie-horizontal-scroll {
-        grid-template-columns: repeat(3, minmax(150px, 1fr));
+        grid-template-columns: repeat(3, minmax(150px, 1fr)); /* Show 3 columns on medium screens */
     }
 }
 
 @media (max-width: 767px) {
     .movie-horizontal-scroll {
-        grid-template-columns: repeat(2, minmax(140px, 1fr));
+        grid-template-columns: repeat(2, minmax(140px, 1fr)); /* Show 2 columns on small screens */
     }
 }
 
 
 /* Custom scrollbar for Webkit browsers (Chrome, Safari) */
 .movie-horizontal-scroll::-webkit-scrollbar {
-    height: 8px;
+    height: 8px; /* Height of horizontal scrollbar */
 }
 
 .movie-horizontal-scroll::-webkit-scrollbar-track {
-    background: #2a2a2a;
+    background: #2a2a2a; /* Track color */
     border-radius: 10px;
 }
 
 .movie-horizontal-scroll::-webkit-scrollbar-thumb {
-    background-color: #007bff;
+    background-color: #007bff; /* Thumb color */
     border-radius: 10px;
-    border: 2px solid #2a2a2a;
+    border: 2px solid #2a2a2a; /* Padding around the thumb */
 }
 
 /* Individual Movie Card in horizontal scroll */
-/* These will now be handled by MovieCard.js's internal styling.
-   If you want Home.css to override, you'd need to adjust MovieCard.js or use more specific selectors. */
 .movie-card-horizontal {
-    width: 100%;
+    /* Removed flex: 0 0 auto; - Grid handles sizing now */
+    width: 100%; /* Take full width of its grid column */
     background-color: #2a2a2a;
     border-radius: 8px;
     overflow: hidden;
@@ -298,11 +271,33 @@
     box-shadow: 0 8px 16px rgba(0, 123, 255, 0.4);
 }
 
+.movie-poster-horizontal {
+    width: 100%;
+    height: 240px; /* Specific height for horizontal posters */
+    object-fit: cover;
+    display: block;
+}
+
+.movie-card-horizontal h3 {
+    font-size: 1rem;
+    margin: 10px 8px 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #f0f0f0;
+}
+
+.movie-card-horizontal p {
+    font-size: 0.85rem;
+    color: #bbb;
+    margin: 0 8px 10px;
+}
+
 .section-loading-spinner {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 200px;
+    min-height: 200px; /* Ensure spinner has space */
 }
 
 /* Responsive adjustments for smaller screens */
@@ -310,18 +305,20 @@
     .main-list-title {
         font-size: 2rem;
     }
-    .filter-container-modal .filter-item { /* Adjust for modal filter items */
-        flex-direction: column;
-        align-items: flex-start; /* Align label to start */
+    .filter-container {
+        flex-direction: column; /* Stack filters vertically */
+        align-items: center;
     }
-    .filter-label {
-        margin-bottom: 5px; /* Khoảng cách giữa label và select trên mobile */
-    }
-    .filter-select-element {
-        width: 100%; /* Đảm bảo select chiếm toàn bộ chiều rộng */
+    .filter-select {
+        width: 90%; /* Wider on smaller screens */
+        max-width: 300px;
     }
     .movie-grid {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); /* Smaller cards in main grid */
+    }
+    /* Horizontal cards are now controlled by grid-template-columns in .movie-horizontal-scroll */
+    .movie-poster-horizontal {
+        height: 210px;
     }
     .homepage-section h2 {
         font-size: 1.8rem;
@@ -333,14 +330,18 @@
         font-size: 1.8rem;
     }
     .movie-grid {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Even smaller cards */
+    }
+    /* Horizontal cards are now controlled by grid-template-columns in .movie-horizontal-scroll */
+    .movie-poster-horizontal {
+        height: 180px;
     }
     .homepage-section h2 {
         font-size: 1.5rem;
     }
 }
 
-/* --- History Section Styles (unchanged from your provided CSS) --- */
+/* --- NEW: History Section Styles --- */
 .history-section {
     margin-bottom: 40px;
 }
@@ -400,7 +401,7 @@
 }
 
 .history-movie-card {
-    position: relative;
+    position: relative; /* For the delete button */
     background-color: #2a2a2a;
     border-radius: 8px;
     overflow: hidden;
@@ -418,7 +419,7 @@
 
 .history-movie-card img {
     width: 100%;
-    height: 240px;
+    height: 240px; /* Điều chỉnh chiều cao hình ảnh để phù hợp */
     object-fit: cover;
     display: block;
 }
@@ -443,11 +444,11 @@
     justify-content: space-between;
     align-items: center;
     padding: 0 8px 10px;
-    margin-top: auto;
+    margin-top: auto; /* Push actions to the bottom */
 }
 
 .continue-watching-button {
-    background-color: #28a745;
+    background-color: #28a745; /* Green for continue */
     color: white;
     border: none;
     padding: 6px 10px;
@@ -467,11 +468,11 @@
 .delete-history-item-button {
     background: none;
     border: none;
-    color: #dc3545;
+    color: #dc3545; /* Red for delete */
     font-size: 1rem;
     cursor: pointer;
     padding: 5px;
-    margin-left: auto;
+    margin-left: auto; /* Push to the right */
     transition: color 0.3s ease;
 }
 
@@ -503,3 +504,4 @@
         height: 180px;
     }
 }
+
