@@ -1,4 +1,3 @@
-// src/components/CountryFilter.js
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -70,15 +69,15 @@ function CountryFilter() {
   };
 
   return (
-    <div className="filter-item">
-      <label htmlFor="country" className="filter-label">
+    <div className="mb-6">
+      <label htmlFor="country" className="text-lg font-semibold mr-2">
         Quốc gia:
       </label>
       <select
         id="country"
         value={selectedCountryState}
         onChange={handleCountryChange}
-        className="filter-select-element"
+        className="p-2 bg-gray-800 text-white rounded-md border-none focus:outline-none"
       >
         <option value="">Tất cả</option>
         {countries.map((country) => (
