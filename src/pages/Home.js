@@ -1,732 +1,450 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { Helmet } from 'react-helmet';
+// src/pages/Home.js
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import Select from 'react-select';
+import { Helmet } from 'react-helmet';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
-import { FaAngleRight, FaTimes, FaHistory, FaTrashAlt } from 'react-icons/fa';
-
 import 'react-lazy-load-image-component/src/effects/blur.css';
+import { FaFilter, FaTimes, FaHistory } from 'react-icons/fa';
 import './Home.css';
-import useIntersectionObserver from '../hooks/useIntersectionObserver'; // Import the hook
+import Spinner from '../components/Spinner'; // Import Spinner component
 
-const BASE_API_URL = process.env.REACT_APP_API_URL;
+// --- Constants ---
 const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`;
-const DEFAULT_PAGE_LIMIT = 12;
-const WATCH_HISTORY_KEY = 'watchHistory';
-
-const getImageUrl = (url) => {
-    if (url && url.startsWith('https://')) {
-        return url;
-    }
-    return url ? `${process.env.REACT_APP_API_CDN_IMAGE}/${url}` : '/placeholder.jpg';
-};
-
-const movieApi = {
-    fetchGenres: () => axios.get(`${BASE_API_URL}/the-loai`),
-    fetchCountries: () => axios.get(`${BASE_API_URL}/quoc-gia`),
-    fetchRecentUpdates: (page = 1) => axios.get(`${BASE_API_URL}/danh-sach/phim-moi-cap-nhat?page=${page}`),
-    fetchMoviesBySlug: (type, slug, page = 1, limit = DEFAULT_PAGE_LIMIT, filters = {}) => {
-        let url;
-        if (type === 'category') url = `${V1_API_URL}/danh-sach/${slug}`;
-        else if (type === 'genre') url = `${V1_API_URL}/the-loai/${slug}`;
-        else if (type === 'country') url = `${V1_API_URL}/quoc-gia/${slug}`;
-        else if (type === 'year') url = `${V1_API_URL}/nam/${slug}`;
-        else if (type === 'search') url = `${V1_API_URL}/tim-kiem`;
-        else return Promise.reject(new Error("Invalid fetch type for movieApi.fetchMoviesBySlug"));
-
-        return axios.get(url, { params: { page, limit, ...filters } });
-    }
-};
-
-const CATEGORIES_MAPPING = [
-    { slug: 'phim-moi-cap-nhat', name: 'Phim Mới Cập Nhật' },
-    { slug: 'phim-bo', name: 'Phim Bộ' },
-    { slug: 'phim-le', name: 'Phim Lẻ' },
-    { slug: 'tv-shows', name: 'TV Shows' },
-    { slug: 'hoat-hinh', name: 'Hoạt Hình' },
-    { slug: 'phim-vietsub', name: 'Phim Vietsub' },
-    { slug: 'phim-thuyet-minh', name: 'Phim Thuyết Minh' },
-    { slug: 'phim-long-tieng', name: 'Phim Lồng Tiếng' },
-];
-
-function HistorySection({ historyMovies, onDeleteHistoryItem }) {
-    const navigate = useNavigate();
-
-    const handleContinueWatching = useCallback((movieSlug, episodeSlug) => {
-        navigate(`/movie/${movieSlug}/${episodeSlug}`);
-    }, [navigate]);
-
-    if (!historyMovies || historyMovies.length === 0) {
-        return null;
-    }
-
-    const displayMovies = historyMovies.slice(0, 10);
-    const hasMoreHistory = historyMovies.length > 10;
-
-    return (
-        <div className="history-section">
-            <div className="section-header">
-                <h2>Lịch Sử Đã Xem</h2>
-                {hasMoreHistory && (
-                    <Link to="/history" className="see-all-link">
-                        Xem tất cả <FaAngleRight />
-                    </Link>
-                )}
-            </div>
-            <div className="history-movie-list">
-                {displayMovies.map((movie) => (
-                    <div key={movie.slug + (movie.episode?.slug || '')} className="history-movie-card">
-                        <Link to={`/movie/${movie.slug}/${movie.episode?.slug || ''}`}>
-                            <LazyLoadImage
-                                src={getImageUrl(movie.poster_url)}
-                                alt={movie.name}
-                                className="movie-poster-horizontal"
-                                effect="blur"
-                                onError={(e) => (e.target.src = '/placeholder.jpg')}
-                            />
-                            <h3>{movie.name}</h3>
-                            {movie.episode?.name && (
-                                <p>Tập: {movie.episode.name} ({movie.episode.server_name || 'N/A'})</p>
-                            )}
-                            {!movie.episode?.name && movie.year && <p>{movie.year}</p>}
-                        </Link>
-                        <div className="history-actions">
-                            {movie.episode?.slug && (
-                                <button
-                                    onClick={() => handleContinueWatching(movie.slug, movie.episode.slug)}
-                                    className="continue-watching-button"
-                                >
-                                    <FaHistory /> Tiếp tục xem
-                                </button>
-                            )}
-                            <button
-                                onClick={() => onDeleteHistoryItem(movie.slug)}
-                                className="delete-history-item-button"
-                                title="Xóa khỏi lịch sử"
-                            >
-                                <FaTrashAlt />
-                            </button>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-function HomePageSection({ title, movies, linkToAll, isLoading }) {
-    if (isLoading) {
-        return (
-            <div className="homepage-section">
-                <h2>{title}</h2>
-                <div className="section-loading-spinner">
-                    <div className="spinner"></div>
-                </div>
-            </div>
-        );
-    }
-
-    if (!movies || movies.length === 0) {
-        return null;
-    }
-
-    return (
-        <div className="homepage-section">
-            <div className="section-header">
-                <h2>{title}</h2>
-                {linkToAll && (
-                    <Link to={linkToAll} className="see-all-link">
-                        Xem tất cả <FaAngleRight />
-                    </Link>
-                )}
-            </div>
-            <div className="movie-horizontal-scroll">
-                {movies.map((movie) => (
-                    <Link key={movie._id} to={`/movie/${movie.slug}`} className="movie-card-horizontal">
-                        <LazyLoadImage
-                            src={getImageUrl(movie.poster_url)}
-                            alt={movie.name}
-                            className="movie-poster-horizontal"
-                            effect="blur"
-                            onError={(e) => (e.target.src = '/placeholder.jpg')}
-                        />
-                        <h3>{movie.name}</h3>
-                        <p>{movie.year}</p>
-                    </Link>
-                ))}
-            </div>
-        </div>
-    );
-}
+const CDN_IMAGE_URL = process.env.REACT_APP_API_CDN_IMAGE;
 
 function Home({ showFilterModal, onCloseFilterModal }) {
-    const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
-    const [movies, setMovies] = useState([]);
-    const [loadingMain, setLoadingMain] = useState(false);
-    const [totalPages, setTotalPages] = useState(1);
+  const [movies, setMovies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
-    const urlKeyword = searchParams.get('keyword');
-    const urlCategorySlug = searchParams.get('category');
-    const urlCountrySlug = searchParams.get('country');
-    const urlYear = searchParams.get('year');
-    const urlPage = parseInt(searchParams.get('page')) || 1;
+  const [genres, setGenres] = useState([]);
+  const [countries, setCountries] = useState([]);
+  const [movieTypes, setMovieTypes] = useState([]);
+  const [years, setYears] = useState([]);
 
-    const [filterCategory, setFilterCategory] = useState(urlCategorySlug || '');
-    const [filterCountry, setFilterCountry] = useState(urlCountrySlug || '');
-    const [filterYear, setFilterYear] = useState(urlYear || '');
-    const [currentPage, setCurrentPage] = useState(urlPage);
+  // States for selected filters
+  const [selectedGenre, setSelectedGenre] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedType, setSelectedType] = useState('');
+  const [selectedDubbed, setSelectedDubbed] = useState(''); // 'true', 'false', ''
 
-    const [genres, setGenres] = useState([]);
-    const [countries, setCountries] = useState([]);
+  const initialLoadRef = useRef(true); // Ref to track initial load
 
-    const [seoData, setSeoData] = useState({
-        titleHead: 'HDonline - Trang Chủ',
-        descriptionHead: 'Xem phim mới cập nhật nhanh nhất, tổng hợp phim bộ, phim lẻ, TV Shows.'
-    });
+  const buildApiUrl = useCallback(() => {
+    const params = new URLSearchParams();
+    const keyword = searchParams.get('keyword');
+    const page = searchParams.get('page') || '1';
 
-    const [homeSectionsData, setHomeSectionsData] = useState({
-        recentMovies: null, seriesMovies: null, singleMovies: null, tvShows: null,
-        dubbedMovies: null, cartoonMovies: null, longTiengMovies: null,
-        vietnamMovies: null, chinaMovies: null, usEuMovies: null, japanMovies: null, koreaMovies: null,
-    });
-    const [requestedSections, setRequestedSections] = useState(new Set()); // Theo dõi các phần đã được yêu cầu tải
+    // Cập nhật trạng thái local từ URL params
+    const genreParam = searchParams.get('genre') || '';
+    const countryParam = searchParams.get('country') || '';
+    const yearParam = searchParams.get('year') || '';
+    const typeParam = searchParams.get('type') || '';
+    const dubbedParam = searchParams.get('dubbed') || '';
 
-    const [watchHistory, setWatchHistory] = useState([]);
+    if (selectedGenre !== genreParam) setSelectedGenre(genreParam);
+    if (selectedCountry !== countryParam) setSelectedCountry(countryParam);
+    if (selectedYear !== yearParam) setSelectedYear(yearParam);
+    if (selectedType !== typeParam) setSelectedType(typeParam);
+    if (selectedDubbed !== dubbedParam) setSelectedDubbed(dubbedParam);
 
-    // Định nghĩa refs riêng cho từng section cần lazy load
-    const tvShowsRef = useIntersectionObserver();
-    const dubbedMoviesRef = useIntersectionObserver();
-    const cartoonMoviesRef = useIntersectionObserver();
-    const longTiengMoviesRef = useIntersectionObserver();
-    const vietnamMoviesRef = useIntersectionObserver();
-    const chinaMoviesRef = useIntersectionObserver();
-    const usEuMoviesRef = useIntersectionObserver();
-    const japanMoviesRef = useIntersectionObserver();
-    const koreaMoviesRef = useIntersectionObserver();
+    if (keyword) {
+      params.append('keyword', keyword);
+      // Khi có keyword, bỏ qua các bộ lọc khác trên URL nếu có
+    } else {
+      // Chỉ thêm các bộ lọc nếu không có keyword
+      if (genreParam) params.append('genre', genreParam);
+      if (countryParam) params.append('country', countryParam);
+      if (yearParam) params.append('year', yearParam);
+      if (typeParam) params.append('type', typeParam);
+      if (dubbedParam) params.append('dubbed', dubbedParam);
+    }
+    
+    params.append('page', page);
 
-    // Cập nhật state cục bộ khi URL params thay đổi
-    useEffect(() => {
-        setFilterCategory(urlCategorySlug || '');
-        setFilterCountry(urlCountrySlug || '');
-        setFilterYear(urlYear || '');
-        setCurrentPage(urlPage);
-    }, [urlKeyword, urlCategorySlug, urlCountrySlug, urlYear, urlPage]);
+    // Endpoint dựa trên việc có keyword hay không
+    const endpoint = keyword ? 'tim-kiem' : 'danh-sach';
+    return `${V1_API_URL}/${endpoint}?${params.toString()}`;
+  }, [searchParams, selectedGenre, selectedCountry, selectedYear, selectedType, selectedDubbed]);
 
-    const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: currentYear - 1970 + 2 }, (_, i) => ({
-        value: (currentYear + 1 - i).toString(),
-        label: (currentYear + 1 - i).toString()
-    }));
 
-    const customSelectStyles = {
-        control: (provided) => ({
-            ...provided,
-            backgroundColor: '#333',
-            borderColor: '#555',
-            color: '#fff',
-            boxShadow: 'none',
-            '&:hover': { borderColor: '#007bff' }
-        }),
-        input: (provided) => ({ ...provided, color: '#fff' }),
-        placeholder: (provided) => ({ ...provided, color: '#ccc' }),
-        singleValue: (provided) => ({ ...provided, color: '#fff' }),
-        option: (provided, state) => ({
-            ...provided,
-            backgroundColor: state.isFocused ? '#007bff' : '#333',
-            color: '#fff',
-            '&:active': { backgroundColor: '#0056b3' }
-        }),
-        menu: (provided) => ({ ...provided, backgroundColor: '#333' }),
-        multiValue: (provided) => ({ ...provided, backgroundColor: '#007bff' }),
-        multiValueLabel: (provided) => ({ ...provided, color: '#fff' }),
-        multiValueRemove: (provided) => ({
-            provided,
-            color: '#fff',
-            '&:hover': { backgroundColor: '#0056b3', color: '#fff' }
-        })
-    };
-
-    // Fetch genres, countries, and watch history once on mount
-    useEffect(() => {
-        const fetchInitialData = async () => {
-            try {
-                const [genreRes, countryRes] = await Promise.all([
-                    movieApi.fetchGenres(),
-                    movieApi.fetchCountries()
-                ]);
-                setGenres(genreRes.data);
-                setCountries(countryRes.data);
-                localStorage.setItem('genres', JSON.stringify(genreRes.data));
-                localStorage.setItem('countries', JSON.stringify(countryRes.data));
-            } catch (error) {
-                console.error('Error fetching filters:', error);
-            }
-        };
-
-        const cachedGenres = localStorage.getItem('genres');
-        const cachedCountries = localStorage.getItem('countries');
-        if (cachedGenres && cachedCountries) {
-            setGenres(JSON.parse(cachedGenres));
-            setCountries(JSON.parse(cachedCountries));
-        } else {
-            fetchInitialData();
-        }
-
-        const history = JSON.parse(localStorage.getItem(WATCH_HISTORY_KEY) || '[]');
-        setWatchHistory(history.sort((a, b) => b.timestamp - a.timestamp));
-    }, []);
-
-    const handleDeleteHistoryItem = useCallback((slugToRemove) => {
-        setWatchHistory(prevHistory => {
-            const updatedHistory = prevHistory.filter(item => item.slug !== slugToRemove);
-            localStorage.setItem(WATCH_HISTORY_KEY, JSON.stringify(updatedHistory));
-            return updatedHistory;
+  // Effect để fetch data chính (movies)
+  useEffect(() => {
+    const fetchMovies = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const url = buildApiUrl();
+        const response = await axios.get(url, {
+          timeout: 10000, // Tăng timeout
         });
-    }, []);
 
-    // Determine if main movie grid should be shown based on URL params
-    const showMainMovieGrid = !!urlKeyword || !!urlCategorySlug || !!urlCountrySlug || !!urlYear;
-
-    // Helper function to fetch a specific section
-    const fetchSection = useCallback(async (key, fetchFunc) => {
-        if (homeSectionsData[key] === null && !requestedSections.has(key)) {
-            setRequestedSections(prev => new Set(prev).add(key)); // Đánh dấu là đã yêu cầu tải
-            try {
-                const res = await fetchFunc();
-                setHomeSectionsData(prev => ({ ...prev, [key]: res.data.items || res.data.data?.items || [] }));
-            } catch (error) {
-                console.error(`Failed to fetch section ${key}:`, error);
-                setHomeSectionsData(prev => ({ ...prev, [key]: [] })); // Đặt về mảng rỗng nếu có lỗi
-            }
+        if (response.data && response.data.data) {
+          const { items, pagination } = response.data.data;
+          setMovies(items || []);
+          setCurrentPage(pagination?.currentPage || 1);
+          setTotalPages(pagination?.totalPage || 1);
+          setTotalItems(pagination?.totalItems || 0);
+        } else {
+          setMovies([]);
+          setCurrentPage(1);
+          setTotalPages(1);
+          setTotalItems(0);
+          console.warn("API response data is not in expected format:", response.data);
         }
-    }, [homeSectionsData, requestedSections]);
-
-
-    // Unified useEffect for fetching data
-    useEffect(() => {
-        const fetchData = async () => {
-            if (showMainMovieGrid) {
-                // Logic cho trang tìm kiếm/filter
-                setLoadingMain(true);
-                let url = '';
-                let params = { page: currentPage, limit: DEFAULT_PAGE_LIMIT };
-                let newSeoData = {
-                    titleHead: 'Phim Online - Trang Chủ',
-                    descriptionHead: 'Xem phim mới cập nhật nhanh nhất, tổng hợp phim bộ, phim lẻ, TV Shows.'
-                };
-
-                try {
-                    if (urlKeyword) {
-                        url = `${V1_API_URL}/tim-kiem`;
-                        params.keyword = urlKeyword;
-                        newSeoData.titleHead = `Tìm kiếm: ${urlKeyword} - PhimAPI`;
-                        newSeoData.descriptionHead = `Kết quả tìm kiếm phim cho từ khóa "${urlKeyword}"`;
-                    } else if (urlCategorySlug) {
-                        if (urlCategorySlug === 'phim-moi-cap-nhat') {
-                            url = `${BASE_API_URL}/danh-sach/phim-moi-cap-nhat`;
-                            newSeoData.titleHead = 'Phim Mới Cập Nhật - PhimAPI';
-                            newSeoData.descriptionHead = 'Xem phim mới cập nhật nhanh nhất';
-                        } else {
-                            const isPredefinedListType = CATEGORIES_MAPPING.some(cat => cat.slug === urlCategorySlug);
-                            if (isPredefinedListType) {
-                                url = `${V1_API_URL}/danh-sach/${urlCategorySlug}`;
-                                const typeName = CATEGORIES_MAPPING.find(cat => cat.slug === urlCategorySlug)?.name || urlCategorySlug;
-                                newSeoData.titleHead = `${typeName} - PhimAPI`;
-                                newSeoData.descriptionHead = `Danh sách ${typeName} mới nhất.`;
-                            } else {
-                                url = `${V1_API_URL}/the-loai/${urlCategorySlug}`;
-                                const catName = genres.find(g => g.slug === urlCategorySlug)?.name || urlCategorySlug;
-                                newSeoData.titleHead = `${catName} - PhimAPI`;
-                                newSeoData.descriptionHead = `Danh sách phim thể loại ${catName} mới nhất.`;
-                            }
-                        }
-                    } else if (urlCountrySlug) {
-                        url = `${V1_API_URL}/quoc-gia/${urlCountrySlug}`;
-                        const countryName = countries.find(c => c.slug === urlCountrySlug)?.name || urlCountrySlug;
-                        newSeoData.titleHead = `Phim ${countryName} - PhimAPI`;
-                        newSeoData.descriptionHead = `Danh sách phim quốc gia ${countryName} mới nhất.`;
-                    } else if (urlYear) {
-                        url = `${V1_API_URL}/nam/${urlYear}`;
-                        newSeoData.titleHead = `Phim năm ${urlYear} - PhimAPI`;
-                        newSeoData.descriptionHead = `Danh sách phim phát hành năm ${urlYear} mới nhất.`;
-                    } else {
-                        setMovies([]);
-                        setTotalPages(1);
-                        setLoadingMain(false);
-                        return;
-                    }
-
-                    const response = await axios.get(url, { params });
-                    console.log("API response for main movies:", response.data);
-
-                    let items = [];
-                    let paginationData = {};
-                    let seoOnPageData = {};
-
-                    if (url.includes('/danh-sach/phim-moi-cap-nhat')) {
-                        items = response.data.items || [];
-                        paginationData = response.data.pagination || {};
-                    } else {
-                        items = response.data.data?.items || [];
-                        paginationData = response.data.data?.params?.pagination || {};
-                        seoOnPageData = response.data.data?.seoOnPage || {};
-                    }
-                    setMovies(items);
-                    setTotalPages(paginationData.totalPages || 1);
-                    setSeoData(seoOnPageData.titleHead ? seoOnPageData : newSeoData);
-
-                } catch (error) {
-                    console.error('Error fetching main movies:', error);
-                    setMovies([]);
-                    setTotalPages(1);
-                } finally {
-                    setLoadingMain(false);
-                }
-            } else {
-                // Logic cho các phần trên trang chủ (lazy loading)
-                // Luôn tải 3 phần đầu tiên ngay lập tức
-                fetchSection('recentMovies', movieApi.fetchRecentUpdates);
-                fetchSection('seriesMovies', () => movieApi.fetchMoviesBySlug('category', 'phim-bo'));
-                fetchSection('singleMovies', () => movieApi.fetchMoviesBySlug('category', 'phim-le'));
-
-                // Tải các phần khác khi ref tương ứng đi vào tầm nhìn
-                if (tvShowsRef[1]?.isIntersecting) {
-                    fetchSection('tvShows', () => movieApi.fetchMoviesBySlug('category', 'tv-shows'));
-                }
-                if (dubbedMoviesRef[1]?.isIntersecting) {
-                    fetchSection('dubbedMovies', () => movieApi.fetchMoviesBySlug('category', 'phim-thuyet-minh'));
-                }
-                if (cartoonMoviesRef[1]?.isIntersecting) {
-                    fetchSection('cartoonMovies', () => movieApi.fetchMoviesBySlug('category', 'hoat-hinh'));
-                }
-                if (longTiengMoviesRef[1]?.isIntersecting) {
-                    fetchSection('longTiengMovies', () => movieApi.fetchMoviesBySlug('category', 'phim-long-tieng'));
-                }
-                if (vietnamMoviesRef[1]?.isIntersecting) {
-                    fetchSection('vietnamMovies', () => movieApi.fetchMoviesBySlug('country', 'viet-nam'));
-                }
-                if (chinaMoviesRef[1]?.isIntersecting) {
-                    fetchSection('chinaMovies', () => movieApi.fetchMoviesBySlug('country', 'trung-quoc'));
-                }
-                if (usEuMoviesRef[1]?.isIntersecting) {
-                    fetchSection('usEuMovies', () => movieApi.fetchMoviesBySlug('country', 'au-my'));
-                }
-                if (japanMoviesRef[1]?.isIntersecting) {
-                    fetchSection('japanMovies', () => movieApi.fetchMoviesBySlug('country', 'nhat-ban'));
-                }
-                if (koreaMoviesRef[1]?.isIntersecting) {
-                    fetchSection('koreaMovies', () => movieApi.fetchMoviesBySlug('country', 'han-quoc'));
-                }
-            }
-        };
-
-        fetchData();
-    }, [
-        currentPage, urlKeyword, urlCategorySlug, urlCountrySlug, urlYear, showMainMovieGrid,
-        genres, countries, fetchSection, // useCallback memoizes fetchSection, nhưng vẫn cần đưa vào dep nếu nó phụ thuộc vào các state/props khác
-        // Thêm tất cả các ref's isIntersecting để kích hoạt lại useEffect khi tầm nhìn thay đổi
-        tvShowsRef[1], dubbedMoviesRef[1], cartoonMoviesRef[1], longTiengMoviesRef[1],
-        vietnamMoviesRef[1], chinaMoviesRef[1], usEuMoviesRef[1], japanMoviesRef[1], koreaMoviesRef[1]
-    ]);
-
-
-    const handleFilterChange = useCallback((type, selectedValue) => {
-        const value = selectedValue ? selectedValue.value : '';
-        const newSearchParams = new URLSearchParams();
-
-        if (urlKeyword && type !== 'keyword') newSearchParams.set('keyword', urlKeyword);
-        if (urlCategorySlug && type !== 'category') newSearchParams.set('category', urlCategorySlug);
-        if (urlCountrySlug && type !== 'country') newSearchParams.set('country', urlCountrySlug);
-        if (urlYear && type !== 'year') newSearchParams.set('year', urlYear);
-
-        newSearchParams.set('page', '1');
-
-        if (type === 'category') {
-            if (value) newSearchParams.set('category', value);
-            else newSearchParams.delete('category');
-            newSearchParams.delete('country');
-            newSearchParams.delete('year');
-            newSearchParams.delete('keyword');
-        } else if (type === 'country') {
-            if (value) newSearchParams.set('country', value);
-            else newSearchParams.delete('country');
-            newSearchParams.delete('category');
-            newSearchParams.delete('year');
-            newSearchParams.delete('keyword');
-        } else if (type === 'year') {
-            if (value) newSearchParams.set('year', value);
-            else newSearchParams.delete('year');
-            newSearchParams.delete('category');
-            newSearchParams.delete('country');
-            newSearchParams.delete('keyword');
-        } else if (type === 'keyword') {
-            if (value) newSearchParams.set('keyword', value);
-            else newSearchParams.delete('keyword');
-            newSearchParams.delete('category');
-            newSearchParams.delete('country');
-            newSearchParams.delete('year');
-        }
-
-        navigate(`/?${newSearchParams.toString()}`);
-        onCloseFilterModal();
-    }, [navigate, onCloseFilterModal, urlKeyword, urlCategorySlug, urlCountrySlug, urlYear]);
-
-    const handlePageChange = useCallback((newPage) => {
-        if (newPage >= 1 && newPage <= totalPages) {
-            const newSearchParams = new URLSearchParams(searchParams);
-            newSearchParams.set('page', newPage.toString());
-            navigate(`/?${newSearchParams.toString()}`);
-        }
-    }, [totalPages, searchParams, navigate]);
-
-    const getMainListTitle = () => {
-        if (urlKeyword) return `Kết quả tìm kiếm cho: "${urlKeyword}"`;
-        if (urlCategorySlug) {
-            if (urlCategorySlug === 'phim-moi-cap-nhat') return 'Phim Mới Cập Nhật';
-            const predefined = CATEGORIES_MAPPING.find(cat => cat.slug === urlCategorySlug);
-            if (predefined) return predefined.name;
-            const genre = genres.find(g => g.slug === urlCategorySlug);
-            if (genre) return genre.name;
-            return urlCategorySlug;
-        }
-        if (urlCountrySlug) return countries.find(c => c.slug === urlCountrySlug)?.name || urlCountrySlug;
-        if (urlYear) return `Phim năm ${urlYear}`;
-        return 'Danh sách phim';
+      } catch (err) {
+        console.error('Error fetching movies:', err);
+        setError('Không thể tải phim. Vui lòng thử lại sau.');
+        setMovies([]);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    // Spinner chung chỉ hiển thị khi đang tải trang chính hoặc các kết quả tìm kiếm/lọc
-    const showGlobalSpinner = (loadingMain && showMainMovieGrid);
+    fetchMovies();
+  }, [searchParams, buildApiUrl]);
 
-    if (showGlobalSpinner) {
-        return <div className="container"><div className="spinner"></div></div>;
+  // Effect để fetch filter options (chỉ chạy một lần khi component mount)
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+      try {
+        const [genreRes, countryRes, typeRes] = await Promise.all([
+          axios.get(`${V1_API_URL}/the-loai`),
+          axios.get(`${V1_API_URL}/quoc-gia`),
+          axios.get(`${V1_API_URL}/the-loai-phim-le-phim-bo`), // Endpoint cho loại phim
+        ]);
+
+        setGenres(genreRes.data.data || []);
+        setCountries(countryRes.data.data || []);
+        setMovieTypes(typeRes.data.data || []);
+
+        // Tạo danh sách năm từ hiện tại về trước 50 năm
+        const currentYear = new Date().getFullYear();
+        const yearsList = Array.from({ length: 50 }, (_, i) => currentYear - i);
+        setYears(yearsList);
+      } catch (error) {
+        console.error('Error fetching filter options:', error);
+      }
+    };
+    fetchFilterOptions();
+  }, []);
+
+  // Sync internal filter states with URL params on initial load or URL change
+  useEffect(() => {
+    if (initialLoadRef.current) {
+      // Sync on initial load
+      setSelectedGenre(searchParams.get('genre') || '');
+      setSelectedCountry(searchParams.get('country') || '');
+      setSelectedYear(searchParams.get('year') || '');
+      setSelectedType(searchParams.get('type') || '');
+      setSelectedDubbed(searchParams.get('dubbed') || '');
+      initialLoadRef.current = false;
+    }
+  }, [searchParams]); // Depend on searchParams to resync if URL changes externally
+
+
+  const handleFilterChange = useCallback((filterName, value) => {
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.delete('keyword'); // Xóa keyword khi áp dụng bộ lọc
+      newParams.delete('page'); // Reset về trang 1 khi thay đổi bộ lọc
+
+      if (value) {
+        newParams.set(filterName, value);
+      } else {
+        newParams.delete(filterName);
+      }
+      return newParams;
+    }, { replace: true });
+
+    // Cập nhật trạng thái cục bộ
+    if (filterName === 'genre') setSelectedGenre(value);
+    else if (filterName === 'country') setSelectedCountry(value);
+    else if (filterName === 'year') setSelectedYear(value);
+    else if (filterName === 'type') setSelectedType(value);
+    else if (filterName === 'dubbed') setSelectedDubbed(value);
+
+    onCloseFilterModal(); // Đóng modal sau khi chọn bộ lọc
+  }, [setSearchParams, onCloseFilterModal]);
+
+  const handlePageChange = useCallback((page) => {
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
+      newParams.set('page', page);
+      return newParams;
+    }, { replace: true });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [setSearchParams]);
+
+  const getImageUrl = (url) => {
+    if (!url) return '/placeholder.jpg'; // Fallback image
+    // Kiểm tra nếu URL đã là full URL
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    // Ngược lại, thêm CDN_IMAGE_URL vào trước
+    return `${CDN_IMAGE_URL}/${url}`;
+  };
+
+  const clearAllFilters = useCallback(() => {
+    setSearchParams(new URLSearchParams(), { replace: true }); // Xóa tất cả params
+    setSelectedGenre('');
+    setSelectedCountry('');
+    setSelectedYear('');
+    setSelectedType('');
+    setSelectedDubbed('');
+    onCloseFilterModal();
+  }, [setSearchParams, onCloseFilterModal]);
+
+  const isFilterActive = () => {
+    return selectedGenre || selectedCountry || selectedYear || selectedType || selectedDubbed || searchParams.get('keyword');
+  };
+
+  if (error) {
+    return <div className="container error-message">{error}</div>;
+  }
+
+  const renderPagination = () => {
+    const pages = [];
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+
+    if (endPage - startPage + 1 < maxPagesToShow) {
+      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+
+    if (startPage > 1) {
+      pages.push(
+        <button key="first" onClick={() => handlePageChange(1)} className="pagination-button">
+          1
+        </button>
+      );
+      if (startPage > 2) {
+        pages.push(<span key="dots-prev" className="pagination-dots">...</span>);
+      }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(
+        <button
+          key={i}
+          onClick={() => handlePageChange(i)}
+          className={`pagination-button ${i === currentPage ? 'active' : ''}`}
+        >
+          {i}
+        </button>
+      );
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        pages.push(<span key="dots-next" className="pagination-dots">...</span>);
+      }
+      pages.push(
+        <button key="last" onClick={() => handlePageChange(totalPages)} className="pagination-button">
+          {totalPages}
+        </button>
+      );
     }
 
     return (
-        <div className="container">
-            <Helmet>
-                <title>{seoData.titleHead}</title>
-                <meta name="description" content={seoData.descriptionHead} />
-            </Helmet>
-
-            {showFilterModal && (
-                <div className="filter-modal-overlay" onClick={onCloseFilterModal}>
-                    <div className="filter-modal-content" onClick={e => e.stopPropagation()}>
-                        <button className="close-modal-button" onClick={onCloseFilterModal}>
-                            <FaTimes />
-                        </button>
-                        <h2 className="modal-title">Bộ Lọc Phim</h2>
-                        <div className="filter-container-modal">
-                            <Select
-                                options={[{ value: '', label: 'Tất cả thể loại' }, ...genres.map(g => ({ value: g.slug, label: g.name }))]}
-                                value={filterCategory ? { value: filterCategory, label: genres.find(g => g.slug === filterCategory)?.name || filterCategory } : { value: '', label: 'Tất cả thể loại' }}
-                                onChange={(selected) => handleFilterChange('category', selected)}
-                                placeholder="Chọn thể loại..."
-                                className="filter-select"
-                                styles={customSelectStyles}
-                            />
-                            <Select
-                                options={[{ value: '', label: 'Tất cả quốc gia' }, ...countries.map(c => ({ value: c.slug, label: c.name }))]}
-                                value={filterCountry ? { value: filterCountry, label: countries.find(c => c.slug === filterCountry)?.name || filterCountry } : { value: '', label: 'Tất cả quốc gia' }}
-                                onChange={(selected) => handleFilterChange('country', selected)}
-                                placeholder="Chọn quốc gia..."
-                                className="filter-select"
-                                styles={customSelectStyles}
-                            />
-                            <Select
-                                options={[{ value: '', label: 'Tất cả năm' }, ...years]}
-                                value={filterYear ? { value: filterYear, label: filterYear } : { value: '', label: 'Tất cả năm' }}
-                                onChange={(selected) => handleFilterChange('year', selected)}
-                                placeholder="Chọn năm..."
-                                className="filter-select"
-                                styles={customSelectStyles}
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {showMainMovieGrid && (
-                <h1 className="main-list-title">
-                    {getMainListTitle()}
-                </h1>
-            )}
-
-            {showMainMovieGrid ? (
-                <>
-                    {loadingMain ? (
-                        <div className="main-grid-spinner">
-                            <div className="spinner"></div>
-                        </div>
-                    ) : (movies.length === 0 ? (
-                        <p className="no-movies-found">Không tìm thấy phim nào phù hợp với lựa chọn của bạn.</p>
-                    ) : (
-                        <div className="movie-grid">
-                            {movies.map((movie) => (
-                                <Link key={movie._id} to={`/movie/${movie.slug}`} className="movie-card">
-                                    <LazyLoadImage
-                                        src={getImageUrl(movie.poster_url)}
-                                        alt={movie.name}
-                                        className="movie-poster"
-                                        effect="blur"
-                                        onError={(e) => (e.target.src = '/placeholder.jpg')}
-                                    />
-                                    <h3>{movie.name}</h3>
-                                    <p>{movie.year}</p>
-                                    {movie.quality && <span className="movie-quality">{movie.quality}</span>}
-                                    {movie.episode_current && <span className="movie-status">{movie.episode_current}</span>}
-                                </Link>
-                            ))}
-                        </div>
-                    ))}
-                    {totalPages > 1 && !loadingMain && (
-                        <div className="pagination">
-                            <button
-                                onClick={() => handlePageChange(currentPage - 1)}
-                                disabled={currentPage === 1}
-                                className="pagination-button"
-                            >
-                                Trang trước
-                            </button>
-                            <span className="pagination-info">
-                                Trang {currentPage} / {totalPages}
-                            </span>
-                            <button
-                                onClick={() => handlePageChange(currentPage + 1)}
-                                disabled={currentPage === totalPages}
-                                className="pagination-button"
-                            >
-                                Trang sau
-                            </button>
-                        </div>
-                    )}
-                </>
-            ) : (
-                <div className="home-sections-container">
-                    {/* Luôn tải các phần ban đầu này */}
-                    <HomePageSection
-                        title="Phim Mới Cập Nhật"
-                        movies={homeSectionsData.recentMovies}
-                        linkToAll="/?category=phim-moi-cap-nhat&page=1"
-                        isLoading={homeSectionsData.recentMovies === null}
-                    />
-
-                    <HomePageSection
-                        title="Phim Bộ"
-                        movies={homeSectionsData.seriesMovies}
-                        linkToAll="/?category=phim-bo&page=1"
-                        isLoading={homeSectionsData.seriesMovies === null}
-                    />
-                    <HomePageSection
-                        title="Phim Lẻ"
-                        movies={homeSectionsData.singleMovies}
-                        linkToAll="/?category=phim-le&page=1"
-                        isLoading={homeSectionsData.singleMovies === null}
-                    />
-                    {watchHistory.length > 0 && (
-                        <HistorySection
-                            historyMovies={watchHistory}
-                            onDeleteHistoryItem={handleDeleteHistoryItem}
-                        />
-                    )}
-
-                    {/* Các phần được tải lười biếng - mỗi phần với ref riêng */}
-                    {/* TV Shows */}
-                    <div ref={tvShowsRef[0]} className="lazy-load-trigger-point">
-                        <HomePageSection
-                            title="TV Shows"
-                            movies={homeSectionsData.tvShows}
-                            linkToAll="/?category=tv-shows&page=1"
-                            // isLoading chỉ true khi dữ liệu chưa tải VÀ div này đang trong tầm nhìn
-                            isLoading={homeSectionsData.tvShows === null && tvShowsRef[1]?.isIntersecting}
-                        />
-                    </div>
-
-                    {/* Phim Thuyết Minh */}
-                    <div ref={dubbedMoviesRef[0]} className="lazy-load-trigger-point">
-                        <HomePageSection
-                            title="Phim Thuyết Minh"
-                            movies={homeSectionsData.dubbedMovies}
-                            linkToAll="/?category=phim-thuyet-minh&page=1"
-                            isLoading={homeSectionsData.dubbedMovies === null && dubbedMoviesRef[1]?.isIntersecting}
-                        />
-                    </div>
-
-                    {/* Hoạt Hình */}
-                    <div ref={cartoonMoviesRef[0]} className="lazy-load-trigger-point">
-                        <HomePageSection
-                            title="Hoạt Hình"
-                            movies={homeSectionsData.cartoonMovies}
-                            linkToAll="/?category=hoat-hinh&page=1"
-                            isLoading={homeSectionsData.cartoonMovies === null && cartoonMoviesRef[1]?.isIntersecting}
-                        />
-                    </div>
-
-                    {/* Phim Lồng Tiếng */}
-                    <div ref={longTiengMoviesRef[0]} className="lazy-load-trigger-point">
-                        <HomePageSection
-                            title="Phim Lồng Tiếng"
-                            movies={homeSectionsData.longTiengMovies}
-                            linkToAll="/?category=phim-long-tieng&page=1"
-                            isLoading={homeSectionsData.longTiengMovies === null && longTiengMoviesRef[1]?.isIntersecting}
-                        />
-                    </div>
-
-                    {/* Phim Việt Nam */}
-                    <div ref={vietnamMoviesRef[0]} className="lazy-load-trigger-point">
-                        <HomePageSection
-                            title="Phim Việt Nam"
-                            movies={homeSectionsData.vietnamMovies}
-                            linkToAll="/?country=viet-nam&page=1"
-                            isLoading={homeSectionsData.vietnamMovies === null && vietnamMoviesRef[1]?.isIntersecting}
-                        />
-                    </div>
-
-                    {/* Phim Trung Quốc */}
-                    <div ref={chinaMoviesRef[0]} className="lazy-load-trigger-point">
-                        <HomePageSection
-                            title="Phim Trung Quốc"
-                            movies={homeSectionsData.chinaMovies}
-                            linkToAll="/?country=trung-quoc&page=1"
-                            isLoading={homeSectionsData.chinaMovies === null && chinaMoviesRef[1]?.isIntersecting}
-                        />
-                    </div>
-
-                    {/* Phim Âu Mỹ */}
-                    <div ref={usEuMoviesRef[0]} className="lazy-load-trigger-point">
-                        <HomePageSection
-                            title="Phim Âu Mỹ"
-                            movies={homeSectionsData.usEuMovies}
-                            linkToAll="/?country=au-my&page=1"
-                            isLoading={homeSectionsData.usEuMovies === null && usEuMoviesRef[1]?.isIntersecting}
-                        />
-                    </div>
-
-                    {/* Phim Nhật Bản */}
-                    <div ref={japanMoviesRef[0]} className="lazy-load-trigger-point">
-                        <HomePageSection
-                            title="Phim Nhật Bản"
-                            movies={homeSectionsData.japanMovies}
-                            linkToAll="/?country=nhat-ban&page=1"
-                            isLoading={homeSectionsData.japanMovies === null && japanMoviesRef[1]?.isIntersecting}
-                        />
-                    </div>
-
-                    {/* Phim Hàn Quốc */}
-                    <div ref={koreaMoviesRef[0]} className="lazy-load-trigger-point">
-                        <HomePageSection
-                            title="Phim Hàn Quốc"
-                            movies={homeSectionsData.koreaMovies}
-                            linkToAll="/?country=han-quoc&page=1"
-                            isLoading={homeSectionsData.koreaMovies === null && koreaMoviesRef[1]?.isIntersecting}
-                        />
-                    </div>
-                </div>
-            )}
-        </div>
+      <div className="pagination">
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="pagination-button"
+        >
+          Trước
+        </button>
+        {pages}
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="pagination-button"
+        >
+          Tiếp
+        </button>
+      </div>
     );
+  };
+
+  return (
+    <div className="home-page container">
+      <Helmet>
+        <title>Xem Phim Online Miễn Phí - Phim Mới Nhanh Nhất</title>
+        <meta
+          name="description"
+          content="Xem phim online miễn phí, phim bộ, phim lẻ, phim chiếu rạp mới nhất với chất lượng cao và cập nhật nhanh chóng."
+        />
+      </Helmet>
+
+      {/* Filter Modal */}
+      {showFilterModal && (
+        <div className="filter-modal-overlay" onClick={onCloseFilterModal}>
+          <div className="filter-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="filter-modal-header">
+              <h2>Bộ lọc phim</h2>
+              <button className="close-filter-btn" onClick={onCloseFilterModal}>
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="filter-group">
+              <label htmlFor="genre-select">Thể loại:</label>
+              <select
+                id="genre-select"
+                value={selectedGenre}
+                onChange={(e) => handleFilterChange('genre', e.target.value)}
+              >
+                <option value="">Tất cả</option>
+                {genres.map((genre) => (
+                  <option key={genre.slug} value={genre.slug}>
+                    {genre.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label htmlFor="country-select">Quốc gia:</label>
+              <select
+                id="country-select"
+                value={selectedCountry}
+                onChange={(e) => handleFilterChange('country', e.target.value)}
+              >
+                <option value="">Tất cả</option>
+                {countries.map((country) => (
+                  <option key={country.slug} value={country.slug}>
+                    {country.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label htmlFor="year-select">Năm phát hành:</label>
+              <select
+                id="year-select"
+                value={selectedYear}
+                onChange={(e) => handleFilterChange('year', e.target.value)}
+              >
+                <option value="">Tất cả</option>
+                {years.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label htmlFor="type-select">Loại phim:</label>
+              <select
+                id="type-select"
+                value={selectedType}
+                onChange={(e) => handleFilterChange('type', e.target.value)}
+              >
+                <option value="">Tất cả</option>
+                {movieTypes.map((type) => (
+                  <option key={type.slug} value={type.slug}>
+                    {type.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label htmlFor="dubbed-select">Lồng tiếng:</label>
+              <select
+                id="dubbed-select"
+                value={selectedDubbed}
+                onChange={(e) => handleFilterChange('dubbed', e.target.value)}
+              >
+                <option value="">Tất cả</option>
+                <option value="true">Có lồng tiếng</option>
+                <option value="false">Không lồng tiếng</option>
+              </select>
+            </div>
+
+            <div className="filter-actions">
+              <button className="clear-filters-btn" onClick={clearAllFilters}>
+                Xóa tất cả
+              </button>
+              <button className="apply-filters-btn" onClick={onCloseFilterModal}>
+                Áp dụng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="action-bar">
+        <button className="filter-button" onClick={onCloseFilterModal}>
+          <FaFilter /> Bộ lọc
+        </button>
+        <button className="history-button" onClick={() => navigate('/history')}>
+          <FaHistory /> Lịch sử xem
+        </button>
+      </div>
+
+
+      {loading ? (
+        <Spinner />
+      ) : (
+        <>
+          {searchParams.get('keyword') && (
+            <h2 className="section-title">
+              Kết quả tìm kiếm cho: "{searchParams.get('keyword')}" ({totalItems} phim)
+            </h2>
+          )}
+          {!searchParams.get('keyword') && isFilterActive() && (
+            <h2 className="section-title">Phim theo bộ lọc ({totalItems} phim)</h2>
+          )}
+          {!searchParams.get('keyword') && !isFilterActive() && (
+            <h2 className="section-title">Phim mới cập nhật ({totalItems} phim)</h2>
+          )}
+
+          {movies.length > 0 ? (
+            <div className="movie-grid">
+              {movies.map((movie) => (
+                <div key={movie._id} className="movie-card">
+                  <Link to={`/movie/${movie.slug}`}>
+                    <LazyLoadImage
+                      src={getImageUrl(movie.thumb_url)}
+                      alt={movie.name}
+                      effect="blur"
+                      className="movie-thumbnail"
+                      width="200"
+                      height="300"
+                    />
+                    <div className="movie-info-overlay">
+                      <h3 className="movie-card-title">{movie.name}</h3>
+                      <p className="movie-card-year">{movie.year}</p>
+                      <p className="movie-card-status">{movie.episode_current}</p>
+                    </div>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="no-results-message">Không tìm thấy phim nào.</p>
+          )}
+
+          {totalPages > 1 && renderPagination()}
+        </>
+      )}
+    </div>
+  );
 }
 
 export default Home;
