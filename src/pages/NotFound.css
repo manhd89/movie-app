@@ -1,0 +1,75 @@
+/* src/pages/NotFound.css */
+
+.not-found-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 120px); /* Adjust based on header/footer height */
+  text-align: center;
+  padding: 40px 20px;
+  color: #f0f0f0;
+  background-color: #1a1a1a;
+}
+
+.not-found-container h1 {
+  font-size: 8rem;
+  color: #e74c3c; /* Red color for 404 */
+  margin-bottom: 20px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.not-found-container h2 {
+  font-size: 2.5rem;
+  color: #fff;
+  margin-bottom: 15px;
+}
+
+.not-found-container p {
+  font-size: 1.2rem;
+  color: #ccc;
+  margin-bottom: 30px;
+}
+
+.back-home-button {
+  background-color: #007bff;
+  color: #fff;
+  padding: 12px 25px;
+  border-radius: 5px;
+  text-decoration: none;
+  font-size: 1.1rem;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.back-home-button:hover {
+  background-color: #0056b3;
+}
+
+@media (max-width: 768px) {
+  .not-found-container h1 {
+    font-size: 6rem;
+  }
+  .not-found-container h2 {
+    font-size: 2rem;
+  }
+  .not-found-container p {
+    font-size: 1rem;
+  }
+  .back-home-button {
+    padding: 10px 20px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .not-found-container h1 {
+    font-size: 4rem;
+  }
+  .not-found-container h2 {
+    font-size: 1.5rem;
+  }
+  .not-found-container p {
+    font-size: 0.9rem;
+  }
+}
