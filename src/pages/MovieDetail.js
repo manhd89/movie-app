@@ -9,7 +9,7 @@ import Hls from 'hls.js';
 import { FaArrowLeft, FaRegPlayCircle, FaHistory } from 'react-icons/fa';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import { processPlaylistForAds } from '../utils/playlistProcessor';
-import Spinner from '../components/Spinner'; // Import Spinner
+import Spinner from '../components/Spinner';
 import './MovieDetail.css';
 
 // --- Start: Ad-blocking CSS ---
@@ -23,10 +23,10 @@ const adBlockCSS = `
 const PLAYBACK_SAVE_THRESHOLD_SECONDS = 5;
 const LAST_PLAYED_KEY_PREFIX = 'lastPlayedPosition-';
 const WATCH_HISTORY_KEY = 'watchHistory';
-const SAVE_INTERVAL_SECONDS = 10; // Save playback position every 10 seconds
+const SAVE_INTERVAL_SECONDS = 10;
 
 // --- Constants ---
-const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`; // Đảm bảo sử dụng constant này
+const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`;
 const CDN_IMAGE_URL = process.env.REACT_APP_API_CDN_IMAGE;
 
 function MovieDetail() {
@@ -46,7 +46,7 @@ function MovieDetail() {
   const currentPlaybackPositionRef = useRef(0);
   const [lastViewedPosition, setLastViewedPosition] = useState(0);
   const [lastViewedEpisodeInfo, setLastViewedEpisodeInfo] = useState(null);
-  const saveIntervalRef = useRef(null); // Ref for the interval timer
+  const saveIntervalRef = useRef(null);
 
   const currentBlobUrlRef = useRef(null);
 
@@ -63,7 +63,7 @@ function MovieDetail() {
     const fetchMovieData = async () => {
       try {
         setInitialLoading(true);
-        const response = await axios.get(`${V1_API_URL}/movie?slug=${slug}`, { // Sử dụng V1_API_URL
+        const response = await axios.get(`${V1_API_URL}/movie?slug=${slug}`, {
           timeout: 5000,
         });
 
@@ -168,9 +168,9 @@ function MovieDetail() {
     };
 
     let history = JSON.parse(localStorage.getItem(WATCH_HISTORY_KEY) || '[]');
-    history = history.filter(item => item.slug !== movieData.slug); // Remove old entry for this movie
-    history.unshift(historyEntry); // Add new entry to the beginning
-    localStorage.setItem(WATCH_HISTORY_KEY, JSON.stringify(history.slice(0, 20))); // Keep only last 20
+    history = history.filter(item => item.slug !== movieData.slug);
+    history.unshift(historyEntry);
+    localStorage.setItem(WATCH_HISTORY_KEY, JSON.stringify(history.slice(0, 20)));
     console.log(`Saved movie to history: ${movieData.name} - ${episodeData.name} at ${position}s`);
   }, [episodes, selectedServer]);
 
@@ -222,7 +222,7 @@ function MovieDetail() {
 
     try {
       const originalM3u8Url = currentEpisode.link_m3u8;
-      let finalM3u8Url = originalM3u38Url;
+      let finalM3u8Url = originalM3u8Url; // Đã sửa lỗi chính tả ở đây: originalM3u38Url -> originalM3u8Url
 
       // Process playlist for ads
       const cleanedPlaylist = await processPlaylistForAds(originalM3u8Url);
@@ -233,7 +233,7 @@ function MovieDetail() {
         currentBlobUrlRef.current = finalM3u8Url;
         console.log("MovieDetail: Using Blob URL for cleaned playlist.");
       } else {
-        finalM3u8Url = originalM3u8Url.replace(/^http:/, "https:"); // Fallback to original, ensure HTTPS
+        finalM3u8Url = originalM3u8Url.replace(/^http:/, "https:");
         console.log("MovieDetail: Falling back to original URL (playlist processing failed or no ads).");
       }
 
@@ -287,7 +287,6 @@ function MovieDetail() {
         });
 
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        // Native HLS support (Safari on iOS/macOS)
         video.src = finalM3u8Url;
         const savedPositionKey = getPlaybackPositionKey(currentEpisode.slug);
         const savedTime = parseFloat(localStorage.getItem(savedPositionKey));
@@ -325,18 +324,18 @@ function MovieDetail() {
   // Effect to load video and clean up on component unmount or episode change
   useEffect(() => {
     const video = videoRef.current;
-    loadVideo(); // Call load video when currentEpisode or showMovieInfoPanel changes
+    loadVideo();
 
     return () => {
-      savePlaybackPosition(); // Save final position on unmount/episode change
+      savePlaybackPosition();
       if (hlsInstanceRef.current) {
         hlsInstanceRef.current.destroy();
         hlsInstanceRef.current = null;
       }
       if (video) {
-        video.src = ''; // Clear video source
+        video.src = '';
         video.removeAttribute('src');
-        video.load(); // Ensure resources are released
+        video.load();
       }
       if (saveIntervalRef.current) {
         clearInterval(saveIntervalRef.current);
@@ -348,7 +347,7 @@ function MovieDetail() {
         currentBlobUrlRef.current = null;
       }
     };
-  }, [currentEpisode, loadVideo, savePlaybackPosition]); // Depend on loadVideo and savePlaybackPosition
+  }, [currentEpisode, loadVideo, savePlaybackPosition]);
 
   // Event listeners for video and tab visibility
   useEffect(() => {
@@ -375,7 +374,6 @@ function MovieDetail() {
         savePlaybackPosition();
       } else {
         if (video.src && !showMovieInfoPanel) {
-          // Attempt to resume playback or recover HLS.js
           if (hlsInstanceRef.current && hlsInstanceRef.current.media && hlsInstanceRef.current.media.readyState < 4) {
             console.log("Attempting to recover HLS.js media error on foreground.");
             hlsInstanceRef.current.recoverMediaError();
@@ -414,13 +412,13 @@ function MovieDetail() {
     if (newServerData && newServerData.length > 0) {
       targetEpisode = newServerData.find(ep => ep.slug === currentEpisode?.slug);
       if (!targetEpisode) {
-        targetEpisode = newServerData[0]; // Fallback to first episode on new server
+        targetEpisode = newServerData[0];
       }
       setCurrentEpisode(targetEpisode);
       navigate(`/movie/${slug}/${targetEpisode.slug}`, { replace: true });
     } else {
       setCurrentEpisode(null);
-      navigate(`/movie/${slug}`, { replace: true }); // Go back to movie info if server has no episodes
+      navigate(`/movie/${slug}`, { replace: true });
     }
   }, [slug, navigate, episodes, currentEpisode, savePlaybackPosition]);
 
@@ -445,7 +443,6 @@ function MovieDetail() {
           setShowMovieInfoPanel(false);
           navigate(`/movie/${movie.slug}/${targetEpisode.slug}`);
         } else {
-          // Try to find episode on other servers if not found on the original one
           let foundOnOtherServer = false;
           for (let i = 0; i < episodes.length; i++) {
             const ep = episodes[i].server_data.find(epData => epData.slug === lastViewedEpisodeInfo.slug);
@@ -490,7 +487,7 @@ function MovieDetail() {
   // Helper to truncate HTML content for description
   const truncateDescription = (text, maxLength = 160) => {
     if (!text) return '';
-    const stripped = text.replace(/<[^>]+>/g, ''); // Remove HTML tags
+    const stripped = text.replace(/<[^>]+>/g, '');
     return stripped.length > maxLength ? stripped.substring(0, maxLength) + '...' : stripped;
   };
 
@@ -555,7 +552,6 @@ function MovieDetail() {
               <p><strong>Ngôn ngữ:</strong> {movie.lang || 'N/A'}</p>
               <p><strong>Thời lượng:</strong> {movie.time || 'N/A'}</p>
               <p><strong>Trạng thái:</strong> {movie.episode_current || 'Full'}</p>
-              {/* Sử dụng dangerouslySetInnerHTML nếu movie.content chứa HTML và bạn muốn hiển thị nó */}
               <p>
                 <strong>Nội dung:</strong>{' '}
                 <span dangerouslySetInnerHTML={{ __html: movie.content || 'Không có mô tả.' }} />
