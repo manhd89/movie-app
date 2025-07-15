@@ -37,8 +37,8 @@ const customSelectStyles = {
   })
 };
 
-// Define CATEGORIES_MAPPING here if it's primarily used for navigation within FilterMenu
-// If it's used broadly across other components, consider moving it to a shared `constants.js` file.
+// CATEGORIES_MAPPING is defined here and exported if needed elsewhere,
+// but for this file's internal use, it can also be here.
 const CATEGORIES_MAPPING = [
     { slug: 'phim-moi-cap-nhat', name: 'Phim Mới Cập Nhật' },
     { slug: 'phim-bo', name: 'Phim Bộ' },
@@ -55,7 +55,8 @@ function FilterMenu({ isOpen, onClose }) {
   const [genres, setGenres] = useState([]);
   const [countries, setCountries] = useState([]);
 
-  // Correctly define currentYear and years once within the component scope
+  // **THIS IS THE CRITICAL PART:**
+  // Ensure 'currentYear' and 'years' are declared ONLY ONCE here
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 1970 + 2 }, (_, i) => ({
     value: (currentYear + 1 - i).toString(),
@@ -102,7 +103,6 @@ function FilterMenu({ isOpen, onClose }) {
       newSearchParams.delete(type);
     }
 
-    // Ensure only one main filter type (category/country/year) is active
     if (type === 'category') {
         newSearchParams.delete('country');
         newSearchParams.delete('year');
@@ -123,11 +123,12 @@ function FilterMenu({ isOpen, onClose }) {
   const currentSearchParams = new URLSearchParams(window.location.search);
   const currentCategory = currentSearchParams.get('category') || '';
   const currentCountry = currentSearchParams.get('country') || '';
-  const currentYear = currentSearchParams.get('year') || '';
+  // This 'currentYear' refers to the year from URL params, distinct from the year range 'years'
+  const currentYearFromParams = currentSearchParams.get('year') || '';
+
 
   const handleNavLinkClick = useCallback((path, filterType, filterValue) => {
     if (filterType && filterValue) {
-        // Simulate a filter change for navigation links
         handleFilterChange(filterType, { value: filterValue });
     } else {
         navigate(path);
@@ -163,7 +164,7 @@ function FilterMenu({ isOpen, onClose }) {
           />
           <Select
             options={[{ value: '', label: 'Tất cả năm' }, ...years]}
-            value={currentYear ? { value: currentYear, label: currentYear } : { value: '', label: 'Tất cả năm' }}
+            value={currentYearFromParams ? { value: currentYearFromParams, label: currentYearFromParams } : { value: '', label: 'Tất cả năm' }}
             onChange={(selected) => handleFilterChange('year', selected)}
             placeholder="Chọn năm..."
             className="filter-select"
