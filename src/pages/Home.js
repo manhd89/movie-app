@@ -444,15 +444,6 @@ function Home() {
                 </>
             ) : (
                 <div className="home-sections-container">
-                    {/* Render History Section here, only if there's history and no main filter is active */}
-                    {historyMovies.length > 0 && (
-                        <HistorySection
-                            title="Lịch Sử Xem Gần Đây"
-                            historyMovies={historyMovies}
-                            linkToAll="/history"
-                        />
-                    )}
-
                     <HomePageSection
                         title="Phim Mới Cập Nhật"
                         movies={homeSectionsData.recentMovies}
@@ -472,6 +463,14 @@ function Home() {
                         linkToAll="/?category=phim-le&page=1"
                         isLoading={homeSectionsData.singleMovies === null}
                     />
+
+                    {historyMovies.length > 0 && (
+                        <HistorySection
+                            title="Lịch Sử Xem Gần Đây"
+                            historyMovies={historyMovies}
+                            linkToAll="/history"
+                        />
+                    )}
 
                     <div ref={tvShowsRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
