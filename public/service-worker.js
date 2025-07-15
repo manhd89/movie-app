@@ -1,5 +1,3 @@
-importScripts('/utils/playlistProcessor.js');
-
 const CACHE_NAME = 'movie-m3u8-processed-v1';
 
 self.addEventListener('install', (event) => {
@@ -21,81 +19,126 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+const config = {
+  adsRegexList: [
+    new RegExp(
+      '(?<!#EXT-X-DISCONTINUITY[\\s\\S]*)#EXT-X-DISCONTINUITY\\n(?:.*?\\n){18,24}#EXT-X-DISCONTINUITY\\n(?![\\s\\S]*#EXT-X-DISCONTINUITY)',
+      'g'
+    ),
+    /#EXT-X-DISCONTINUITY\n(?:#EXT-X-KEY:METHOD=NONE\n(?:.*\n){18,24})?#EXT-X-DISCONTINUITY\n|convertv7\//g,
+    /#EXT-X-DISCONTINUITY\n(?:#EXTINF:(?:3.92|0.76|2.00|2.50|2.00|2.42|2.00|0.78|1.96)0000,\n.*\n){9}#EXT-X-DISCONTINUITY\n(?:#EXTINF:(?:2.00|1.76|3.20|2.00|1.36|2.00|2.00|0.72)0000,\n.*\n){8}(?=#EXT-X-DISCONTINUITY)/g,
+  ],
+  domainBypassWhitelist: ['kkphimplayer', 'phim1280', 'opstream'],
+};
+
+function isContainAds(playlist, adsRegexList) {
+  return adsRegexList.some((regex) => {
+    regex.lastIndex = 0;
+    return regex.test(playlist);
+  });
+}
+
+function getTotalDuration(playlist) {
+  const matches = playlist.match(/#EXTINF:([\d.]+)/g) ?? [];
+  return matches.reduce((sum, match) => sum + parseFloat(match.split(':')[1]), 0);
+}
+
+function getExceptionDuration(url) {
+  const parsedUrl = new URL(url);
+  if (['ophim', 'opstream'].some((keyword) => parsedUrl.hostname.includes(keyword))) {
+    return 600;
+  } else if (['nguonc', 'streamc'].some((keyword) => parsedUrl.hostname.includes(keyword))) {
+    return Infinity;
+  } else {
+    return 900;
+  }
+}
+
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
 
-  const isM3u8Request = requestUrl.pathname.endsWith('.m3u8') || requestUrl.pathname.endsWith('.m3u8?');
+  const isM3u8Request = requestUrl.pathname.endsWith('.m3u8');
   const isSegmentRequest = requestUrl.pathname.endsWith('.ts') || requestUrl.pathname.includes('/seg-');
-
-  // Truy cập các hàm và config từ đối tượng global được importScripts() cung cấp
-  const { config, isContainAds, getTotalDuration, getExceptionDuration, processPlaylistForAds } = self;
-
 
   if (isM3u8Request) {
     event.respondWith(
       caches.match(event.request).then(async (cachedResponse) => {
         if (cachedResponse) {
-          console.log(`Service Worker: Serving M3U8 from cache: ${requestUrl.href}`);
           return cachedResponse;
         }
 
         try {
-          // Sử dụng hàm dùng chung để xử lý playlist
-          const processedPlaylistContent = await processPlaylistForAds(requestUrl.href);
+          let response = await fetch(event.request);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          let playlistContent = await response.text();
 
-          if (!processedPlaylistContent) {
-            throw new Error("Failed to process playlist content.");
+          playlistContent = playlistContent.replace(/^[^#].*$/gm, (line) => {
+            try {
+              const parsed = new URL(line, requestUrl);
+              return parsed.toString();
+            } catch {
+              return line;
+            }
+          });
+
+          if (playlistContent.includes('#EXT-X-STREAM-INF')) {
+            const subPlaylistUrlMatch = playlistContent.match(/^(?:#EXT-X-STREAM-INF:.*?\n)(.*?)$/m);
+            if (subPlaylistUrlMatch && subPlaylistUrlMatch[1]) {
+              const subPlaylistRelativeUrl = subPlaylistUrlMatch[1];
+              const subPlaylistAbsoluteUrl = new URL(subPlaylistRelativeUrl, requestUrl).href;
+
+              const subResponse = await fetch(subPlaylistAbsoluteUrl);
+              if (!subResponse.ok) throw new Error(`HTTP error! sub-playlist status: ${subResponse.status}`);
+              playlistContent = await subResponse.text();
+
+              playlistContent = playlistContent.replace(/^[^#].*$/gm, (line) => {
+                try {
+                  const parsed = new URL(line, new URL(subPlaylistAbsoluteUrl));
+                  return parsed.toString();
+                } catch {
+                  return line;
+                }
+              });
+            }
           }
 
-          // Kiểm tra và loại bỏ quảng cáo nếu cần (logic đã được chuyển vào processPlaylistForAds, nhưng bạn có thể thêm điều kiện ở đây nếu muốn Service Worker quyết định dựa trên config riêng)
-          const isBypassed = config.domainBypassWhitelist.some(domain => requestUrl.hostname.includes(domain));
-          const isShortDuration = getTotalDuration(processedPlaylistContent) <= getExceptionDuration(requestUrl.href);
-
-          let finalPlaylistForSW = processedPlaylistContent;
-          if (!isBypassed && isContainAds(processedPlaylistContent) && !isShortDuration) {
-              console.log(`Service Worker: Re-applying ad removal for specific SW logic: ${requestUrl.href}`);
-              // Nếu bạn muốn SW thực hiện lại việc loại bỏ quảng cáo với logic riêng của nó
-              finalPlaylistForSW = config.adsRegexList.reduce((currentPlaylist, regex) => {
-                return currentPlaylist.replaceAll(regex, '');
-              }, processedPlaylistContent);
-          } else {
-              console.log(`Service Worker: Ads not removed (bypassed, no ads found, or short duration) by SW specific logic for: ${requestUrl.href}`);
+          if (isContainAds(playlistContent, config.adsRegexList)) {
+            playlistContent = config.adsRegexList.reduce((currentPlaylist, regex) => {
+              return currentPlaylist.replaceAll(regex, '');
+            }, playlistContent);
+          } else if (getTotalDuration(playlistContent) <= getExceptionDuration(requestUrl.href)) {
+            // No action needed
           }
 
-
-          const processedResponse = new Response(finalPlaylistForSW, {
-            headers: { 'Content-Type': 'application/x-mpegURL' } // Đảm bảo Content-Type đúng
+          const processedResponse = new Response(playlistContent, {
+            headers: { 'Content-Type': response.headers.get('Content-Type') || 'application/x-mpegURL' }
           });
 
           const cache = await caches.open(CACHE_NAME);
           cache.put(event.request, processedResponse.clone());
-          console.log(`Service Worker: Cached and serving processed M3U8 for: ${requestUrl.href}`);
           return processedResponse;
 
         } catch (error) {
-          console.error(`Service Worker: Error processing M3U8 for ${requestUrl.href}:`, error);
-          return fetch(event.request); // Fallback to original fetch
+          return fetch(event.request);
         }
       })
     );
-  }
-  else if (isSegmentRequest) {
+  } else if (isSegmentRequest) {
     event.respondWith(
       caches.match(event.request).then(async (cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse;
         }
-        try {
-          const response = await fetch(event.request);
-          if (response.ok) {
-            const cache = await caches.open(CACHE_NAME);
-            cache.put(event.request, response.clone());
-          }
-          return response;
-        } catch (error) {
-          console.error(`Service Worker: Error fetching or caching segment for ${requestUrl.href}:`, error);
-          return new Response('Network error or segment not found', { status: 503, statusText: 'Service Unavailable' });
+        const response = await fetch(event.request);
+        if (response.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(event.request, response.clone());
         }
+        return response;
+      }).catch(() => {
+        return new Response('Network error or segment not found', { status: 503, statusText: 'Service Unavailable' });
       })
     );
   }
