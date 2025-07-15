@@ -55,3 +55,17 @@ button:hover {
 button:active {
   transform: translateY(0);
 }
+
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background-color: #1a1a1a; /* hoặc màu bạn muốn */
+  height: 70px; /* chiều cao cố định của header */
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* hiệu ứng đổ bóng nếu thích */
+}
