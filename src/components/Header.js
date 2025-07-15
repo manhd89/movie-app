@@ -10,7 +10,7 @@ import { FaBars, FaSearch, FaTimes } from 'react-icons/fa';
 const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`;
 const CDN_IMAGE_URL = process.env.REACT_APP_API_CDN_IMAGE;
 
-function Header({ onOpenFilters }) {
+function Header({ onOpenFilterMenu }) { // Renamed prop
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -19,7 +19,6 @@ function Header({ onOpenFilters }) {
   const searchContainerRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Hàm để làm sạch và đóng tất cả liên quan đến tìm kiếm
   const clearSearchAndHideSearchBar = useCallback(() => {
     setSearchQuery('');
     setSuggestions([]);
@@ -30,7 +29,6 @@ function Header({ onOpenFilters }) {
     }
   }, []);
 
-  // Toggle search bar visibility
   const toggleSearchBar = () => {
     if (showSearchBar) {
       clearSearchAndHideSearchBar();
@@ -44,35 +42,57 @@ function Header({ onOpenFilters }) {
     }
   };
 
-  // Gọi API để lấy gợi ý phim
-  const fetchSuggestions = async (value) => {
-    if (value.trim().length < 2) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-    try {
-      const response = await axios.get(
-        `${V1_API_URL}/tim-kiem?keyword=${encodeURIComponent(value)}`
-      );
-      const items = response.data.data?.items || [];
-      setSuggestions(items.slice(0, 5));
-      setShowSuggestions(true);
-    } catch (error) {
-      console.error('Error fetching suggestions:', error);
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-  };
+  // Using a ref for debounced function to ensure it doesn't change on re-renders
+  const fetchSuggestionsRef = useRef();
 
-  // Xử lý khi nhập từ khóa
+  useEffect(() => {
+    // Define the debounced function once
+    fetchSuggestionsRef.current = debounce(async (value) => {
+      if (value.trim().length < 2) {
+        setSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+      try {
+        const response = await axios.get(
+          `${V1_API_URL}/tim-kiem?keyword=${encodeURIComponent(value)}`
+        );
+        const items = response.data.data?.items || [];
+        setSuggestions(items.slice(0, 5));
+        setShowSuggestions(true);
+      } catch (error) {
+        console.error('Error fetching suggestions:', error);
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 300); // 300ms debounce
+  }, []); // Empty dependency array means this runs once on mount
+
   const handleInputChange = (e) => {
     const value = e.target.value;
     setSearchQuery(value);
-    fetchSuggestions(value);
+    if (value.trim() === '') {
+      // If input is empty, show history
+      const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+      if (history.length) {
+        setSuggestions(
+          history.map((item, index) => ({
+            _id: `history_${index}`,
+            name: item,
+            year: 'Lịch sử tìm kiếm',
+            isHistory: true // Flag to identify history items
+          }))
+        );
+        setShowSuggestions(true);
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    } else {
+      fetchSuggestionsRef.current(value); // Call the debounced function
+    }
   };
 
-  // Xử lý tìm kiếm (Enter hoặc nút Tìm)
   const handleSearch = (e) => {
     e.preventDefault();
 
@@ -89,22 +109,20 @@ function Header({ onOpenFilters }) {
     clearSearchAndHideSearchBar();
   };
 
-  // Xử lý khi chọn gợi ý
   const handleSuggestionClick = (item) => {
-    if (item.slug) {
-      navigate(`/movie/${item.slug}`);
-    } else {
+    if (item.isHistory) { // Use the flag to identify history items
       const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
       if (!history.includes(item.name)) {
         history.unshift(item.name);
         localStorage.setItem('searchHistory', JSON.stringify(history.slice(0, 5)));
       }
       navigate(`/?keyword=${encodeURIComponent(item.name)}&page=1`);
+    } else {
+      navigate(`/movie/${item.slug}`);
     }
     clearSearchAndHideSearchBar();
   };
 
-  // Xóa một từ khóa trong lịch sử
   const handleRemoveHistoryItem = (keyword, e) => {
     e.stopPropagation();
     const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
@@ -116,13 +134,13 @@ function Header({ onOpenFilters }) {
           _id: `history_${index}`,
           name: item,
           year: 'Lịch sử tìm kiếm',
+          isHistory: true
         }))
       );
       setShowSuggestions(updatedHistory.length > 0);
     }
   };
 
-  // Hiển thị lịch sử tìm kiếm khi focus vào input và không có query
   const handleInputFocus = () => {
     if (searchQuery === '') {
       const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
@@ -132,6 +150,7 @@ function Header({ onOpenFilters }) {
             _id: `history_${index}`,
             name: item,
             year: 'Lịch sử tìm kiếm',
+            isHistory: true
           }))
         );
         setShowSuggestions(true);
@@ -139,7 +158,6 @@ function Header({ onOpenFilters }) {
     }
   };
 
-  // Xử lý phím Enter
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === 'Done' || e.key === 'Go' || e.key === 'Search') {
       e.preventDefault();
@@ -147,14 +165,14 @@ function Header({ onOpenFilters }) {
     }
   };
 
-  // Ẩn search bar và gợi ý khi nhấp ra ngoài search container
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
         showSearchBar &&
         searchContainerRef.current &&
         !searchContainerRef.current.contains(event.target) &&
-        !event.target.closest('.search-toggle-button') // Exclude the toggle button itself
+        !event.target.closest('.search-toggle-button') &&
+        !event.target.closest('.hamburger-menu') // Exclude the hamburger menu button
       ) {
         clearSearchAndHideSearchBar();
       }
@@ -171,7 +189,7 @@ function Header({ onOpenFilters }) {
         Phim Online
       </Link>
 
-      <button className="search-toggle-button" onClick={toggleSearchBar}>
+      <button className="search-toggle-button" onClick={toggleSearchBar} aria-label="Tìm kiếm">
         {showSearchBar ? <FaTimes /> : <FaSearch />}
       </button>
 
@@ -189,6 +207,7 @@ function Header({ onOpenFilters }) {
               placeholder="Tìm kiếm phim..."
               className="search-input"
               autoComplete="off"
+              aria-label="Nhập từ khóa tìm kiếm"
             />
           </form>
           {showSuggestions && suggestions.length > 0 && (
@@ -211,10 +230,11 @@ function Header({ onOpenFilters }) {
                     <span className="suggestion-title">{item.name}</span>
                     <span className="suggestion-year">{item.year}</span>
                   </div>
-                  {!item.slug && ( // Chỉ hiển thị nút xóa cho lịch sử tìm kiếm
+                  {item.isHistory && ( // Only show remove button for history items
                     <button
                       className="remove-history-button"
                       onClick={(e) => handleRemoveHistoryItem(item.name, e)}
+                      aria-label={`Xóa "${item.name}" khỏi lịch sử`}
                     >
                       X
                     </button>
@@ -226,11 +246,22 @@ function Header({ onOpenFilters }) {
         </div>
       )}
 
-      <button className="hamburger-menu" onClick={onOpenFilters}>
+      {/* Hamburger Menu button to open FilterMenu */}
+      <button className="hamburger-menu" onClick={onOpenFilterMenu} aria-label="Mở menu bộ lọc">
         <FaBars />
       </button>
     </header>
   );
+}
+
+// Helper debounce function
+function debounce(func, delay) {
+  let timeout;
+  return function(...args) {
+    const context = this;
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(context, args), delay);
+  };
 }
 
 export default Header;
