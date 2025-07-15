@@ -8,7 +8,6 @@
     backdrop-filter: blur(3px);
     display: flex;
     justify-content: flex-end;
-    align-items: center; /* căn giữa menu theo chiều dọc */
     z-index: 1000;
     opacity: 0;
     visibility: hidden;
