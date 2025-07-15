@@ -37,19 +37,6 @@ const customSelectStyles = {
   })
 };
 
-// CATEGORIES_MAPPING is defined here and exported if needed elsewhere,
-// but for this file's internal use, it can also be here.
-const CATEGORIES_MAPPING = [
-    { slug: 'phim-moi-cap-nhat', name: 'Phim Mới Cập Nhật' },
-    { slug: 'phim-bo', name: 'Phim Bộ' },
-    { slug: 'phim-le', name: 'Phim Lẻ' },
-    { slug: 'tv-shows', name: 'TV Shows' },
-    { slug: 'hoat-hinh', name: 'Hoạt Hình' },
-    { slug: 'phim-vietsub', name: 'Phim Vietsub' },
-    { slug: 'phim-thuyet-minh', name: 'Phim Thuyết Minh' },
-    { slug: 'phim-long-tieng', name: 'Phim Lồng Tiếng' },
-];
-
 function FilterMenu({ isOpen, onClose }) {
   const navigate = useNavigate();
   const [genres, setGenres] = useState([]);
@@ -171,19 +158,6 @@ function FilterMenu({ isOpen, onClose }) {
             styles={customSelectStyles}
             aria-label="Chọn năm phát hành"
           />
-        </div>
-
-        <div className="menu-navigation-links">
-            <h3>Danh mục chính</h3>
-            <ul>
-                <li><a href="/" onClick={(e) => { e.preventDefault(); handleNavLinkClick('/'); }}>Trang chủ</a></li>
-                {CATEGORIES_MAPPING.map(cat => (
-                    <li key={cat.slug}>
-                        <a href={`/?category=${cat.slug}`} onClick={(e) => { e.preventDefault(); handleNavLinkClick('/', 'category', cat.slug); }}>{cat.name}</a>
-                    </li>
-                ))}
-                <li><a href="/history" onClick={(e) => { e.preventDefault(); handleNavLinkClick('/history'); }}>Lịch Sử Xem</a></li>
-            </ul>
         </div>
       </div>
     </div>
