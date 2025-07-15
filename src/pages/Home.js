@@ -15,6 +15,7 @@ import { CATEGORIES_MAPPING } from '../constants/categories'; // Import the cons
 const BASE_API_URL = process.env.REACT_APP_API_URL;
 const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`;
 const DEFAULT_PAGE_LIMIT = 12;
+const WATCH_HISTORY_KEY = 'watchHistory'; // Define the key for watch history
 
 const getImageUrl = (url) => {
     if (url && url.startsWith('https://')) {
@@ -23,6 +24,7 @@ const getImageUrl = (url) => {
     return url ? `${process.env.REACT_APP_API_CDN_IMAGE}/${url}` : '/placeholder.jpg';
 };
 
+// Reusable component for movie sections
 function HomePageSection({ title, movies, linkToAll, isLoading }) {
     if (isLoading) {
         return (
@@ -36,7 +38,7 @@ function HomePageSection({ title, movies, linkToAll, isLoading }) {
     }
 
     if (!movies || movies.length === 0) {
-        return null;
+        return null; // Don't render section if no movies
     }
 
     return (
@@ -51,7 +53,7 @@ function HomePageSection({ title, movies, linkToAll, isLoading }) {
             </div>
             <div className="movie-horizontal-scroll">
                 {movies.map((movie) => (
-                    <Link key={movie._id} to={`/movie/${movie.slug}`} className="movie-card-horizontal">
+                    <Link key={movie._id || movie.slug} to={`/movie/${movie.slug}`} className="movie-card-horizontal">
                         <LazyLoadImage
                             src={getImageUrl(movie.poster_url)}
                             alt={movie.name}
@@ -68,6 +70,51 @@ function HomePageSection({ title, movies, linkToAll, isLoading }) {
     );
 }
 
+// New component for History Section
+function HistorySection({ title, historyMovies, linkToAll }) {
+    if (!historyMovies || historyMovies.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="homepage-section history-section">
+            <div className="section-header">
+                <h2>{title}</h2>
+                {linkToAll && (
+                    <Link to={linkToAll} className="see-all-link">
+                        Xem tất cả <FaAngleRight />
+                    </Link>
+                )}
+            </div>
+            <div className="movie-horizontal-scroll">
+                {historyMovies.slice(0, 10).map((movie) => ( // Show up to 10 recent items
+                    <Link
+                        key={`${movie.slug}-${movie.episode?.slug || 'no-episode'}`}
+                        to={`/movie/${movie.slug}${movie.episode?.slug ? `/${movie.episode.slug}` : ''}`}
+                        className="movie-card-horizontal"
+                    >
+                        <LazyLoadImage
+                            src={getImageUrl(movie.poster_url)}
+                            alt={movie.name}
+                            className="movie-poster-horizontal"
+                            effect="blur"
+                            onError={(e) => (e.target.src = '/placeholder.jpg')}
+                        />
+                        <h3>{movie.name}</h3>
+                        {movie.episode?.name && (
+                            <p>Tập {movie.episode.name}</p>
+                        )}
+                        <p className="last-watched-time">
+                            Xem lúc: {new Date(movie.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                    </Link>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+
 function Home() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -75,6 +122,7 @@ function Home() {
     const [movies, setMovies] = useState([]);
     const [loadingMain, setLoadingMain] = useState(false);
     const [totalPages, setTotalPages] = useState(1);
+    const [historyMovies, setHistoryMovies] = useState([]); // State for history movies
 
     const urlKeyword = searchParams.get('keyword');
     const urlCategorySlug = searchParams.get('category');
@@ -111,6 +159,7 @@ function Home() {
     const japanMoviesRef = useIntersectionObserver();
     const koreaMoviesRef = useIntersectionObserver();
 
+
     useEffect(() => {
         setFilterCategory(urlCategorySlug || '');
         setFilterCountry(urlCountrySlug || '');
@@ -118,7 +167,7 @@ function Home() {
         setCurrentPage(urlPage);
     }, [urlKeyword, urlCategorySlug, urlCountrySlug, urlYear, urlPage]);
 
-
+    // Fetch initial filter data (genres, countries)
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
@@ -144,6 +193,26 @@ function Home() {
             fetchInitialData();
         }
     }, []);
+
+    // Effect to load watch history on component mount/update
+    useEffect(() => {
+        const loadHistory = () => {
+            const history = JSON.parse(localStorage.getItem(WATCH_HISTORY_KEY) || '[]');
+            // Sort by timestamp descending to get most recent first
+            setHistoryMovies(history.sort((a, b) => b.timestamp - a.timestamp));
+        };
+
+        loadHistory(); // Load initially
+
+        // Add a custom event listener for when history changes (e.g., from MovieDetail page)
+        // This makes the history section update dynamically without needing a full page refresh
+        window.addEventListener('watchHistoryUpdated', loadHistory);
+
+        return () => {
+            window.removeEventListener('watchHistoryUpdated', loadHistory);
+        };
+    }, []);
+
 
     const showMainMovieGrid = !!urlKeyword || !!urlCategorySlug || !!urlCountrySlug || !!urlYear;
 
@@ -182,7 +251,7 @@ function Home() {
                             newSeoData.titleHead = 'Phim Mới Cập Nhật - PhimAPI';
                             newSeoData.descriptionHead = 'Xem phim mới cập nhật nhanh nhất';
                         } else {
-                            const isPredefinedListType = CATEGORIES_MAPPING.some(cat => cat.slug === urlCategorySlug); // Use CATEGORIES_MAPPING
+                            const isPredefinedListType = CATEGORIES_MAPPING.some(cat => cat.slug === urlCategorySlug);
                             if (isPredefinedListType) {
                                 url = `${V1_API_URL}/danh-sach/${urlCategorySlug}`;
                                 const typeName = CATEGORIES_MAPPING.find(cat => cat.slug === urlCategorySlug)?.name || urlCategorySlug;
@@ -292,7 +361,7 @@ function Home() {
         if (urlKeyword) return `Kết quả tìm kiếm cho: "${urlKeyword}"`;
         if (urlCategorySlug) {
             if (urlCategorySlug === 'phim-moi-cap-nhat') return 'Phim Mới Cập Nhật';
-            const predefined = CATEGORIES_MAPPING.find(cat => cat.slug === urlCategorySlug); // Use CATEGORIES_MAPPING
+            const predefined = CATEGORIES_MAPPING.find(cat => cat.slug === urlCategorySlug);
             if (predefined) return predefined.name;
             const genre = genres.find(g => g.slug === urlCategorySlug);
             if (genre) return genre.name;
@@ -375,6 +444,15 @@ function Home() {
                 </>
             ) : (
                 <div className="home-sections-container">
+                    {/* Render History Section here, only if there's history and no main filter is active */}
+                    {historyMovies.length > 0 && (
+                        <HistorySection
+                            title="Lịch Sử Xem Gần Đây"
+                            historyMovies={historyMovies}
+                            linkToAll="/history"
+                        />
+                    )}
+
                     <HomePageSection
                         title="Phim Mới Cập Nhật"
                         movies={homeSectionsData.recentMovies}
