@@ -5,16 +5,16 @@ import { Helmet } from 'react-helmet';
 import axios from 'axios';
 import Select from 'react-select'; // Still needed for HomePageSection if filters are displayed there
 import { LazyLoadImage } from 'react-lazy-load-image-component';
-import { FaAngleRight } from 'react-icons/fa'; // FaTimes, FaHistory, FaTrashAlt are no longer needed here
+import { FaAngleRight } from 'react-icons/fa';
 
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './Home.css';
 import useIntersectionObserver from '../hooks/useIntersectionObserver';
+import { CATEGORIES_MAPPING } from '../constants/categories'; // Import the constant here
 
 const BASE_API_URL = process.env.REACT_APP_API_URL;
 const V1_API_URL = `${process.env.REACT_APP_API_URL}/v1/api`;
 const DEFAULT_PAGE_LIMIT = 12;
-// WATCH_HISTORY_KEY is no longer used directly in Home.js for rendering history section
 
 const getImageUrl = (url) => {
     if (url && url.startsWith('https://')) {
@@ -22,9 +22,6 @@ const getImageUrl = (url) => {
     }
     return url ? `${process.env.REACT_APP_API_CDN_IMAGE}/${url}` : '/placeholder.jpg';
 };
-
-// HistorySection component is removed from here
-// as it will be replaced by a dedicated HistoryPage.
 
 function HomePageSection({ title, movies, linkToAll, isLoading }) {
     if (isLoading) {
@@ -71,7 +68,6 @@ function HomePageSection({ title, movies, linkToAll, isLoading }) {
     );
 }
 
-// HomePage now no longer receives showFilterModal or onCloseFilterModal
 function Home() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -86,8 +82,6 @@ function Home() {
     const urlYear = searchParams.get('year');
     const urlPage = parseInt(searchParams.get('page')) || 1;
 
-    // Filter states are now mainly derived from URL params for display logic,
-    // actual selection happens in FilterMenu
     const [filterCategory, setFilterCategory] = useState(urlCategorySlug || '');
     const [filterCountry, setFilterCountry] = useState(urlCountrySlug || '');
     const [filterYear, setFilterYear] = useState(urlYear || '');
@@ -106,9 +100,7 @@ function Home() {
         dubbedMovies: null, cartoonMovies: null, longTiengMovies: null,
         vietnamMovies: null, chinaMovies: null, usEuMovies: null, japanMovies: null, koreaMovies: null,
     });
-    // requestedSections can be removed if you only check `homeSectionsData[key] === null`
 
-    // Define refs for lazy load sections
     const tvShowsRef = useIntersectionObserver();
     const dubbedMoviesRef = useIntersectionObserver();
     const cartoonMoviesRef = useIntersectionObserver();
@@ -119,7 +111,6 @@ function Home() {
     const japanMoviesRef = useIntersectionObserver();
     const koreaMoviesRef = useIntersectionObserver();
 
-    // Update local state when URL params change
     useEffect(() => {
         setFilterCategory(urlCategorySlug || '');
         setFilterCountry(urlCountrySlug || '');
@@ -128,8 +119,6 @@ function Home() {
     }, [urlKeyword, urlCategorySlug, urlCountrySlug, urlYear, urlPage]);
 
 
-    // Fetch genres and countries once on mount, as they are used in FilterMenu
-    // and also potentially for display logic in Home if needed.
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
@@ -154,15 +143,12 @@ function Home() {
         } else {
             fetchInitialData();
         }
-    }, []); // Only runs once on mount
+    }, []);
 
-
-    // Determine if main movie grid should be shown based on URL params
     const showMainMovieGrid = !!urlKeyword || !!urlCategorySlug || !!urlCountrySlug || !!urlYear;
 
-    // Helper function to fetch a specific section
     const fetchSection = useCallback(async (key, fetchFunc) => {
-        if (homeSectionsData[key] === null) { // Only fetch if data is null (not yet fetched)
+        if (homeSectionsData[key] === null) {
             try {
                 const res = await fetchFunc();
                 setHomeSectionsData(prev => ({ ...prev, [key]: res.data.items || res.data.data?.items || [] }));
@@ -173,7 +159,6 @@ function Home() {
         }
     }, [homeSectionsData]);
 
-    // Unified useEffect for fetching data
     useEffect(() => {
         const fetchData = async () => {
             if (showMainMovieGrid) {
@@ -197,7 +182,7 @@ function Home() {
                             newSeoData.titleHead = 'Phim Mới Cập Nhật - PhimAPI';
                             newSeoData.descriptionHead = 'Xem phim mới cập nhật nhanh nhất';
                         } else {
-                            const isPredefinedListType = ['phim-bo', 'phim-le', 'tv-shows', 'hoat-hinh', 'phim-vietsub', 'phim-thuyet-minh', 'phim-long-tieng'].some(cat => cat === urlCategorySlug);
+                            const isPredefinedListType = CATEGORIES_MAPPING.some(cat => cat.slug === urlCategorySlug); // Use CATEGORIES_MAPPING
                             if (isPredefinedListType) {
                                 url = `${V1_API_URL}/danh-sach/${urlCategorySlug}`;
                                 const typeName = CATEGORIES_MAPPING.find(cat => cat.slug === urlCategorySlug)?.name || urlCategorySlug;
@@ -252,13 +237,10 @@ function Home() {
                     setLoadingMain(false);
                 }
             } else {
-                // Logic for home page sections (lazy loading)
-                // Always load the first 3 sections immediately
                 fetchSection('recentMovies', () => axios.get(`${BASE_API_URL}/danh-sach/phim-moi-cap-nhat`));
                 fetchSection('seriesMovies', () => axios.get(`${V1_API_URL}/danh-sach/phim-bo`));
                 fetchSection('singleMovies', () => axios.get(`${V1_API_URL}/danh-sach/phim-le`));
 
-                // Load other sections when their respective refs come into view
                 if (tvShowsRef[1]?.isIntersecting) {
                     fetchSection('tvShows', () => axios.get(`${V1_API_URL}/danh-sach/tv-shows`));
                 }
@@ -310,7 +292,7 @@ function Home() {
         if (urlKeyword) return `Kết quả tìm kiếm cho: "${urlKeyword}"`;
         if (urlCategorySlug) {
             if (urlCategorySlug === 'phim-moi-cap-nhat') return 'Phim Mới Cập Nhật';
-            const predefined = CATEGORIES_MAPPING.find(cat => cat.slug === urlCategorySlug);
+            const predefined = CATEGORIES_MAPPING.find(cat => cat.slug === urlCategorySlug); // Use CATEGORIES_MAPPING
             if (predefined) return predefined.name;
             const genre = genres.find(g => g.slug === urlCategorySlug);
             if (genre) return genre.name;
@@ -333,8 +315,6 @@ function Home() {
                 <title>{seoData.titleHead}</title>
                 <meta name="description" content={seoData.descriptionHead} />
             </Helmet>
-
-            {/* Filter modal is removed from here */}
 
             {showMainMovieGrid && (
                 <h1 className="main-list-title">
@@ -395,7 +375,6 @@ function Home() {
                 </>
             ) : (
                 <div className="home-sections-container">
-                    {/* These sections are always loaded initially */}
                     <HomePageSection
                         title="Phim Mới Cập Nhật"
                         movies={homeSectionsData.recentMovies}
@@ -415,10 +394,7 @@ function Home() {
                         linkToAll="/?category=phim-le&page=1"
                         isLoading={homeSectionsData.singleMovies === null}
                     />
-                    {/* HistorySection is removed from here. It will be on a dedicated page. */}
 
-                    {/* Lazy-loaded sections - each with its own ref */}
-                    {/* TV Shows */}
                     <div ref={tvShowsRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="TV Shows"
@@ -428,7 +404,6 @@ function Home() {
                         />
                     </div>
 
-                    {/* Phim Thuyết Minh */}
                     <div ref={dubbedMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Phim Thuyết Minh"
@@ -438,7 +413,6 @@ function Home() {
                         />
                     </div>
 
-                    {/* Hoạt Hình */}
                     <div ref={cartoonMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Hoạt Hình"
@@ -448,7 +422,6 @@ function Home() {
                         />
                     </div>
 
-                    {/* Phim Lồng Tiếng */}
                     <div ref={longTiengMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Phim Lồng Tiếng"
@@ -458,7 +431,6 @@ function Home() {
                         />
                     </div>
 
-                    {/* Phim Việt Nam */}
                     <div ref={vietnamMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Phim Việt Nam"
@@ -468,7 +440,6 @@ function Home() {
                         />
                     </div>
 
-                    {/* Phim Trung Quốc */}
                     <div ref={chinaMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Phim Trung Quốc"
@@ -478,7 +449,6 @@ function Home() {
                         />
                     </div>
 
-                    {/* Phim Âu Mỹ */}
                     <div ref={usEuMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Phim Âu Mỹ"
@@ -488,7 +458,6 @@ function Home() {
                         />
                     </div>
 
-                    {/* Phim Nhật Bản */}
                     <div ref={japanMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Phim Nhật Bản"
@@ -498,7 +467,6 @@ function Home() {
                         />
                     </div>
 
-                    {/* Phim Hàn Quốc */}
                     <div ref={koreaMoviesRef[0]} className="lazy-load-trigger-point">
                         <HomePageSection
                             title="Phim Hàn Quốc"
