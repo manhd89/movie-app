@@ -5,17 +5,15 @@ import axios from 'axios';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import Hls from 'hls.js';
 import { FaArrowLeft, FaRegPlayCircle, FaHistory } from 'react-icons/fa';
-import { processPlaylistForAds } from '../utils/playlistProcessor';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
 
-// --- Start: Ad-blocking CSS ---
+// Ad-blocking CSS (giữ nguyên)
 const adBlockCSS = `
   .bg-opacity-40.bg-white.w-full.text-center.space-x-2.bottom-0.absolute {
     display: none !important;
   }
 `;
-// --- End: Ad-blocking CSS ---
 
 const PLAYBACK_SAVE_THRESHOLD_SECONDS = 5;
 const LAST_PLAYED_KEY_PREFIX = 'lastPlayedPosition-';
@@ -40,8 +38,6 @@ function MovieDetail() {
   const [lastViewedPosition, setLastViewedPosition] = useState(0);
   const [lastViewedEpisodeInfo, setLastViewedEpisodeInfo] = useState(null);
   const saveIntervalRef = useRef(null); // Ref for the interval timer
-
-  const currentBlobUrlRef = useRef(null); 
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -202,27 +198,8 @@ function MovieDetail() {
       hlsInstanceRef.current = null;
     }
 
-    if (currentBlobUrlRef.current) {
-      URL.revokeObjectURL(currentBlobUrlRef.current);
-      currentBlobUrlRef.current = null;
-    }
-
     try {
       const originalM3u8Url = currentEpisode.link_m3u8;
-      let finalM3u8Url = originalM3u8Url;
-
-      // Sử dụng hàm dùng chung để xử lý playlist
-      const cleanedPlaylist = await processPlaylistForAds(originalM3u8Url);
-
-      if (cleanedPlaylist) {
-        const blob = new Blob([cleanedPlaylist], { type: "application/vnd.apple.mpegurl" });
-        finalM3u8Url = URL.createObjectURL(blob);
-        currentBlobUrlRef.current = finalM3u8Url;
-        console.log("MovieDetail: Using Blob URL for cleaned playlist.");
-      } else {
-        finalM3u8Url = originalM3u8Url.replace(/^http:/, "https:");
-        console.log("MovieDetail: Falling back to original URL (playlist processing failed).");
-      }
 
       if (Hls.isSupported()) {
         const hls = new Hls({
@@ -233,7 +210,7 @@ function MovieDetail() {
             enableWorker: true,
         });
         hlsInstanceRef.current = hls;
-        hls.loadSource(finalM3u8Url);
+        hls.loadSource(originalM3u8Url);
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -276,7 +253,7 @@ function MovieDetail() {
         });
 
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = finalM3u8Url;
+        video.src = originalM3u8Url;
 
         const savedPositionKey = getPlaybackPositionKey(currentEpisode.slug);
         const savedTime = parseFloat(localStorage.getItem(savedPositionKey));
@@ -312,6 +289,7 @@ function MovieDetail() {
   }, [currentEpisode, showMovieInfoPanel, getPlaybackPositionKey, savePlaybackPosition]);
 
   useEffect(() => {
+    // Capture the current value of the ref
     const video = videoRef.current; 
 
     loadVideo();
@@ -321,6 +299,7 @@ function MovieDetail() {
         hlsInstanceRef.current.destroy();
         hlsInstanceRef.current = null;
       }
+      // Use the captured 'video' variable in the cleanup
       if (video) { 
         video.src = '';
         video.removeAttribute('src');
@@ -330,10 +309,6 @@ function MovieDetail() {
           clearInterval(saveIntervalRef.current);
           saveIntervalRef.current = null;
           console.log("Cleared periodic save interval.");
-      }
-      if (currentBlobUrlRef.current) {
-          URL.revokeObjectURL(currentBlobUrlRef.current);
-          currentBlobUrlRef.current = null;
       }
     };
   }, [currentEpisode, loadVideo, savePlaybackPosition]);
