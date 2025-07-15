@@ -6,9 +6,9 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.9); /* Nền đen mờ, không trong suốt hoàn toàn */
+    background-color: rgba(0, 0, 0, 1); /* Đổi thành màu đen đặc (opacity 1) */
     display: flex;
-    justify-content: flex-end; /* Đẩy menu về bên phải */
+    justify-content: flex-end; /* Pushes the menu to the right */
     z-index: 1000;
     opacity: 0;
     visibility: hidden;
@@ -21,70 +21,57 @@
 }
 
 .filter-menu-content {
-    background-color: var(--background-dark); /* Sử dụng biến CSS đã định nghĩa */
-    width: 300px; /* Chiều rộng của menu */
-    max-width: 90%; /* Chiều rộng tối đa trên màn hình nhỏ hơn để đảm bảo hiển thị tốt */
+    background-color: var(--background-dark); /* Use defined CSS variable */
+    width: 300px; /* Width of the menu */
+    max-width: 80%; /* Max width on smaller screens */
     height: 100%;
     position: relative;
     padding: 20px;
     box-shadow: -5px 0 15px rgba(0, 0, 0, 0.5);
-    transform: translateX(100%); /* Bắt đầu ẩn khỏi màn hình */
+    transform: translateX(100%); /* Start hidden off-screen */
     transition: transform 0.3s ease;
-    overflow-y: auto; /* Cho phép cuộn nếu nội dung dài */
-    display: flex; /* Sử dụng flexbox cho nội dung */
-    flex-direction: column; /* Sắp xếp các mục theo chiều dọc */
+    overflow-y: auto; /* Allows scrolling if content is long */
 }
 
 .filter-menu-overlay.open .filter-menu-content {
-    transform: translateX(0); /* Trượt menu vào tầm nhìn */
+    transform: translateX(0); /* Slides menu into view */
 }
 
 .close-menu-button {
     background: none;
     border: none;
-    color: var(--primary-color); /* Màu cho nút đóng */
-    font-size: 1.8rem; /* Tăng kích thước nút đóng */
+    color: var(--primary-color); /* Color for the close button */
+    font-size: 1.5rem;
     position: absolute;
     top: 15px;
-    right: 15px; /* Đặt nút đóng ở góc trên bên phải */
+    left: 15px;
     cursor: pointer;
     z-index: 10;
-    padding: 5px; /* Thêm padding để dễ click */
 }
 
 .menu-title {
-    color: var(--text-color-light); /* Sử dụng biến màu sáng hơn cho tiêu đề */
-    margin-top: 20px; /* Điều chỉnh vị trí tiêu đề */
-    margin-bottom: 30px; /* Khoảng cách dưới tiêu đề */
+    color: #fff;
+    margin-top: 50px; /* Pushes title below the close button */
+    margin-bottom: 20px;
     text-align: center;
-    font-size: 1.8rem; /* Tăng kích thước font tiêu đề */
-    font-weight: bold;
 }
 
 .filter-container-menu {
     display: flex;
     flex-direction: column;
-    gap: 20px; /* Tăng khoảng cách giữa các bộ lọc */
-    margin-bottom: 40px; /* Khoảng cách dưới các bộ lọc */
-    flex-grow: 1; /* Cho phép container bộ lọc mở rộng */
+    gap: 15px;
+    margin-bottom: 30px;
 }
 
 .filter-select {
     width: 100%;
 }
 
-.menu-navigation-links {
-    margin-top: auto; /* Đẩy các liên kết điều hướng xuống cuối menu */
-    padding-top: 20px;
-    border-top: 1px solid #444; /* Đường kẻ phân cách */
-}
-
 .menu-navigation-links h3 {
-    color: var(--text-color-light);
+    color: #fff;
     margin-bottom: 15px;
-    border-bottom: none; /* Bỏ đường kẻ dưới tiêu đề menu con */
-    padding-bottom: 0;
-    font-size: 1.3rem;
+    border-bottom: 1px solid #444;
+    padding-bottom: 10px;
 }
 
 .menu-navigation-links ul {
@@ -94,16 +81,16 @@
 }
 
 .menu-navigation-links li {
-    margin-bottom: 8px; /* Giảm khoảng cách giữa các mục menu con */
+    margin-bottom: 10px;
 }
 
 .menu-navigation-links a {
-    color: var(--text-color); /* Màu văn bản cho các liên kết */
+    color: var(--text-color); /* Text color for links */
     text-decoration: none;
-    font-size: 1rem;
+    font-size: 1.1rem;
     display: block;
-    padding: 10px 15px; /* Tăng padding để dễ click */
-    border-radius: 8px; /* Tăng border-radius */
+    padding: 8px 10px;
+    border-radius: 5px;
     transition: background-color 0.2s ease, color 0.2s ease;
 }
 
@@ -115,13 +102,6 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .filter-menu-content {
-        width: 85%; /* Điều chỉnh chiều rộng menu trên thiết bị di động */
-        max-width: none; /* Bỏ giới hạn max-width */
-    }
-}
-
-@media (max-width: 480px) {
-    .filter-menu-content {
-        width: 100%; /* Chiếm toàn bộ chiều rộng trên màn hình rất nhỏ */
+        width: 250px;
     }
 }
