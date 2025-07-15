@@ -5,7 +5,7 @@ import { Helmet } from 'react-helmet';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import { FaArrowLeft, FaTrashAlt } from 'react-icons/fa';
 import 'react-lazy-load-image-component/src/effects/blur.css';
-import './HistoryPage.css'; // Sẽ tạo file CSS này
+import './HistoryPage.css';
 
 const WATCH_HISTORY_KEY = 'watchHistory';
 
@@ -21,7 +21,7 @@ function HistoryPage() {
 
     useEffect(() => {
         const history = JSON.parse(localStorage.getItem(WATCH_HISTORY_KEY) || '[]');
-        // Sắp xếp lịch sử theo thời gian mới nhất trước
+        // Sort history by most recent first
         setHistoryMovies(history.sort((a, b) => b.timestamp - a.timestamp));
     }, []);
 
@@ -43,18 +43,18 @@ function HistoryPage() {
     return (
         <div className="container history-page-container">
             <Helmet>
-                <title>Lịch Sử Đã Xem - PhimAPI</title>
+                <title>Lịch Sử Đã Xem - Phim Online</title>
                 <meta name="description" content="Xem lại toàn bộ lịch sử xem phim của bạn." />
             </Helmet>
 
-            <Link to="/" className="back-to-home-button">
+            <Link to="/" className="back-to-home-button" aria-label="Quay lại Trang chủ">
                 <FaArrowLeft className="icon" /> Quay lại Trang chủ
             </Link>
 
             <div className="history-page-header">
                 <h1 className="history-page-title">Lịch Sử Đã Xem</h1>
                 {historyMovies.length > 0 && (
-                    <button onClick={handleClearAllHistory} className="clear-all-history-button">
+                    <button onClick={handleClearAllHistory} className="clear-all-history-button" aria-label="Xóa toàn bộ lịch sử">
                         <FaTrashAlt /> Xóa Tất Cả
                     </button>
                 )}
@@ -66,7 +66,7 @@ function HistoryPage() {
                 <div className="history-grid">
                     {historyMovies.map((movie) => (
                         <div key={`${movie.slug}-${movie.episode?.slug || 'no-episode'}`} className="history-movie-card-full">
-                            <Link to={`/movie/${movie.slug}${movie.episode?.slug ? `/${movie.episode.slug}` : ''}`} className="history-card-link">
+                            <Link to={`/movie/${movie.slug}${movie.episode?.slug ? `/${movie.episode.slug}` : ''}`} className="history-card-link" aria-label={`Tiếp tục xem ${movie.name}`}>
                                 <LazyLoadImage
                                     src={getImageUrl(movie.poster_url)}
                                     alt={movie.name}
@@ -91,6 +91,7 @@ function HistoryPage() {
                                 onClick={() => handleDeleteHistoryItem(movie.slug)}
                                 className="delete-history-item-button-full"
                                 title="Xóa khỏi lịch sử"
+                                aria-label={`Xóa ${movie.name} khỏi lịch sử`}
                             >
                                 <FaTrashAlt />
                             </button>
