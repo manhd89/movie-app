@@ -37,6 +37,8 @@ const customSelectStyles = {
   })
 };
 
+// Define CATEGORIES_MAPPING here if it's primarily used for navigation within FilterMenu
+// If it's used broadly across other components, consider moving it to a shared `constants.js` file.
 const CATEGORIES_MAPPING = [
     { slug: 'phim-moi-cap-nhat', name: 'Phim Mới Cập Nhật' },
     { slug: 'phim-bo', name: 'Phim Bộ' },
@@ -53,6 +55,7 @@ function FilterMenu({ isOpen, onClose }) {
   const [genres, setGenres] = useState([]);
   const [countries, setCountries] = useState([]);
 
+  // Correctly define currentYear and years once within the component scope
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 1970 + 2 }, (_, i) => ({
     value: (currentYear + 1 - i).toString(),
