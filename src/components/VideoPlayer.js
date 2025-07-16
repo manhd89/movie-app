@@ -166,30 +166,4 @@ function VideoPlayer({ src, videoRef, onPause, onLoadedMetadata }) {
     };
   }, [src, videoRef]);
 
-  return (
-    <div
-      style={{
-        width: '100%',
-        maxWidth: '1200px',
-        margin: '0 auto',
-        position: 'relative',
-        aspectRatio: '16 / 9',
-        background: '#000',
-      }}
-    >
-      <video
-        ref={videoRef}
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'contain',
-        }}
-        autoPlay
-        onPause={onPause}
-        onLoadedMetadata={onLoadedMetadata}
-      />
-    </div>
-  );
-}
-
 export default VideoPlayer;
