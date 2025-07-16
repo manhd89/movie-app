@@ -87,7 +87,8 @@ function VideoPlayer({ options }) {
     const loadVideo = async () => {
       try {
         if (!options?.sources?.[0]?.src) {
-          throw new Error("Không có nguồn video hợp lệ.");
+          console.warn("No valid video source provided.");
+          return; // Exit early if no valid source
         }
 
         const videoSource = options.sources[0].src;
