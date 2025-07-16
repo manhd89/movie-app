@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
-import Hls from 'hls.js';
+import { useEffect, useRef } from "react";
+import Hls from "hls.js"; // Import hls.js
 
-// Danh sách biểu thức chính quy để phát hiện và loại bỏ quảng cáo
+// Ads regex list from the provided script
 const adsRegexList = [
   new RegExp(
     "(?<!#EXT-X-DISCONTINUITY[\\s\\S]*)#EXT-X-DISCONTINUITY\\n(?:.*?\\n){18,24}#EXT-X-DISCONTINUITY\\n(?![\\s\\S]*#EXT-X-DISCONTINUITY)",
@@ -11,7 +11,7 @@ const adsRegexList = [
   /#EXT-X-DISCONTINUITY\n#EXTINF:3\.920000,\n.*\n#EXTINF:0\.760000,\n.*\n#EXTINF:2\.000000,\n.*\n#EXTINF:2\.500000,\n.*\n#EXTINF:2\.000000,\n.*\n#EXTINF:2\.420000,\n.*\n#EXTINF:2\.000000,\n.*\n#EXTINF:0\.780000,\n.*\n#EXTINF:1\.960000,\n.*\n#EXTINF:2\.000000,\n.*\n#EXTINF:1\.760000,\n.*\n#EXTINF:3\.200000,\n.*\n#EXTINF:2\.000000,\n.*\n#EXTINF:1\.360000,\n.*\n#EXTINF:2\.000000,\n.*\n#EXTINF:2\.000000,\n.*\n#EXTINF:0\.720000,\n.*/g,
 ];
 
-// Kiểm tra xem playlist có chứa quảng cáo không
+// Check if playlist contains ads
 function isContainAds(playlist) {
   return adsRegexList.some((regex) => {
     regex.lastIndex = 0;
@@ -19,151 +19,145 @@ function isContainAds(playlist) {
   });
 }
 
-// Loại bỏ quảng cáo từ playlist và đảm bảo URL sử dụng HTTPS
+// Remove ads from playlist and ensure HTTPS URLs
 async function removeAds(playlistUrl) {
   try {
-    const normalizedUrl = playlistUrl.replace(/^http:/, 'https:');
+    // Normalize playlist URL to HTTPS
+    const normalizedUrl = playlistUrl.replace(/^http:/, "https:");
+
+    // Fetch playlist with Referer header
     const response = await fetch(normalizedUrl, {
-      method: 'GET',
+      method: "GET",
       headers: {
         Referer: normalizedUrl,
       },
-      mode: 'cors',
+      mode: "cors",
     });
     if (!response.ok) {
-      throw new Error(`Failed to fetch playlist: ${normalizedUrl} (Status: ${response.status})`);
+      throw new Error(
+        `Failed to fetch playlist: ${normalizedUrl} (Status: ${response.status})`
+      );
     }
     let playlist = await response.text();
 
-    // Xử lý các URL tương đối trong playlist và ép buộc sử dụng HTTPS
+    // Resolve relative URLs in playlist and force HTTPS
     const baseUrl = new URL(normalizedUrl);
     playlist = playlist.replace(/^[^#].*$/gm, (line) => {
       try {
         const parsedUrl = new URL(line, baseUrl);
-        parsedUrl.protocol = 'https:';
+        parsedUrl.protocol = "https:";
         return parsedUrl.toString();
       } catch {
         return line;
       }
     });
 
-    // Nếu là master playlist, xử lý variant playlist
-    if (playlist.includes('#EXT-X-STREAM-INF')) {
-      const variantUrl = playlist.trim().split('\n').slice(-1)[0];
-      const normalizedVariantUrl = variantUrl.replace(/^http:/, 'https:');
+    // Check if playlist is a master playlist
+    if (playlist.includes("#EXT-X-STREAM-INF")) {
+      const variantUrl = playlist.trim().split("\n").slice(-1)[0];
+      const normalizedVariantUrl = variantUrl.replace(/^http:/, "https:");
       return await removeAds(normalizedVariantUrl);
     }
 
-    // Loại bỏ quảng cáo nếu phát hiện
+    // Remove ads if detected
     if (isContainAds(playlist)) {
       playlist = adsRegexList.reduce((playlist2, regex) => {
-        return playlist2.replaceAll(regex, '');
+        return playlist2.replaceAll(regex, "");
       }, playlist);
     }
 
     return playlist;
   } catch (error) {
-    console.error('Error in removeAds:', error);
+    console.error("Error in removeAds:", error);
     return null;
   }
 }
 
-function VideoPlayer({ src, videoRef, onPause, onLoadedMetadata }) {
-  const hlsRef = useRef(null);
+function VideoPlayer({ options }) {
+  const videoRef = useRef(null);
+  const hlsRef = useRef(null); // Ref for HLS.js instance
 
   useEffect(() => {
     const videoElement = videoRef.current;
-    if (!videoElement || !src) return;
+    if (!videoElement) return;
 
-    videoElement.setAttribute('controls', '');
+    // Enable native controls
+    videoElement.setAttribute("controls", "");
 
     const loadVideo = async () => {
       try {
-        if (!src) {
-          throw new Error('Không có nguồn video hợp lệ.');
+        if (!options?.sources?.[0]?.src) {
+          throw new Error("Không có nguồn video hợp lệ.");
         }
 
-        let finalSource = src;
+        const videoSource = options.sources[0].src;
+        let finalSource = videoSource;
 
-        // Loại bỏ quảng cáo
-        const cleanedPlaylist = await removeAds(src);
-
-        if (cleanedPlaylist) {
-          // Tạo Blob URL cho playlist đã được làm sạch
-          const blob = new Blob([cleanedPlaylist], { type: 'application/vnd.apple.mpegurl' });
-          finalSource = URL.createObjectURL(blob);
-        } else {
-          // Sử dụng URL gốc nếu loại bỏ quảng cáo thất bại
-          finalSource = src.replace(/^http:/, 'https:');
-        }
-
+        // Cleanup previous Hls instance if exists
         if (hlsRef.current) {
           hlsRef.current.destroy();
           hlsRef.current = null;
         }
 
+        // Attempt to remove ads
+        const cleanedPlaylist = await removeAds(videoSource);
+
+        if (cleanedPlaylist) {
+          // Create a Blob URL for the cleaned playlist
+          const blob = new Blob([cleanedPlaylist], { type: "application/vnd.apple.mpegurl" });
+          finalSource = URL.createObjectURL(blob);
+        } else {
+          // Fallback to original URL if ad removal fails, ensure HTTPS
+          finalSource = videoSource.replace(/^http:/, "https:");
+        }
+
         if (Hls.isSupported()) {
-          const hls = new Hls({
-            maxBufferLength: 60,
-            maxMaxBufferLength: 120,
-            maxBufferSize: 100 * 1000 * 1000,
-            startFragPrefetch: true,
-            enableWorker: true,
-          });
-          hlsRef.current = hls;
+          // If Hls.js is supported, use it for HLS streams
+          const hls = new Hls();
           hls.loadSource(finalSource);
           hls.attachMedia(videoElement);
-
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            videoElement.play().catch(error => {
-              console.warn('Autoplay was prevented:', error);
-            });
+          hls.on(Hls.Events.MANIFEST_PARSED, function () {
+            videoElement.play();
           });
-
-          hls.on(Hls.Events.ERROR, (event, data) => {
-            console.error('HLS.js error:', data);
-            if (data.fatal) {
-              switch (data.type) {
-                case Hls.ErrorTypes.NETWORK_ERROR:
-                  console.error('Lỗi mạng khi tải video. Vui lòng kiểm tra kết nối.');
-                  hls.startLoad();
-                  break;
-                case Hls.ErrorTypes.MEDIA_ERROR:
-                  console.error('Lỗi phát video. Có thể do định dạng không hỗ trợ.');
-                  hls.recoverMediaError();
-                  break;
-                default:
-                  console.error('Lỗi video nghiêm trọng. Vui lòng thử tập khác.');
-                  hls.destroy();
-                  break;
-              }
-            }
-          });
-        } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+          hlsRef.current = hls; // Store Hls instance
+        } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
+          // If native HLS is supported (Safari, iOS), use it
           videoElement.src = finalSource;
-          videoElement.play().catch(error => console.warn('Autoplay was prevented (native):', error));
+          videoElement.play();
         } else {
-          console.error('Trình duyệt không hỗ trợ phát HLS. Vui lòng cập nhật.');
+          console.error("Trình duyệt không hỗ trợ phát video này.");
         }
-      } catch (error) {
-        console.error('Error loading video:', error);
+      } catch (err) {
+        console.error("Error loading video:", err);
       }
     };
 
     loadVideo();
 
+    // Cleanup
     return () => {
       if (hlsRef.current) {
-        hlsRef.current.destroy();
+        hlsRef.current.destroy(); // Destroy Hls.js instance
         hlsRef.current = null;
       }
-      if (videoElement && videoElement.src.startsWith('blob:')) {
-        URL.revokeObjectURL(videoElement.src);
+      if (videoRef.current && videoRef.current.src.startsWith("blob:")) {
+        URL.revokeObjectURL(videoRef.current.src); // Revoke Blob URL
       }
-      videoElement.src = '';
-      videoElement.removeAttribute('src');
-      videoElement.load();
     };
-  }, [src, videoRef]);
+  }, [options]);
+
+  return (
+    <video
+      ref={videoRef}
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+      }}
+      autoPlay
+      controls
+    />
+  );
+}
 
 export default VideoPlayer;
