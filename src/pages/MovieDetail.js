@@ -8,14 +8,6 @@ import { FaArrowLeft, FaRegPlayCircle, FaHistory } from 'react-icons/fa';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
 
-// --- Ad-blocking and Playlist Processing Logic using Blob ---
-// Ad-blocking CSS
-const adBlockCSS = `
-  .bg-opacity-40.bg-white.w-full.text-center.space-x-2.bottom-0.absolute {
-    display: none !important;
-  }
-`;
-
 // Regex list to detect ads in M3U8 playlists
 const adsRegexList = [
   new RegExp(
@@ -118,14 +110,6 @@ function MovieDetail() {
 
   // Ref to hold the Blob URL if created, for proper revocation
   const currentBlobUrlRef = useRef(null); 
-
-  useEffect(() => {
-    // Inject ad-blocking CSS into the document head
-    const style = document.createElement('style');
-    style.textContent = adBlockCSS;
-    document.head.appendChild(style);
-    return () => style.remove(); // Clean up CSS on component unmount
-  }, []);
 
   useEffect(() => {
     const fetchMovieData = async () => {
