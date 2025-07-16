@@ -8,15 +8,15 @@ import { FaArrowLeft, FaRegPlayCircle, FaHistory } from 'react-icons/fa';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
 
-// --- Start: Ad-blocking and Playlist Processing Logic ---
-// Ad-blocking CSS (giữ nguyên)
+// --- Ad-blocking and Playlist Processing Logic using Blob ---
+// Ad-blocking CSS
 const adBlockCSS = `
   .bg-opacity-40.bg-white.w-full.text-center.space-x-2.bottom-0.absolute {
     display: none !important;
   }
 `;
 
-// Regex list để phát hiện quảng cáo (sao chép từ Service Worker để phục vụ fallback)
+// Regex list to detect ads in M3U8 playlists
 const adsRegexList = [
   new RegExp(
     "(?<!#EXT-X-DISCONTINUITY[\\s\\S]*)#EXT-X-DISCONTINUITY\\n(?:.*?\\n){18,24}#EXT-X-DISCONTINUITY\\n(?![\\s\\S]*#EXT-X-DISCONTINUITY)",
@@ -26,23 +26,23 @@ const adsRegexList = [
   /#EXT-X-DISCONTINUITY\n(?:#EXTINF:(?:3.92|0.76|2.00|2.50|2.00|2.42|2.00|0.78|1.96)0000,\n.*\n){9}#EXT-X-DISCONTINUITY\n(?:#EXTINF:(?:2.00|1.76|3.20|2.00|1.36|2.00|2.00|0.72)0000,\n.*\n){8}(?=#EXT-X-DISCONTINUITY)/g,
 ];
 
-// Kiểm tra xem playlist có chứa quảng cáo không
+// Checks if a playlist contains ad patterns
 function isContainAds(playlist) {
   return adsRegexList.some((regex) => {
-    regex.lastIndex = 0; // Reset regex state
+    regex.lastIndex = 0; // Reset regex state for each test
     return regex.test(playlist);
   });
 }
 
-// Hàm fetch và loại bỏ quảng cáo (dùng làm fallback nếu Service Worker không xử lý)
-async function removeAds(playlistUrl) {
+// Fetches and removes ads from an M3U8 playlist, returning the cleaned content
+async function fetchAndRemoveAdsFromPlaylist(playlistUrl) {
   try {
-    const normalizedUrl = playlistUrl.replace(/^http:/, "https:");
+    const normalizedUrl = playlistUrl.replace(/^http:/, "https:"); // Force HTTPS
 
     const response = await fetch(normalizedUrl, {
       method: "GET",
       headers: {
-        Referer: normalizedUrl, // Thêm Referer header
+        Referer: normalizedUrl, // Add Referer header
       },
       mode: "cors",
     });
@@ -63,31 +63,30 @@ async function removeAds(playlistUrl) {
       }
     });
 
-    // Handle master playlist (fetch sub-playlist)
+    // Handle master playlist (fetch sub-playlist if found)
     if (playlist.includes("#EXT-X-STREAM-INF")) {
-      // Find the first line that looks like a URL (not starting with #)
       const variantUrlMatch = playlist.split('\n').find(line => !line.startsWith('#') && line.trim() !== '');
       if (variantUrlMatch) {
           const normalizedVariantUrl = new URL(variantUrlMatch, baseUrl).href.replace(/^http:/, "https:");
-          console.log("MovieDetail: Fetching sub-playlist for ad removal fallback:", normalizedVariantUrl);
-          return await removeAds(normalizedVariantUrl); // Recursive call for sub-playlist
+          console.log("MovieDetail: Fetching sub-playlist for ad removal:", normalizedVariantUrl);
+          return await fetchAndRemoveAdsFromPlaylist(normalizedVariantUrl); // Recursive call for sub-playlist
       }
     }
 
     // Remove ads if detected
     if (isContainAds(playlist)) {
-      console.log("MovieDetail: Removing ads from playlist (fallback).");
-      playlist = adsRegexList.reduce((playlist2, regex) => {
-        return playlist2.replaceAll(regex, "");
+      console.log("MovieDetail: Removing ads from playlist using Blob.");
+      playlist = adsRegexList.reduce((currentPlaylist, regex) => {
+        return currentPlaylist.replaceAll(regex, "");
       }, playlist);
     } else {
-        console.log("MovieDetail: No ads detected in playlist (fallback).");
+        console.log("MovieDetail: No ads detected in playlist.");
     }
 
     return playlist;
   } catch (error) {
-    console.error("MovieDetail: Error in removeAds (fallback logic):", error);
-    return null; // Return null if there's an error, signaling cleanup failed
+    console.error("MovieDetail: Error in fetchAndRemoveAdsFromPlaylist:", error);
+    return null; // Return null if there's an error
   }
 }
 // --- End: Ad-blocking and Playlist Processing Logic ---
@@ -121,10 +120,11 @@ function MovieDetail() {
   const currentBlobUrlRef = useRef(null); 
 
   useEffect(() => {
+    // Inject ad-blocking CSS into the document head
     const style = document.createElement('style');
     style.textContent = adBlockCSS;
     document.head.appendChild(style);
-    return () => style.remove();
+    return () => style.remove(); // Clean up CSS on component unmount
   }, []);
 
   useEffect(() => {
@@ -141,13 +141,14 @@ function MovieDetail() {
             setMovie(response.data.item);
             setEpisodes(response.data.item.episodes || []);
         } else {
-            console.error("Dữ liệu API không đúng định dạng:", response.data);
+            console.error("API data format is incorrect:", response.data);
             setMovie(null);
             setEpisodes([]);
         }
 
         setInitialLoading(false);
 
+        // Load watch history for the current movie
         const history = JSON.parse(localStorage.getItem(WATCH_HISTORY_KEY) || '[]');
         const currentMovieHistory = history.find(item => item.slug === slug);
         if (currentMovieHistory) {
@@ -159,7 +160,7 @@ function MovieDetail() {
         }
 
       } catch (error) {
-        console.error('Lỗi khi lấy dữ liệu phim:', error);
+        console.error('Error fetching movie data:', error);
         setInitialLoading(false);
       }
     };
@@ -203,6 +204,7 @@ function MovieDetail() {
   }, [movie, episodes, selectedServer, episodeSlug, navigate, slug]);
 
   useEffect(() => {
+    // Save selected server to local storage
     localStorage.setItem(`selectedServer-${slug}`, selectedServer);
   }, [selectedServer, slug]);
 
@@ -231,9 +233,9 @@ function MovieDetail() {
     };
 
     let history = JSON.parse(localStorage.getItem(WATCH_HISTORY_KEY) || '[]');
-    history = history.filter(item => item.slug !== movieData.slug);
-    history.unshift(historyEntry);
-    localStorage.setItem(WATCH_HISTORY_KEY, JSON.stringify(history.slice(0, 20)));
+    history = history.filter(item => item.slug !== movieData.slug); // Remove old entry if exists
+    history.unshift(historyEntry); // Add new entry to the beginning
+    localStorage.setItem(WATCH_HISTORY_KEY, JSON.stringify(history.slice(0, 20))); // Keep only last 20
     console.log(`Saved movie to history: ${movieData.name} - ${episodeData.name} at ${position}s`);
   }, [episodes, selectedServer]);
 
@@ -259,11 +261,11 @@ function MovieDetail() {
         // Clear previous video source and stop playback
         if (video) {
             video.src = '';
-            video.removeAttribute('src'); // For good measure
+            video.removeAttribute('src');
             video.load(); // Reset the media element
         }
         if (!showMovieInfoPanel && currentEpisode && !isValidUrl(currentEpisode.link_m3u8)) {
-            console.error('Video không khả dụng cho tập này.');
+            console.error('Video is not available for this episode.');
         }
         return;
     }
@@ -282,7 +284,7 @@ function MovieDetail() {
       hlsInstanceRef.current = null;
     }
 
-    // Revoke any previous Blob URL
+    // Revoke any previous Blob URL to free up memory
     if (currentBlobUrlRef.current) {
       URL.revokeObjectURL(currentBlobUrlRef.current);
       currentBlobUrlRef.current = null;
@@ -290,23 +292,19 @@ function MovieDetail() {
 
     try {
       const originalM3u8Url = currentEpisode.link_m3u8;
-      let finalM3u8Url = originalM3u8Url;
+      let finalM3u8Url = originalM3u8Url.replace(/^http:/, "https:"); // Default to original HTTPS URL
 
-      // --- Start: Fallback Logic using Blob URL ---
-      // This part ensures ad removal happens even if Service Worker doesn't intervene.
-      const cleanedPlaylist = await removeAds(originalM3u8Url);
+      // Fetch, clean ads, and create Blob URL
+      const cleanedPlaylist = await fetchAndRemoveAdsFromPlaylist(originalM3u8Url);
 
       if (cleanedPlaylist) {
         const blob = new Blob([cleanedPlaylist], { type: "application/vnd.apple.mpegurl" });
         finalM3u8Url = URL.createObjectURL(blob);
         currentBlobUrlRef.current = finalM3u8Url; // Store Blob URL for revocation
-        console.log("MovieDetail: Using Blob URL for cleaned playlist (fallback).");
+        console.log("MovieDetail: Using Blob URL for cleaned playlist.");
       } else {
-        // Fallback to original URL (ensuring HTTPS) if ad removal fails or isn't applicable
-        finalM3u8Url = originalM3u8Url.replace(/^http:/, "https:");
-        console.log("MovieDetail: Falling back to original URL (ad removal failed or not applicable).");
+        console.log("MovieDetail: Failed to clean playlist, falling back to original URL.");
       }
-      // --- End: Fallback Logic ---
 
       if (Hls.isSupported()) {
         const hls = new Hls({
@@ -344,15 +342,15 @@ function MovieDetail() {
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                console.error('Lỗi mạng khi tải video. Vui lòng kiểm tra kết nối.');
+                console.error('Network error when loading video. Please check your connection.');
                 hls.startLoad(); // Attempt to retry loading
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
-                console.error('Lỗi phát video. Có thể do định dạng không hỗ trợ.');
+                console.error('Video playback error. Format might not be supported.');
                 hls.recoverMediaError(); // Attempt to recover
                 break;
               default:
-                console.error('Lỗi video nghiêm trọng. Vui lòng thử tập khác.');
+                console.error('Fatal video error. Please try another episode.');
                 hls.destroy(); // Destroy and restart if necessary
                 break;
             }
@@ -377,7 +375,7 @@ function MovieDetail() {
             video.play().catch(error => console.warn("Autoplay was prevented (native):", error));
         };
       } else {
-        console.error('Trình duyệt không hỗ trợ phát HLS. Vui lòng cập nhật.');
+        console.error('Your browser does not support HLS playback. Please update.');
         setVideoLoading(false);
       }
 
@@ -589,7 +587,7 @@ function MovieDetail() {
   }
 
   if (!movie) {
-    return <div className="container">Phim không tồn tại.</div>;
+    return <div className="container">Movie not found.</div>;
   }
 
   return (
@@ -597,7 +595,7 @@ function MovieDetail() {
       <Helmet>
         <title>
           {currentEpisode
-            ? `${movie.name} - ${currentEpisode.name || 'Tập phim'}`
+            ? `${movie.name} - ${currentEpisode.name || 'Episode'}`
             : movie.seoOnPage?.titleHead || movie.name}
         </title>
         <meta
@@ -607,7 +605,7 @@ function MovieDetail() {
       </Helmet>
       <h1 className="movie-title">
         {movie.name}
-        {currentEpisode && ` - ${currentEpisode.name || 'Tập phim'}`}
+        {currentEpisode && ` - ${currentEpisode.name || 'Episode'}`}
       </h1>
       <div className="movie-detail">
         {showMovieInfoPanel ? (
@@ -621,31 +619,31 @@ function MovieDetail() {
               height="450"
             />
             <div className="movie-info">
-              <p><strong>Tên gốc:</strong> {movie.origin_name}</p>
-              <p><strong>Năm:</strong> {movie.year}</p>
+              <p><strong>Original Title:</strong> {movie.origin_name}</p>
+              <p><strong>Year:</strong> {movie.year}</p>
               <p>
-                <strong>Thể loại:</strong>{' '}
+                <strong>Genre:</strong>{' '}
                 {movie.category?.map((cat) => cat.name).join(', ') || 'N/A'}
               </p>
               <p>
-                <strong>Quốc gia:</strong>{' '}
+                <strong>Country:</strong>{' '}
                 {movie.country?.map((c) => c.name).join(', ') || 'N/A'}
               </p>
-              <p><strong>Chất lượng:</strong> {movie.quality || 'N/A'}</p>
-              <p><strong>Ngôn ngữ:</strong> {movie.lang || 'N/A'}</p>
-              <p><strong>Thời lượng:</strong> {movie.time || 'N/A'}</p>
-              <p><strong>Trạng thái:</strong> {movie.episode_current || 'Full'}</p>
-              <p><strong>Nội dung:</strong> {movie.content || 'Không có mô tả.'}</p>
+              <p><strong>Quality:</strong> {movie.quality || 'N/A'}</p>
+              <p><strong>Language:</strong> {movie.lang || 'N/A'}</p>
+              <p><strong>Duration:</strong> {movie.time || 'N/A'}</p>
+              <p><strong>Status:</strong> {movie.episode_current || 'Full'}</p>
+              <p><strong>Content:</strong> {movie.content || 'No description available.'}</p>
 
               {lastViewedPosition > PLAYBACK_SAVE_THRESHOLD_SECONDS && lastViewedEpisodeInfo && (
                 <button
                   onClick={handleContinueWatching}
                   className="continue-watching-detail-button"
-                  aria-label={`Tiếp tục xem ${lastViewedEpisodeInfo.name || 'Tập phim'}`}
+                  aria-label={`Continue watching ${lastViewedEpisodeInfo.name || 'Episode'}`}
                 >
-                  <FaHistory /> Tiếp tục xem{' '}
-                  {lastViewedEpisodeInfo.name || `Tập cuối cùng`}
-                  {' '}tại {Math.floor(lastViewedPosition / 60)} phút {Math.floor(lastViewedPosition % 60)} giây
+                  <FaHistory /> Continue watching{' '}
+                  {lastViewedEpisodeInfo.name || `last episode`}
+                  {' '}at {Math.floor(lastViewedPosition / 60)} minutes {Math.floor(lastViewedPosition % 60)} seconds
                 </button>
               )}
             </div>
@@ -664,7 +662,7 @@ function MovieDetail() {
                   controls // Display native video controls
                   width="100%"
                   height="100%"
-                  aria-label={`Video player for ${currentEpisode.name || 'Tập phim'}`}
+                  aria-label={`Video player for ${currentEpisode.name || 'Episode'}`}
                   className={videoLoading ? 'hidden-video' : ''} // Hide video while loading
                 />
               ) : (
@@ -681,7 +679,7 @@ function MovieDetail() {
                     borderRadius: '8px',
                     zIndex: 5
                 }}>
-                    <p>Video không khả dụng cho tập này.</p>
+                    <p>Video is not available for this episode.</p>
                     <FaRegPlayCircle style={{ fontSize: '3rem', marginTop: '10px' }} />
                 </div>
               )}
@@ -694,23 +692,23 @@ function MovieDetail() {
                 navigate(`/movie/${slug}`, { replace: true });
               }}
               className="back-button"
-              aria-label="Quay lại thông tin phim"
+              aria-label="Back to movie information"
             >
-              <FaArrowLeft className="icon" /> Quay lại thông tin phim
+              <FaArrowLeft className="icon" /> Back to movie information
             </button>
           </>
         )}
       </div>
       {episodes.length > 0 && (
         <div className="episode-list">
-          <h3>Danh sách tập</h3>
+          <h3>Episode List</h3>
           <div className="server-list">
             {episodes.map((server, index) => (
               <button
                 key={server.server_name}
                 onClick={() => handleServerChange(index)}
                 className={`server-button ${index === selectedServer ? 'active' : ''}`}
-                aria-label={`Chọn server ${server.server_name}`}
+                aria-label={`Select server ${server.server_name}`}
               >
                 <FaRegPlayCircle className="icon" /> {server.server_name}
               </button>
@@ -723,13 +721,13 @@ function MovieDetail() {
                   key={ep.slug}
                   onClick={() => handleEpisodeSelect(ep)}
                   className={`episode-button ${ep.slug === currentEpisode?.slug ? 'active' : ''}`}
-                  aria-label={`Xem ${ep.name || `Tập ${index + 1}`}`}
+                  aria-label={`Watch ${ep.name || `Episode ${index + 1}`}`}
                 >
-                  {ep.name || `Tập ${index + 1}`}
+                  {ep.name || `Episode ${index + 1}`}
                 </button>
               ))
             ) : (
-              <p>Không có tập phim cho server này.</p>
+              <p>No episodes available for this server.</p>
             )}
           </div>
         </div>
