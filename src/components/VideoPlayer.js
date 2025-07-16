@@ -87,8 +87,7 @@ function VideoPlayer({ options }) {
     const loadVideo = async () => {
       try {
         if (!options?.sources?.[0]?.src) {
-          console.warn("No valid video source provided.");
-          return; // Exit early if no valid source
+          throw new Error("Không có nguồn video hợp lệ.");
         }
 
         const videoSource = options.sources[0].src;
@@ -148,16 +147,26 @@ function VideoPlayer({ options }) {
   }, [options]);
 
   return (
-    <video
-      ref={videoRef}
+    <div
       style={{
         width: "100%",
-        height: "100%",
-        objectFit: "contain",
+        maxWidth: "1200px",
+        margin: "0 auto",
+        position: "relative",
+        aspectRatio: "16 / 9",
+        background: "#000",
       }}
-      autoPlay
-      controls
-    />
+    >
+      <video
+        ref={videoRef}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+        }}
+        autoPlay
+      />
+    </div>
   );
 }
 
