@@ -13,6 +13,7 @@ const PLAYBACK_SAVE_THRESHOLD_SECONDS = 5;
 const LAST_PLAYED_KEY_PREFIX = 'lastPlayedPosition-';
 const WATCH_HISTORY_KEY = 'watchHistory';
 const SAVE_INTERVAL_SECONDS = 10;
+const PLAYLIST_CACHE_KEY_PREFIX = 'playlistCache-';
 
 // Ad removal configuration
 const ADS_REGEX_LIST = [
@@ -23,6 +24,9 @@ const ADS_REGEX_LIST = [
   /#EXT-X-DISCONTINUITY\n(?:#EXT-X-KEY:METHOD=NONE\n(?:.*\n){18,24})?#EXT-X-DISCONTINUITY\n|convertv7\//g,
   /#EXT-X-DISCONTINUITY\n#EXTINF:3\.920000,\n.*\n#EXTINF:0\.760000,\n.*\n#EXTINF:2\.000000,\n.*\n#EXTINF:2\.500000,\n.*\n#EXTINF:2\.000000,\n.*\n#EXTINF:2\.420000,\n.*\n#EXTINF:2\.000000,\n.*\n#EXTINF:0\.780000,\n.*\n#EXTINF:1\.960000,\n.*\n#EXTINF:2\.000000,\n.*\n#EXTINF:1\.760000,\n.*\n#EXTINF:3\.200000,\n.*\n#EXTINF:2\.000000,\n.*\n#EXTINF:1\.360000,\n.*\n#EXTINF:2\.000000,\n.*\n#EXTINF:2\.000000,\n.*\n#EXTINF:0\.720000,\n.*/g,
 ];
+
+// Global cache for in-memory access during component lifecycle
+const playlistCache = { blob: {} };
 
 // Utility functions for ad removal
 function getTotalDuration(playlist) {
@@ -37,10 +41,14 @@ function isContainAds(playlist) {
   });
 }
 
-async function removeAds(playlistUrl) {
-  const caches = { blob: {} }; // In-memory cache for the component's lifecycle
-  if (caches.blob[playlistUrl]) {
-    return caches.blob[playlistUrl];
+async function removeAds(playlistUrl, episodeSlug) {
+  const cacheKey = `${PLAYLIST_CACHE_KEY_PREFIX}${episodeSlug}`;
+  const cachedData = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+
+  // Use cached blob URL if it exists and matches the current playlist URL
+  if (cachedData.blobUrl && cachedData.originalUrl === playlistUrl) {
+    playlistCache.blob[playlistUrl] = cachedData.blobUrl;
+    return cachedData.blobUrl;
   }
 
   let req;
@@ -69,8 +77,20 @@ async function removeAds(playlistUrl) {
   // Handle variant playlists (HLS multi-bitrate)
   if (playlist.includes('#EXT-X-STREAM-INF')) {
     const subPlaylistUrl = playlist.trim().split('\n').slice(-1)[0];
-    caches.blob[playlistUrl] = await removeAds(subPlaylistUrl);
-    return caches.blob[playlistUrl];
+    const subBlobUrl = await removeAds(subPlaylistUrl, episodeSlug);
+    playlistCache.blob[playlistUrl] = subBlobUrl;
+    try {
+      localStorage.setItem(
+        cacheKey,
+        JSON.stringify({
+          blobUrl: subBlobUrl,
+          originalUrl: playlistUrl,
+        })
+      );
+    } catch (e) {
+      console.warn('Failed to cache playlist in localStorage:', e);
+    }
+    return subBlobUrl;
   }
 
   // Remove ads if detected
@@ -86,7 +106,21 @@ async function removeAds(playlistUrl) {
   const blobUrl = URL.createObjectURL(
     new Blob([playlist], { type: req.headers.get('Content-Type') ?? 'text/plain' })
   );
-  caches.blob[playlistUrl] = blobUrl;
+  playlistCache.blob[playlistUrl] = blobUrl;
+
+  // Cache in localStorage with episode-specific key (no expiration)
+  try {
+    localStorage.setItem(
+      cacheKey,
+      JSON.stringify({
+        blobUrl,
+        originalUrl: playlistUrl,
+      })
+    );
+  } catch (e) {
+    console.warn('Failed to cache playlist in localStorage:', e);
+  }
+
   return blobUrl;
 }
 
@@ -108,6 +142,7 @@ function MovieDetail() {
   const [lastViewedPosition, setLastViewedPosition] = useState(0);
   const [lastViewedEpisodeInfo, setLastViewedEpisodeInfo] = useState(null);
   const saveIntervalRef = useRef(null);
+  const prevEpisodeSlugRef = useRef(null);
 
   useEffect(() => {
     const fetchMovieData = async () => {
@@ -247,12 +282,21 @@ function MovieDetail() {
     const loadHlsVideo = async () => {
       let playlistUrl = currentEpisode.link_m3u8;
       try {
-        // Remove ads from the playlist
-        playlistUrl = await removeAds(playlistUrl);
+        // Remove ads from the playlist, tied to episode slug
+        playlistUrl = await removeAds(playlistUrl, currentEpisode.slug);
       } catch (error) {
         console.error('Failed to process playlist for ad removal:', error);
         setVideoLoading(false);
         return;
+      }
+
+      // Set saved playback position early
+      const savedPositionKey = getPlaybackPositionKey(currentEpisode.slug);
+      const savedTime = parseFloat(localStorage.getItem(savedPositionKey));
+      if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
+        video.currentTime = savedTime;
+      } else {
+        video.currentTime = 0;
       }
 
       if (Hls.isSupported()) {
@@ -262,6 +306,7 @@ function MovieDetail() {
           maxBufferSize: 100 * 1000 * 1000,
           startFragPrefetch: true,
           enableWorker: true,
+          startPosition: !isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS ? savedTime : -1,
         });
         hlsInstanceRef.current = hls;
         hls.loadSource(playlistUrl);
@@ -269,13 +314,6 @@ function MovieDetail() {
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setVideoLoading(false);
-          const savedPositionKey = getPlaybackPositionKey(currentEpisode.slug);
-          const savedTime = parseFloat(localStorage.getItem(savedPositionKey));
-          if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
-            video.currentTime = savedTime;
-          } else {
-            video.currentTime = 0;
-          }
           video.play().catch((error) => {
             console.error('Video playback failed:', error);
             setVideoLoading(false);
@@ -291,13 +329,6 @@ function MovieDetail() {
       } else {
         video.src = playlistUrl;
         video.onloadedmetadata = () => {
-          const savedPositionKey = getPlaybackPositionKey(currentEpisode.slug);
-          const savedTime = parseFloat(localStorage.getItem(savedPositionKey));
-          if (!isNaN(savedTime) && savedTime > PLAYBACK_SAVE_THRESHOLD_SECONDS) {
-            video.currentTime = savedTime;
-          } else {
-            video.currentTime = 0;
-          }
           setVideoLoading(false);
           video.play().catch((error) => {
             console.error('Video playback failed:', error);
@@ -325,6 +356,7 @@ function MovieDetail() {
   useEffect(() => {
     const video = videoRef.current;
     loadVideo();
+
     return () => {
       savePlaybackPosition();
       if (hlsInstanceRef.current) {
@@ -340,8 +372,23 @@ function MovieDetail() {
         clearInterval(saveIntervalRef.current);
         saveIntervalRef.current = null;
       }
+      // Clean up blob URLs for the previous episode
+      if (prevEpisodeSlugRef.current && prevEpisodeSlugRef.current !== episodeSlug) {
+        const prevCacheKey = `${PLAYLIST_CACHE_KEY_PREFIX}${prevEpisodeSlugRef.current}`;
+        const prevCachedData = JSON.parse(localStorage.getItem(prevCacheKey) || '{}');
+        if (prevCachedData.blobUrl) {
+          URL.revokeObjectURL(prevCachedData.blobUrl);
+          delete playlistCache.blob[prevCachedData.originalUrl];
+          try {
+            localStorage.removeItem(prevCacheKey);
+          } catch (e) {
+            console.warn('Failed to remove previous playlist cache:', e);
+          }
+        }
+      }
+      prevEpisodeSlugRef.current = episodeSlug;
     };
-  }, [currentEpisode, loadVideo, savePlaybackPosition]);
+  }, [currentEpisode, loadVideo, savePlaybackPosition, episodeSlug]);
 
   useEffect(() => {
     const video = videoRef.current;
