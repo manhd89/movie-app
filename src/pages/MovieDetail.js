@@ -80,7 +80,6 @@ async function removeAds(playlistUrl) {
     }, playlist);
   } else if (getTotalDuration(playlist) > 900) {
     console.warn('Ads not found, but playlist duration exceeds 15 minutes.');
-    // Optionally, add a fallback mechanism if needed
   }
 
   // Create a blob URL for the cleaned playlist
@@ -119,7 +118,6 @@ function MovieDetail() {
         setEpisodes(response.data.episodes);
       } catch (error) {
         console.error('Failed to fetch movie data:', error);
-        alert('Unable to load movie data. Please try again later.');
       } finally {
         setInitialLoading(false);
       }
@@ -254,7 +252,6 @@ function MovieDetail() {
       } catch (error) {
         console.error('Failed to process playlist for ad removal:', error);
         setVideoLoading(false);
-        alert('Failed to load video. Please try another server or episode.');
         return;
       }
 
@@ -289,7 +286,6 @@ function MovieDetail() {
           setVideoLoading(false);
           if (data.fatal) {
             console.error('HLS error:', data);
-            alert('Failed to load video stream. Please try another server or episode.');
           }
         });
       } else {
@@ -309,8 +305,8 @@ function MovieDetail() {
           });
         };
         video.onerror = () => {
+          console.error('Video load error');
           setVideoLoading(false);
-          alert('Failed to load video. Please try another server or episode.');
         };
       }
     };
