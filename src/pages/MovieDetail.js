@@ -8,14 +8,6 @@ import { FaArrowLeft, FaRegPlayCircle, FaHistory } from 'react-icons/fa';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
 
-// --- Start: Ad-blocking and Playlist Processing Logic ---
-// Ad-blocking CSS (giữ nguyên)
-const adBlockCSS = `
-  .bg-opacity-40.bg-white.w-full.text-center.space-x-2.bottom-0.absolute {
-    display: none !important;
-  }
-`;
-
 // Regex list để phát hiện quảng cáo (sao chép từ Service Worker để phục vụ fallback)
 const adsRegexList = [
   new RegExp(
@@ -119,13 +111,6 @@ function MovieDetail() {
 
   // Ref to hold the Blob URL if created, for proper revocation
   const currentBlobUrlRef = useRef(null); 
-
-  useEffect(() => {
-    const style = document.createElement('style');
-    style.textContent = adBlockCSS;
-    document.head.appendChild(style);
-    return () => style.remove();
-  }, []);
 
   useEffect(() => {
     const fetchMovieData = async () => {
