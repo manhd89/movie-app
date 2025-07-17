@@ -5,6 +5,7 @@ import axios from 'axios';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import Hls from 'hls.js';
 import { FaArrowLeft, FaRegPlayCircle, FaHistory } from 'react-icons/fa';
+import { debounce } from 'lodash';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './MovieDetail.css';
 
@@ -18,19 +19,16 @@ function MovieDetail() {
   const navigate = useNavigate();
   const [movie, setMovie] = useState(null);
   const [episodes, setEpisodes] = useState([]);
-  const [selectedServer, setSelectedServer] = useState(() => {
-    return parseInt(localStorage.getItem(`selectedServer-${slug}`)) || 0;
-  });
+  const [selectedServer, setSelectedServer] = useState(0); // Single server assumption
   const [currentEpisode, setCurrentEpisode] = useState(null);
   const [showMovieInfoPanel, setShowMovieInfoPanel] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
   const [videoLoading, setVideoLoading] = useState(false);
   const videoRef = useRef(null);
   const hlsInstanceRef = useRef(null);
-  const currentPlaybackPositionRef = useRef(0);
+  const saveIntervalRef = useRef(null);
   const [lastViewedPosition, setLastViewedPosition] = useState(0);
   const [lastViewedEpisodeInfo, setLastViewedEpisodeInfo] = useState(null);
-  const saveIntervalRef = useRef(null);
 
   useEffect(() => {
     const fetchMovieData = async () => {
@@ -52,11 +50,7 @@ function MovieDetail() {
 
   useEffect(() => {
     if (movie && episodes.length > 0) {
-      const validServerIndex = selectedServer < episodes.length ? selectedServer : 0;
-      setSelectedServer(validServerIndex);
-
-      const serverData = episodes[validServerIndex].server_data;
-
+      const serverData = episodes[0].server_data; // Single server
       if (!episodeSlug) {
         setShowMovieInfoPanel(true);
         setCurrentEpisode(null);
@@ -71,18 +65,8 @@ function MovieDetail() {
           navigate(`/movie/${slug}`, { replace: true });
         }
       }
-    } else if (movie && episodes.length === 0) {
-      setCurrentEpisode(null);
-      setShowMovieInfoPanel(true);
-      if (episodeSlug) {
-        navigate(`/movie/${slug}`, { replace: true });
-      }
     }
-  }, [movie, episodes, selectedServer, episodeSlug, navigate, slug]);
-
-  useEffect(() => {
-    localStorage.setItem(`selectedServer-${slug}`, selectedServer);
-  }, [selectedServer, slug]);
+  }, [movie, episodes, episodeSlug, navigate, slug]);
 
   const getPlaybackPositionKey = useCallback((epSlug) => {
     return `${LAST_PLAYED_KEY_PREFIX}${slug}-${epSlug}`;
@@ -102,7 +86,7 @@ function MovieDetail() {
       episode: {
         slug: episodeData.slug,
         name: episodeData.name,
-        server_name: episodes[selectedServer]?.server_name || 'N/A',
+        server_name: episodes[0]?.server_name || '#Hà Nội (Vietsub)',
       },
       position: Math.floor(position),
       timestamp: Date.now(),
@@ -112,7 +96,7 @@ function MovieDetail() {
     history = history.filter(item => item.slug !== movieData.slug);
     history.unshift(historyEntry);
     localStorage.setItem(WATCH_HISTORY_KEY, JSON.stringify(history.slice(0, 20)));
-  }, [episodes, selectedServer]);
+  }, [episodes]);
 
   const savePlaybackPosition = useCallback(() => {
     const video = videoRef.current;
@@ -124,6 +108,11 @@ function MovieDetail() {
       }
     }
   }, [currentEpisode, getPlaybackPositionKey, movie, saveMovieToHistory]);
+
+  const debouncedSavePlayback = useCallback(
+    debounce(savePlaybackPosition, SAVE_INTERVAL_SECONDS * 1000),
+    [savePlaybackPosition]
+  );
 
   const loadVideo = useCallback(() => {
     const video = videoRef.current;
@@ -188,15 +177,7 @@ function MovieDetail() {
         video.play();
       };
     }
-
-    if (video) {
-      saveIntervalRef.current = setInterval(() => {
-        if (!video.paused) {
-          savePlaybackPosition();
-        }
-      }, SAVE_INTERVAL_SECONDS * 1000);
-    }
-  }, [currentEpisode, showMovieInfoPanel, getPlaybackPositionKey, savePlaybackPosition]);
+  }, [currentEpisode, showMovieInfoPanel, getPlaybackPositionKey]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -212,12 +193,9 @@ function MovieDetail() {
         video.removeAttribute('src');
         video.load();
       }
-      if (saveIntervalRef.current) {
-        clearInterval(saveIntervalRef.current);
-        saveIntervalRef.current = null;
-      }
+      debouncedSavePlayback.cancel();
     };
-  }, [currentEpisode, loadVideo, savePlaybackPosition]);
+  }, [currentEpisode, loadVideo, savePlaybackPosition, debouncedSavePlayback]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -228,7 +206,9 @@ function MovieDetail() {
     };
 
     const handleTimeUpdate = () => {
-      currentPlaybackPositionRef.current = video.currentTime;
+      if (!video.paused) {
+        debouncedSavePlayback();
+      }
     };
 
     video.addEventListener('pause', handleVideoPause);
@@ -251,19 +231,9 @@ function MovieDetail() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       video.removeEventListener('pause', handleVideoPause);
       video.removeEventListener('timeupdate', handleTimeUpdate);
+      debouncedSavePlayback.cancel();
     };
-  }, [showMovieInfoPanel, savePlaybackPosition]);
-
-  const handleServerChange = useCallback((index) => {
-    savePlaybackPosition();
-    setSelectedServer(index);
-    setShowMovieInfoPanel(false);
-
-    const newServerData = episodes[index].server_data;
-    const targetEpisode = newServerData.find(ep => ep.slug === currentEpisode?.slug) || newServerData[0];
-    setCurrentEpisode(targetEpisode);
-    navigate(`/movie/${slug}/${targetEpisode.slug}`, { replace: true });
-  }, [slug, navigate, episodes, currentEpisode, savePlaybackPosition]);
+  }, [showMovieInfoPanel, savePlaybackPosition, debouncedSavePlayback]);
 
   const handleEpisodeSelect = useCallback((episode) => {
     savePlaybackPosition();
@@ -273,23 +243,16 @@ function MovieDetail() {
   }, [slug, navigate, savePlaybackPosition]);
 
   const handleContinueWatching = useCallback(() => {
-    const serverIndex = episodes.findIndex(server => server.server_name === lastViewedEpisodeInfo.server_name);
-    if (serverIndex !== -1) {
-      setSelectedServer(serverIndex);
-      const targetEpisode = episodes[serverIndex].server_data.find(ep => ep.slug === lastViewedEpisodeInfo.slug);
-      if (targetEpisode) {
-        setCurrentEpisode(targetEpisode);
-        setShowMovieInfoPanel(false);
-        navigate(`/movie/${movie.slug}/${targetEpisode.slug}`);
-      }
+    const targetEpisode = episodes[0].server_data.find(ep => ep.slug === lastViewedEpisodeInfo.slug);
+    if (targetEpisode) {
+      setCurrentEpisode(targetEpisode);
+      setShowMovieInfoPanel(false);
+      navigate(`/movie/${movie.slug}/${targetEpisode.slug}`);
     }
   }, [episodes, lastViewedEpisodeInfo, navigate, movie]);
 
   const getImageUrl = (url) => {
-    if (url && url.startsWith('https://')) {
-      return url;
-    }
-    return url ? `${process.env.REACT_APP_API_CDN_IMAGE}/${url}` : '/fallback-image.jpg';
+    return url || '/fallback-image.jpg';
   };
 
   const truncateDescription = (text, maxLength = 160) => {
@@ -312,11 +275,11 @@ function MovieDetail() {
         <title>
           {currentEpisode
             ? `${movie.name} - ${currentEpisode.name || 'Tập phim'}`
-            : movie.seoOnPage?.titleHead || movie.name}
+            : movie.name}
         </title>
         <meta
           name="description"
-          content={movie.seoOnPage?.descriptionHead || truncateDescription(movie.content)}
+          content={truncateDescription(movie.content)}
         />
       </Helmet>
       <h1 className="movie-title">
@@ -339,17 +302,17 @@ function MovieDetail() {
               <p><strong>Năm:</strong> {movie.year}</p>
               <p>
                 <strong>Thể loại:</strong>{' '}
-                {movie.category?.map((cat) => cat.name).join(', ') || 'N/A'}
+                {movie.category.map((cat) => cat.name).join(', ')}
               </p>
               <p>
                 <strong>Quốc gia:</strong>{' '}
-                {movie.country?.map((c) => c.name).join(', ') || 'N/A'}
+                {movie.country.map((c) => c.name).join(', ')}
               </p>
-              <p><strong>Chất lượng:</strong> {movie.quality || 'N/A'}</p>
-              <p><strong>Ngôn ngữ:</strong> {movie.lang || 'N/A'}</p>
-              <p><strong>Thời lượng:</strong> {movie.time || 'N/A'}</p>
-              <p><strong>Trạng thái:</strong> {movie.episode_current || 'Full'}</p>
-              <p><strong>Nội dung:</strong> {movie.content || 'Không có mô tả.'}</p>
+              <p><strong>Chất lượng:</strong> {movie.quality}</p>
+              <p><strong>Ngôn ngữ:</strong> {movie.lang}</p>
+              <p><strong>Thời lượng:</strong> {movie.time}</p>
+              <p><strong>Trạng thái:</strong> {movie.episode_current}</p>
+              <p><strong>Nội dung:</strong> {movie.content}</p>
               {lastViewedPosition > PLAYBACK_SAVE_THRESHOLD_SECONDS && lastViewedEpisodeInfo && (
                 <button
                   onClick={handleContinueWatching}
@@ -394,35 +357,21 @@ function MovieDetail() {
           </>
         )}
       </div>
-      {episodes.length > 0 && (
-        <div className="episode-list">
-          <h3>Danh sách tập</h3>
-          <div className="server-list">
-            {episodes.map((server, index) => (
-              <button
-                key={server.server_name}
-                onClick={() => handleServerChange(index)}
-                className={`server-button ${index === selectedServer ? 'active' : ''}`}
-                aria-label={`Chọn server ${server.server_name}`}
-              >
-                <FaRegPlayCircle className="icon" /> {server.server_name}
-              </button>
-            ))}
-          </div>
-          <div className="episodes">
-            {episodes[selectedServer].server_data.map((ep, index) => (
-              <button
-                key={ep.slug}
-                onClick={() => handleEpisodeSelect(ep)}
-                className={`episode-button ${ep.slug === currentEpisode?.slug ? 'active' : ''}`}
-                aria-label={`Xem ${ep.name || `Tập ${index + 1}`}`}
-              >
-                {ep.name || `Tập ${index + 1}`}
-              </button>
-            ))}
-          </div>
+      <div className="episode-list">
+        <h3>Danh sách tập</h3>
+        <div className="episodes">
+          {episodes[0].server_data.map((ep, index) => (
+            <button
+              key={ep.slug}
+              onClick={() => handleEpisodeSelect(ep)}
+              className={`episode-button ${ep.slug === currentEpisode?.slug ? 'active' : ''}`}
+              aria-label={`Xem ${ep.name || `Tập ${index + 1}`}`}
+            >
+              {ep.name || `Tập ${index + 1}`}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }
