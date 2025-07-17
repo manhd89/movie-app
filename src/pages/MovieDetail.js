@@ -15,6 +15,16 @@ const WATCH_HISTORY_KEY = 'watchHistory';
 const SAVE_INTERVAL_SECONDS = 10;
 const PLAYLIST_CACHE_KEY_PREFIX = 'playlistCache-';
 
+// Simple hash function for playlist URL validation
+const simpleHash = (str) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0; // Convert to 32-bit integer
+  }
+  return hash.toString();
+};
+
 // Ad removal configuration
 const ADS_REGEX_LIST = [
   new RegExp(
@@ -44,9 +54,10 @@ function isContainAds(playlist) {
 async function removeAds(playlistUrl, episodeSlug) {
   const cacheKey = `${PLAYLIST_CACHE_KEY_PREFIX}${episodeSlug}`;
   const cachedData = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+  const playlistUrlHash = simpleHash(playlistUrl);
 
   // Use cached blob URL if it exists and matches the current playlist URL
-  if (cachedData.blobUrl && cachedData.originalUrl === playlistUrl) {
+  if (cachedData.blobUrl && cachedData.urlHash === playlistUrlHash) {
     playlistCache.blob[playlistUrl] = cachedData.blobUrl;
     return cachedData.blobUrl;
   }
@@ -84,7 +95,7 @@ async function removeAds(playlistUrl, episodeSlug) {
         cacheKey,
         JSON.stringify({
           blobUrl: subBlobUrl,
-          originalUrl: playlistUrl,
+          urlHash: playlistUrlHash,
         })
       );
     } catch (e) {
@@ -114,7 +125,7 @@ async function removeAds(playlistUrl, episodeSlug) {
       cacheKey,
       JSON.stringify({
         blobUrl,
-        originalUrl: playlistUrl,
+        urlHash: playlistUrlHash,
       })
     );
   } catch (e) {
@@ -324,6 +335,11 @@ function MovieDetail() {
           setVideoLoading(false);
           if (data.fatal) {
             console.error('HLS error:', data);
+            // Fallback to original URL and retry
+            if (playlistUrl !== currentEpisode.link_m3u8) {
+              hls.loadSource(currentEpisode.link_m3u8);
+              hls.attachMedia(video);
+            }
           }
         });
       } else {
@@ -338,6 +354,11 @@ function MovieDetail() {
         video.onerror = () => {
           console.error('Video load error');
           setVideoLoading(false);
+          // Fallback to original URL
+          if (playlistUrl !== currentEpisode.link_m3u8) {
+            video.src = currentEpisode.link_m3u8;
+            video.load();
+          }
         };
       }
     };
